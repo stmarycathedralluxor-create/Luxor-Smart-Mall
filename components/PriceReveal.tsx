@@ -7,6 +7,12 @@ import { createClient } from '@/lib/supabase/client';
 import { useLocale } from './LocaleProvider';
 import { buildWhatsAppLink, formatPrice } from '@/lib/utils';
 
+// sessionStorage key used to remember a one-shot auto-reveal request that
+// survives the login redirect. We deliberately do NOT use the URL for this so
+// that history navigation (back/forward) or bookmarks cannot accidentally
+// trigger a price reveal on a different product/session.
+const PENDING_REVEAL_KEY = 'lsm:pendingReveal';
+
 export default function PriceReveal({
   productId,
   productTitle,
@@ -31,47 +37,119 @@ export default function PriceReveal({
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // 1) Resolve current auth state on mount.
   useEffect(() => {
+    let cancelled = false;
     supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return;
       setUser(data.user);
       setChecking(false);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [supabase]);
 
-  const handleReveal = async () => {
-    if (!user) {
-      const next = encodeURIComponent(`/products/${productId}?showPrice=1`);
-      router.push(`/login?next=${next}`);
-      return;
+  // 2) IMPORTANT: do NOT auto-reveal based on the URL. Price reveal must be
+  //    an explicit user action. The only allowed auto-reveal path is the
+  //    sessionStorage one-shot flag set right before redirecting to /login,
+  //    and it must match the CURRENT productId.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (checking) return; // wait until auth resolved
+    if (!user) return; // never auto-reveal for guests
+    if (revealed) return;
+
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem(PENDING_REVEAL_KEY);
+    } catch {
+      // sessionStorage might be unavailable (privacy mode); just skip auto-reveal
+      pending = null;
     }
+
+    if (pending && pending === productId) {
+      // consume the flag immediately so it can never fire twice or leak to
+      // another product page.
+      try {
+        sessionStorage.removeItem(PENDING_REVEAL_KEY);
+      } catch {
+        /* ignore */
+      }
+      // Also strip any legacy ?showPrice=1 query that may still be in the URL
+      // from an older deployment.
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('showPrice')) {
+          url.searchParams.delete('showPrice');
+          window.history.replaceState({}, '', url.toString());
+        }
+      } catch {
+        /* ignore */
+      }
+      // Fire the reveal (tracks the inquiry server-side, then shows the price).
+      void doReveal();
+    } else {
+      // Defensive cleanup: legacy ?showPrice=1 must NEVER auto-reveal on its own.
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('showPrice')) {
+          url.searchParams.delete('showPrice');
+          window.history.replaceState({}, '', url.toString());
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, checking, productId]);
+
+  const doReveal = async () => {
     setLoading(true);
-    // log inquiry (don't block UI if it fails)
-    await supabase.rpc('track_price_inquiry', { p_product_id: productId });
+    try {
+      // log inquiry (don't block UI if it fails)
+      await supabase.rpc('track_price_inquiry', { p_product_id: productId });
+    } catch {
+      /* ignore */
+    }
     setRevealed(true);
     setLoading(false);
   };
 
-  // If user lands with ?showPrice=1 after login and is authed, auto-reveal once
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('showPrice') === '1' && user && !revealed) {
-      handleReveal();
-      // clean query
-      url.searchParams.delete('showPrice');
-      window.history.replaceState({}, '', url.toString());
+  const handleReveal = async () => {
+    if (!user) {
+      // Remember which product the user wanted to reveal, then send them to
+      // login. We pin this to the productId so it can ONLY auto-reveal for
+      // the same product after a successful login.
+      try {
+        sessionStorage.setItem(PENDING_REVEAL_KEY, productId);
+      } catch {
+        /* ignore */
+      }
+      const next = encodeURIComponent(`/products/${productId}`);
+      router.push(`/login?next=${next}`);
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    await doReveal();
+  };
 
   const handleOrder = async () => {
     if (!user) {
-      const next = encodeURIComponent(`/products/${productId}?showPrice=1`);
+      try {
+        sessionStorage.setItem(PENDING_REVEAL_KEY, productId);
+      } catch {
+        /* ignore */
+      }
+      const next = encodeURIComponent(`/products/${productId}`);
       router.push(`/login?next=${next}`);
       return;
     }
     // log order
-    await supabase.rpc('track_order', { p_product_id: productId });
+    try {
+      await supabase.rpc('track_order', { p_product_id: productId });
+    } catch {
+      /* ignore */
+    }
 
     const msg = `السلام عليكم، أرغب في طلب المنتج التالي من متجر "${storeName}":\n\n*${productTitle}*\nالسعر: ${formatPrice(price)} ج.م\n\nرابط المنتج: ${window.location.origin}/products/${productId}`;
     const link = buildWhatsAppLink(storeWhatsapp, msg);
@@ -104,7 +182,9 @@ export default function PriceReveal({
         </button>
         {!user && (
           <p className="text-xs text-luxor-navy/60 mt-3 text-center">
-            سجّل دخولك مرة واحدة لتتمكن من رؤية الأسعار وإرسال الطلبات.
+            {locale === 'ar'
+              ? 'سجّل دخولك مرة واحدة لتتمكن من رؤية الأسعار وإرسال الطلبات.'
+              : 'Log in once to see prices and place orders.'}
           </p>
         )}
       </div>
@@ -130,12 +210,14 @@ export default function PriceReveal({
           className="btn-whatsapp w-full !text-base !py-4"
         >
           <MessageCircle size={20} />
-          اطلب الآن عبر واتساب
+          {locale === 'ar' ? 'اطلب الآن عبر واتساب' : 'Order now via WhatsApp'}
         </button>
       )}
       {isAvailable && (
         <p className="text-xs text-center text-luxor-navy/60">
-          ستتواصل مباشرة مع البائع لإتمام الطلب والدفع والتسليم
+          {locale === 'ar'
+            ? 'ستتواصل مباشرة مع البائع لإتمام الطلب والدفع والتسليم'
+            : 'You will contact the seller directly to complete the order, payment and delivery'}
         </p>
       )}
     </div>
