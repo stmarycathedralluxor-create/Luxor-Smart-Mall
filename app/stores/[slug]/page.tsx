@@ -49,14 +49,14 @@ export default async function StorePage({ params }: { params: { slug: string } }
         {/* Store info card */}
         <div className="card p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden border-4 border-white shadow-lg shrink-0 -mt-16 md:-mt-20 bg-luxor-sandlight relative">
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden border-4 border-white shadow-lg shrink-0 -mt-16 md:-mt-20 bg-white relative">
               {store.logo_url ? (
                 <Image
                   src={store.logo_url}
                   alt={store.name}
                   fill
                   sizes="(max-width: 768px) 96px, 128px"
-                  className="object-cover"
+                  className="object-contain p-1"
                   priority
                 />
               ) : (
