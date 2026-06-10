@@ -87,9 +87,15 @@ export default async function ProductPage({ params }: { params: { id: string } }
             href={`/stores/${product.store.slug}`}
             className="card p-4 flex items-center gap-3 mb-6 hover:border-luxor-gold"
           >
-            <div className="w-14 h-14 rounded-xl overflow-hidden bg-luxor-gold flex items-center justify-center shrink-0">
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-luxor-gold flex items-center justify-center shrink-0 relative">
               {product.store.logo_url ? (
-                <Image src={product.store.logo_url} alt={product.store.name} width={56} height={56} className="object-cover" />
+                <Image
+                  src={product.store.logo_url}
+                  alt={product.store.name}
+                  fill
+                  sizes="56px"
+                  className="object-cover"
+                />
               ) : (
                 <span className="text-luxor-navy font-bold text-xl">{product.store.name.charAt(0)}</span>
               )}

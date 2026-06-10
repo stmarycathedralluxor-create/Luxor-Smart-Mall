@@ -18,7 +18,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError] = useState('');
+  // Initial error may come from /auth/callback?error=...
+  const initialError = (() => {
+    const e = searchParams.get('error');
+    if (!e) return '';
+    if (e === 'auth_callback_failed') return 'فشل تسجيل الدخول، حاول مرة أخرى.';
+    if (e === 'missing_code') return 'انقطعت عملية تسجيل الدخول. حاول مرة أخرى.';
+    return decodeURIComponent(e);
+  })();
+  const [error, setError] = useState(initialError);
 
   const siteOrigin = () =>
     typeof window !== 'undefined'
@@ -41,18 +49,40 @@ export default function LoginPage() {
     }
   };
 
+  const friendlyAuthError = (msg: string) => {
+    const m = (msg || '').toLowerCase();
+    if (m.includes('invalid login credentials'))
+      return 'بيانات الدخول غير صحيحة. تأكد من البريد وكلمة المرور.';
+    if (m.includes('email not confirmed'))
+      return 'لم يتم تأكيد البريد بعد. افتح بريدك واضغط على رابط التفعيل.';
+    if (m.includes('rate limit') || m.includes('too many'))
+      return 'محاولات كثيرة. انتظر دقيقة ثم حاول مجدداً.';
+    if (m.includes('network')) return 'تعذّر الاتصال. تحقق من الإنترنت ثم أعد المحاولة.';
+    return msg || 'حدث خطأ غير متوقع، حاول مرة أخرى.';
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) {
+        setError(friendlyAuthError(error.message));
+        setLoading(false);
+        return;
+      }
+      // Make sure the new session is reflected before navigating
+      await supabase.auth.getUser();
+      router.refresh();
+      router.push(nextUrl);
+    } catch (err: any) {
+      setError(friendlyAuthError(err?.message));
       setLoading(false);
-      return;
     }
-    router.push(nextUrl);
-    router.refresh();
   };
 
   return (

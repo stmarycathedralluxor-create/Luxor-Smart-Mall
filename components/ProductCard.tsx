@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Store as StoreIcon, Tag } from 'lucide-react';
+import { Eye, Store as StoreIcon, Tag, MapPin } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
 import type { ProductWithStore } from '@/lib/types';
 
@@ -11,7 +11,10 @@ export default function ProductCard({ product }: { product: ProductWithStore }) 
   const img = product.images?.[0];
 
   return (
-    <Link href={`/products/${product.id}`} className="card group block animate-fade-in">
+    <Link
+      href={`/products/${product.id}`}
+      className="card group block animate-fade-in flex flex-col h-full"
+    >
       <div className="aspect-square relative overflow-hidden bg-luxor-sandlight">
         {img ? (
           <Image
@@ -19,45 +22,62 @@ export default function ProductCard({ product }: { product: ProductWithStore }) 
             alt={product.title}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-luxor-gold">
+          <div className="w-full h-full flex items-center justify-center text-luxor-gold/60 bg-gradient-to-br from-luxor-sandlight to-white">
             <StoreIcon size={56} />
           </div>
         )}
+
+        {/* subtle bottom gradient for legibility of the category chip */}
+        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/15 to-transparent pointer-events-none" />
+
         {!product.is_available && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <span className="bg-white text-red-600 px-3 py-1 rounded-full text-sm font-bold">
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex items-center justify-center">
+            <span className="bg-white text-red-600 px-3 py-1 rounded-full text-sm font-bold shadow">
               {t.product.unavailable}
             </span>
           </div>
         )}
+
         {product.category && (
-          <span className="absolute top-2 start-2 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-xs font-medium text-luxor-navy">
-            {product.category.icon} {locale === 'ar' ? product.category.name_ar : product.category.name_en}
+          <span className="absolute top-2 start-2 bg-white/95 backdrop-blur px-2.5 py-1 rounded-full text-[11px] font-semibold text-luxor-navy shadow-sm border border-white/60">
+            <span className="me-0.5">{product.category.icon}</span>
+            {locale === 'ar' ? product.category.name_ar : product.category.name_en}
           </span>
         )}
+
+        {/* views pill (small, top-end) */}
+        <span className="absolute top-2 end-2 bg-black/45 backdrop-blur text-white px-2 py-0.5 rounded-full text-[10px] font-medium inline-flex items-center gap-1">
+          <Eye size={11} /> {product.views ?? 0}
+        </span>
       </div>
 
-      <div className="p-4">
-        <h3 className="font-semibold text-luxor-navy line-clamp-2 mb-1 min-h-[3rem]">
+      <div className="p-3.5 sm:p-4 flex flex-col flex-1">
+        <h3 className="font-semibold text-luxor-navy line-clamp-2 mb-1.5 min-h-[2.6rem] text-sm sm:text-base leading-snug group-hover:text-luxor-darkgold transition">
           {product.title}
         </h3>
+
         {product.store && (
-          <p className="text-xs text-luxor-navy/60 mb-3 flex items-center gap-1">
-            <StoreIcon size={12} />
-            {product.store.name}
-          </p>
+          <div className="text-[11px] sm:text-xs text-luxor-navy/60 mb-3 flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1 max-w-full truncate">
+              <StoreIcon size={12} className="text-luxor-gold shrink-0" />
+              <span className="truncate">{product.store.name}</span>
+            </span>
+            {product.store.city && (
+              <span className="inline-flex items-center gap-0.5 text-luxor-navy/45">
+                <MapPin size={11} />
+                <span className="truncate">{product.store.city}</span>
+              </span>
+            )}
+          </div>
         )}
 
-        <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-luxor-navy bg-luxor-gold/15 border border-luxor-gold/30 px-3 py-1.5 rounded-full group-hover:bg-luxor-gold group-hover:text-luxor-obsidian transition">
-            <Tag size={13} />
+        <div className="mt-auto pt-2 border-t border-luxor-gold/15">
+          <span className="inline-flex w-full items-center justify-center gap-1.5 text-sm font-bold text-luxor-navy bg-luxor-gold/15 border border-luxor-gold/30 px-3 py-2 rounded-xl group-hover:bg-luxor-gold group-hover:text-luxor-obsidian group-hover:border-luxor-gold transition">
+            <Tag size={14} />
             {t.product.askPrice}
-          </span>
-          <span className="flex items-center gap-1 text-xs text-luxor-navy/50 shrink-0">
-            <Eye size={12} /> {product.views}
           </span>
         </div>
       </div>
