@@ -28,7 +28,17 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 1. Go to [supabase.com](https://supabase.com) → New project → name it `luxor-smart-mall`
 2. Wait ~2 minutes for it to provision
 3. Once ready, go to **SQL Editor** → paste the entire content of `supabase/migrations/0001_initial_schema.sql` → **Run**
-4. Go to **Project Settings → API** → copy `Project URL` and `anon public` key
+4. Then paste `supabase/migrations/0002_admin_and_backfill.sql` → **Run** (adds admin role + backfills any users created before the trigger)
+5. Go to **Project Settings → API** → copy `Project URL` and `anon public` key
+
+### 🛡️ Create your first admin
+After signing up your account on the live site, run this in Supabase SQL Editor:
+```sql
+update public.profiles
+set role = 'admin'
+where id = (select id from auth.users where email = 'YOUR-EMAIL@example.com');
+```
+Then visit `/admin` — you'll see the full admin panel (users, stores, products moderation).
 
 ### 2. Configure environment
 ```bash
@@ -145,6 +155,10 @@ luxor-smart-mall/
 | `/dashboard/products/new`     | protected | Add product                              |
 | `/dashboard/products/[id]`    | protected | Edit product                             |
 | `/dashboard/profile`          | protected | Edit profile                             |
+| `/admin`                      | admin     | Admin overview (stats + recent activity) |
+| `/admin/users`                | admin     | Manage users + change roles              |
+| `/admin/stores`               | admin     | Activate/deactivate/delete stores        |
+| `/admin/products`             | admin     | Moderate/delete products                 |
 
 ---
 
@@ -185,6 +199,8 @@ luxor-smart-mall/
 - ✅ PWA (installable, offline shell)
 - ✅ Pharaonic luxury design system
 - ✅ Mobile-responsive throughout
+- ✅ **Admin panel** — stats, user role management, store/product moderation
+- ✅ **Auto-profile safety net** — any user signing in without a profile row gets one created automatically (fixes FK errors)
 
 ---
 

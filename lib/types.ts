@@ -2,7 +2,7 @@ export type Profile = {
   id: string;
   full_name: string | null;
   phone: string | null;
-  role: 'buyer' | 'seller' | 'both';
+  role: 'buyer' | 'seller' | 'both' | 'admin';
   avatar_url: string | null;
   city: string | null;
   created_at: string;
