@@ -37,16 +37,51 @@ export default function PriceReveal({
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // 1) Resolve current auth state on mount.
+  // 1) Resolve current auth state on mount + react to auth state changes.
+  //    Also re-check whenever the page is restored from the BFCache (mobile
+  //    Chrome aggressively caches pages on back/forward — without this the
+  //    revealed price could leak across sessions).
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getUser().then(({ data }) => {
+
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getUser();
       if (cancelled) return;
       setUser(data.user);
       setChecking(false);
+      // If the session was cleared (logout/expiry) while the page was in the
+      // BFCache, force the price back behind the login wall.
+      if (!data.user) setRevealed(false);
+    };
+
+    void checkUser();
+
+    // React to login/logout that happens in another tab.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      setUser(session?.user ?? null);
+      if (!session?.user) setRevealed(false);
     });
+
+    const onPageShow = (e: PageTransitionEvent) => {
+      // Only re-fetch when the page was restored from BFCache
+      // (`persisted === true`). On a normal navigation we already have fresh
+      // state from the mount effect.
+      if (e.persisted) {
+        void checkUser();
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void checkUser();
+    };
+    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
+      sub.subscription.unsubscribe();
+      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [supabase]);
 
@@ -164,7 +199,9 @@ export default function PriceReveal({
     );
   }
 
-  if (!revealed) {
+  // Defensive: never show the price unless we have BOTH a confirmed user
+  // and an explicit reveal in this session. This survives BFCache restores.
+  if (!revealed || !user) {
     return (
       <div className="card p-6 mb-6 bg-gradient-to-br from-luxor-sandlight to-white">
         <div className="text-sm text-luxor-navy/70 mb-3">{t.product.price}</div>

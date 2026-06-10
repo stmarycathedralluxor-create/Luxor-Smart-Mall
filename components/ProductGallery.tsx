@@ -223,34 +223,42 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
       {/* Full-size lightbox modal */}
       {lightboxOpen && (
         <div
-          className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
+          className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-8 animate-fade-in"
           onClick={() => setLightboxOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-label={title}
         >
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightboxOpen(false);
-            }}
-            aria-label={isRtl ? 'إغلاق' : 'Close'}
-            className="absolute top-4 end-4 w-11 h-11 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 transition"
+          {/* Top bar — keeps the close button + counter from overlapping
+              on narrow mobile screens by using a flex row across the top. */}
+          <div
+            className="absolute top-0 inset-x-0 flex items-center justify-between gap-3 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 z-20 pointer-events-none"
           >
-            <X size={24} />
-          </button>
+            {/* Counter on the start side */}
+            {total > 1 ? (
+              <div
+                className="bg-black/55 backdrop-blur text-white text-sm font-semibold px-3 py-1.5 rounded-full pointer-events-auto shadow"
+                dir="ltr"
+              >
+                {active + 1} / {total}
+              </div>
+            ) : (
+              <span />
+            )}
 
-          {/* Counter */}
-          {total > 1 && (
-            <div
-              className="absolute top-5 start-4 bg-white/15 text-white text-sm font-medium px-3 py-1.5 rounded-full z-10"
-              dir="ltr"
+            {/* Close button on the end side */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxOpen(false);
+              }}
+              aria-label={isRtl ? 'إغلاق' : 'Close'}
+              className="w-11 h-11 rounded-full bg-white/20 hover:bg-white/35 text-white flex items-center justify-center transition pointer-events-auto shadow"
             >
-              {active + 1} / {total}
-            </div>
-          )}
+              <X size={24} />
+            </button>
+          </div>
 
           {/* Image container — full size, contained, with circular corners */}
           <div

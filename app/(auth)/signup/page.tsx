@@ -54,54 +54,91 @@ export default function SignupPage() {
     }
   };
 
+  const friendlyAuthError = (msg: string) => {
+    const m = (msg || '').toLowerCase();
+    if (m.includes('already registered') || m.includes('already exists') || m.includes('user already'))
+      return 'هذا البريد مسجل مسبقاً. سجّل الدخول بدلاً من ذلك.';
+    if (m.includes('password') && m.includes('short'))
+      return 'كلمة المرور قصيرة جداً (الحد الأدنى 6 أحرف).';
+    if (m.includes('invalid email') || m.includes('valid email'))
+      return 'صيغة البريد الإلكتروني غير صحيحة.';
+    if (m.includes('rate limit') || m.includes('too many'))
+      return 'محاولات كثيرة. انتظر دقيقة ثم حاول مجدداً.';
+    if (m.includes('network')) return 'تعذّر الاتصال. تحقق من الإنترنت ثم أعد المحاولة.';
+    return msg || 'حدث خطأ غير متوقع، حاول مرة أخرى.';
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        emailRedirectTo: `${siteOrigin()}/auth/callback`,
-        data: {
-          full_name: form.fullName,
-          phone: form.phone,
-          wants_to_sell: form.mode === 'seller',
+    try {
+      // Basic client-side validation to avoid noisy server errors.
+      if (form.phone && !/^[+\d][\d\s-]{6,}$/.test(form.phone.trim())) {
+        setError('رقم الهاتف غير صحيح. مثال: +201xxxxxxxxx');
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email: form.email.trim(),
+        password: form.password,
+        options: {
+          emailRedirectTo: `${siteOrigin()}/auth/callback`,
+          data: {
+            full_name: form.fullName,
+            phone: form.phone,
+            wants_to_sell: form.mode === 'seller',
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
+      if (error) {
+        setError(friendlyAuthError(error.message));
+        setLoading(false);
+        return;
+      }
 
-    // Update profile with extra fields (best-effort; works once session is set)
-    if (data.user) {
-      await supabase
-        .from('profiles')
-        .update({
+      // Update profile with extra fields (best-effort; works once session is set).
+      // The DB trigger handle_new_user() already created a base row, so we
+      // update it in place. We retry once if the very first call races the
+      // trigger.
+      if (data.user && data.session) {
+        const payload = {
           full_name: form.fullName,
           phone: form.phone,
           city: form.city,
           wants_to_sell: form.mode === 'seller',
-        })
-        .eq('id', data.user.id);
-    }
-
-    if (data.session) {
-      // session already established → go to dashboard / pending page
-      if (form.mode === 'seller') setDone('seller-pending');
-      else {
-        router.push(nextUrl);
-        router.refresh();
+        };
+        const first = await supabase
+          .from('profiles')
+          .update(payload)
+          .eq('id', data.user.id);
+        if (first.error) {
+          // tiny backoff then retry once
+          await new Promise((r) => setTimeout(r, 400));
+          await supabase.from('profiles').update(payload).eq('id', data.user.id);
+        }
       }
-    } else {
-      setDone('email');
+
+      if (data.session) {
+        // session already established → go to dashboard / pending page
+        await supabase.auth.getUser();
+        if (form.mode === 'seller') {
+          setDone('seller-pending');
+        } else {
+          router.refresh();
+          router.push(nextUrl);
+        }
+      } else {
+        setDone('email');
+      }
+    } catch (err: any) {
+      setError(friendlyAuthError(err?.message));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (done === 'email') {
