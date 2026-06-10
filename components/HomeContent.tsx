@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowLeft, ShoppingBag, Store, Users, Sparkles } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
 import ProductCard from './ProductCard';
@@ -22,21 +23,41 @@ export default function HomeContent({
     <div>
       {/* HERO */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-luxor-navy via-luxor-navy to-[#1a3a5c]" />
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.4'%3E%3Cpath d='M30 30c0-11.046 8.954-20 20-20v40c-11.046 0-20-8.954-20-20zm-20 0c0-11.046 8.954-20 20-20v40c-11.046 0-20-8.954-20-20z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        {/* Deep obsidian gradient (matches new LSM logo) */}
+        <div className="absolute inset-0 bg-gradient-to-br from-luxor-obsidian via-luxor-charcoal to-luxor-obsidian" />
+        {/* Gold radial glow */}
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(circle at 50% 0%, rgba(212,175,55,0.18) 0%, transparent 55%)',
+        }} />
+        {/* Subtle hieroglyphic pattern */}
+        <div className="absolute inset-0 opacity-[0.08]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.6'%3E%3Cpath d='M30 30c0-11.046 8.954-20 20-20v40c-11.046 0-20-8.954-20-20zm-20 0c0-11.046 8.954-20 20-20v40c-11.046 0-20-8.954-20-20z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }} />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-luxor-gold/20 backdrop-blur px-4 py-2 rounded-full text-luxor-gold text-sm font-medium mb-6 animate-fade-in">
+            {/* Hero logo badge */}
+            <div className="flex justify-center mb-8 animate-fade-in">
+              <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-3xl overflow-hidden ring-2 ring-luxor-gold/50 shadow-luxor-lg animate-gold-glow">
+                <Image
+                  src="/logo.png"
+                  alt="Luxor Smart Mall"
+                  fill
+                  sizes="(min-width: 768px) 128px, 112px"
+                  className="object-cover"
+                  priority
+                />
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-2 bg-luxor-gold/15 backdrop-blur px-4 py-2 rounded-full text-luxor-gold text-sm font-medium mb-6 ring-1 ring-luxor-gold/30 animate-fade-in">
               <Sparkles size={16} />
               {locale === 'ar' ? '🏛️ سوق الأقصر الذكي' : '🏛️ The Smart Luxor Marketplace'}
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 animate-fade-in">
               {t.home.heroTitle}
-              <span className="block text-luxor-gold mt-2 text-3xl md:text-5xl">
+              <span className="block text-gold-gradient mt-2 text-3xl md:text-5xl">
                 {locale === 'ar' ? 'تسوّق بذكاء' : 'Shop Smarter'}
               </span>
             </h1>
@@ -50,7 +71,7 @@ export default function HomeContent({
                 <ShoppingBag size={20} />
                 {t.home.browseStores}
               </Link>
-              <Link href="/signup" className="btn-outline !text-base bg-white/10 backdrop-blur !text-white !border-luxor-gold hover:!bg-luxor-gold hover:!text-luxor-navy">
+              <Link href="/signup" className="btn-outline !text-base bg-white/10 backdrop-blur !text-white !border-luxor-gold hover:!bg-luxor-gold hover:!text-luxor-obsidian">
                 <Store size={20} />
                 {t.home.openStore}
               </Link>

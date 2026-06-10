@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { Menu, X, Store, LogIn, UserPlus, LogOut, LayoutDashboard, Search } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
@@ -29,32 +30,39 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-luxor-sand/60 shadow-sm">
+    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-luxor-gold/30 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-luxor-gold to-luxor-darkgold flex items-center justify-center shadow-luxor group-hover:scale-105 transition">
-              <span className="text-luxor-navy font-bold text-lg">L</span>
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative w-11 h-11 rounded-xl overflow-hidden shadow-luxor ring-1 ring-luxor-gold/40 group-hover:scale-105 transition">
+              <Image
+                src="/logo.png"
+                alt="Luxor Smart Mall logo"
+                fill
+                sizes="44px"
+                className="object-cover"
+                priority
+              />
             </div>
             <div className="hidden sm:flex flex-col leading-tight">
-              <span className="font-bold text-luxor-navy">{t.siteName}</span>
-              <span className="text-[10px] text-luxor-navy/60">Luxor Smart Mall</span>
+              <span className="font-bold text-luxor-obsidian">{t.siteName}</span>
+              <span className="text-[10px] text-luxor-darkgold tracking-wider">LUXOR SMART MALL</span>
             </div>
           </Link>
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">
-            <Link href="/" className="px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">
+            <Link href="/" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
               {t.nav.home}
             </Link>
-            <Link href="/stores" className="px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">
+            <Link href="/stores" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
               {t.nav.stores}
             </Link>
-            <Link href="/categories" className="px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">
+            <Link href="/categories" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
               {t.nav.categories}
             </Link>
-            <Link href="/search" className="p-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy">
+            <Link href="/search" className="p-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian transition">
               <Search size={20} />
             </Link>
           </div>
@@ -63,7 +71,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-2">
             <button
               onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
-              className="px-3 py-1.5 rounded-lg border border-luxor-sand hover:bg-luxor-sand/40 text-xs font-bold text-luxor-navy"
+              className="px-3 py-1.5 rounded-lg border border-luxor-gold/50 hover:bg-luxor-gold/10 text-xs font-bold text-luxor-obsidian transition"
               aria-label="Toggle language"
             >
               {locale === 'ar' ? 'EN' : 'ع'}
@@ -81,7 +89,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <Link href="/login" className="px-4 py-2 text-luxor-navy font-medium hover:bg-luxor-sand/40 rounded-lg flex items-center gap-1.5">
+                <Link href="/login" className="px-4 py-2 text-luxor-obsidian font-medium hover:bg-luxor-gold/10 rounded-lg flex items-center gap-1.5 transition">
                   <LogIn size={16} /> {t.nav.login}
                 </Link>
                 <Link href="/signup" className="btn-primary !py-2 !px-4 !text-sm">
@@ -94,7 +102,7 @@ export default function Navbar() {
           {/* Mobile toggle */}
           <button
             onClick={() => setOpen(!open)}
-            className="md:hidden p-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy"
+            className="md:hidden p-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian transition"
             aria-label="menu"
           >
             {open ? <X size={24} /> : <Menu size={24} />}
@@ -103,15 +111,15 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {open && (
-          <div className="md:hidden py-3 border-t border-luxor-sand/60 space-y-1 animate-fade-in">
-            <Link href="/" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">{t.nav.home}</Link>
-            <Link href="/stores" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">{t.nav.stores}</Link>
-            <Link href="/categories" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">{t.nav.categories}</Link>
-            <Link href="/search" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">{t.common.search}</Link>
-            <div className="border-t border-luxor-sand/60 my-2" />
+          <div className="md:hidden py-3 border-t border-luxor-gold/30 space-y-1 animate-fade-in">
+            <Link href="/" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.home}</Link>
+            <Link href="/stores" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.stores}</Link>
+            <Link href="/categories" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.categories}</Link>
+            <Link href="/search" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.common.search}</Link>
+            <div className="border-t border-luxor-gold/30 my-2" />
             {user ? (
               <>
-                <Link href="/dashboard" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">
+                <Link href="/dashboard" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">
                   {t.nav.dashboard}
                 </Link>
                 <button onClick={() => { logout(); setOpen(false); }} className="block w-full text-start px-4 py-2 rounded-lg hover:bg-red-50 text-red-600 font-medium">
@@ -120,13 +128,13 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <Link href="/login" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-sand/40 text-luxor-navy font-medium">{t.nav.login}</Link>
-                <Link href="/signup" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg bg-luxor-gold text-luxor-navy font-semibold mx-2 text-center">{t.nav.signup}</Link>
+                <Link href="/login" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.login}</Link>
+                <Link href="/signup" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg bg-gold-gradient text-luxor-obsidian font-semibold mx-2 text-center">{t.nav.signup}</Link>
               </>
             )}
             <button
               onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
-              className="block px-4 py-2 text-xs font-bold text-luxor-navy/70"
+              className="block px-4 py-2 text-xs font-bold text-luxor-darkgold"
             >
               {locale === 'ar' ? '🌐 English' : '🌐 العربية'}
             </button>
