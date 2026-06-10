@@ -9,16 +9,40 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 ## ✨ Features
 
 - 🛍️ **Marketplace platform** — sellers create stores, list products, buyers browse
-- 📱 **WhatsApp direct ordering** — every product links to seller's WhatsApp with a pre-filled message (no in-app payment/delivery; the seller handles it)
+- 🔒 **Admin approval workflow** — every new seller account AND every new store needs admin approval before going public
+- 💰 **Protected pricing** — product prices are hidden behind an "Ask for Price" CTA. Anonymous users are redirected to login; logged-in users see the price + a WhatsApp order button
+- 📱 **WhatsApp direct ordering** — orders open a pre-filled WhatsApp chat with the seller (no in-app payment/delivery)
+- 🖼️ **Swipeable product gallery** — touch/mouse swipe, arrows, dots, and keyboard navigation
+- 📊 **Live analytics counters** — total site visits, store visits, price inquiries, and orders (visible in both admin and seller dashboards)
+- 🔐 **Auth: email/password + Google OAuth** — one-click signup with Google account
 - 🌐 **Bilingual UI** — Arabic (RTL) + English (LTR) with a toggle, defaulting to Arabic
 - 🎨 **Elegant pharaonic theme** — gold (#D4AF37), deep navy (#0F2A47), sandstone
-- 🔐 **Supabase Auth** — email/password signup with email confirmation
 - 🗄️ **Supabase Postgres + RLS** — secure row-level security; each user owns their store/products
 - 🖼️ **Supabase Storage** — product images & store logos/covers
 - 📲 **Installable PWA** — manifest + service worker, works offline (cached shell)
 - 🔎 **Search & categories** — full-text product search across titles/descriptions
-- ⚡ **Edge-rendered with ISR** — fast public pages, 60s revalidation
-- 📊 **Seller dashboard** — view counts, product management, store settings
+
+---
+
+## 🆕 Recently Added (v2)
+
+1. **Seller account approval** — when a user signs up as "Seller" the account is created but `wants_to_sell=true, is_seller_approved=false`. They can browse but can't open a store until an admin approves them via **/admin/approvals**.
+2. **Store approval** — new stores start with `is_approved=false`. They stay hidden from public pages/stores listings until an admin approves them.
+3. **Hidden prices** — `ProductCard` no longer shows the price. It shows an "Ask for Price" pill. On the product page the price area is replaced by a single CTA:
+   - **Not logged in** → "Login to see the price" → redirects to `/login?next=/products/<id>?showPrice=1` (auto-reveals after login).
+   - **Logged in** → logs a `price_inquiry` and reveals the price + an "Order via WhatsApp" button which also logs an `order` event before opening WhatsApp.
+4. **Swipe product gallery** — pointer + touch swipe with arrows, dots, counter, and keyboard arrows.
+5. **Analytics** — new tables `site_visits`, `store_visits`, `price_inquiries`, `orders`. A client `AnalyticsTracker` registers one site visit per browser per day; store pages, price inquiries, and orders are logged automatically via secure RPCs.
+6. **Google sign-in** — both `/login` and `/signup` show a Google button. The signup page also has a mode chooser (buyer / seller). If the user selects "Seller", the seller-request flag flows through Google OAuth via the callback URL.
+7. **Admin dashboard upgrade** — `/admin` now shows the four new live counters (site visits, store visits, price inquiries, orders), a pending-approvals alert, and a dedicated `/admin/approvals` page listing pending sellers and pending stores with one-click approve / reject.
+
+> 📌 To activate v2: **run `supabase/migrations/0003_approvals_analytics.sql` once in the Supabase SQL editor**. It's idempotent and back-fills existing stores/sellers to `approved=true` so nothing breaks.
+
+### Configuring Google OAuth in Supabase
+1. In your Supabase project go to **Authentication → Providers → Google** and turn it **on**.
+2. Create a Google OAuth client in [Google Cloud Console](https://console.cloud.google.com/) (Authorized redirect URI must be the value Supabase shows on that page, e.g. `https://<project>.supabase.co/auth/v1/callback`).
+3. Paste the Client ID + Secret back into Supabase and save.
+4. In your site env, make sure `NEXT_PUBLIC_SITE_URL` is set correctly — the Next.js callback (`/auth/callback`) is what completes the session.
 
 ---
 
@@ -29,7 +53,8 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 2. Wait ~2 minutes for it to provision
 3. Once ready, go to **SQL Editor** → paste the entire content of `supabase/migrations/0001_initial_schema.sql` → **Run**
 4. Then paste `supabase/migrations/0002_admin_and_backfill.sql` → **Run** (adds admin role + backfills any users created before the trigger)
-5. Go to **Project Settings → API** → copy `Project URL` and `anon public` key
+5. Then paste `supabase/migrations/0003_approvals_analytics.sql` → **Run** (adds seller/store approvals + analytics tables + tracking RPCs)
+6. Go to **Project Settings → API** → copy `Project URL` and `anon public` key
 
 ### 🛡️ Create your first admin
 After signing up your account on the live site, run this in Supabase SQL Editor:

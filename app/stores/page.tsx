@@ -10,6 +10,7 @@ export default async function StoresPage() {
     .from('stores')
     .select('*')
     .eq('is_active', true)
+    .eq('is_approved', true)
     .order('created_at', { ascending: false });
 
   // count products per store

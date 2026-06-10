@@ -18,6 +18,7 @@ export default async function HomePage() {
       .from('stores')
       .select('*')
       .eq('is_active', true)
+      .eq('is_approved', true)
       .order('created_at', { ascending: false })
       .limit(6),
     supabase.from('categories').select('*').order('id'),

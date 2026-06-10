@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Trash2 } from 'lucide-react';
+import { ExternalLink, Trash2, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Store } from '@/lib/types';
 
@@ -11,6 +11,7 @@ export default function StoreRow({ store, ownerName }: { store: Store; ownerName
   const router = useRouter();
   const supabase = createClient();
   const [active, setActive] = useState(store.is_active);
+  const [approved, setApproved] = useState(store.is_approved ?? false);
   const [pending, startTransition] = useTransition();
 
   const toggleActive = () => {
@@ -21,6 +22,22 @@ export default function StoreRow({ store, ownerName }: { store: Store; ownerName
       if (error) {
         alert(error.message);
         setActive(!newVal);
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  const approve = () => {
+    startTransition(async () => {
+      setApproved(true);
+      const { error } = await supabase
+        .from('stores')
+        .update({ is_approved: true, is_active: true })
+        .eq('id', store.id);
+      if (error) {
+        alert(error.message);
+        setApproved(false);
         return;
       }
       router.refresh();
@@ -40,17 +57,36 @@ export default function StoreRow({ store, ownerName }: { store: Store; ownerName
       <td className="p-3 text-luxor-navy/70">{ownerName}</td>
       <td className="p-3 text-luxor-navy/70 ltr:font-mono" dir="ltr">{store.whatsapp}</td>
       <td className="p-3">
-        <button
-          onClick={toggleActive}
-          disabled={pending}
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}
-        >
-          {active ? 'نشط' : 'متوقف'}
-        </button>
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={toggleActive}
+            disabled={pending}
+            className={`px-2 py-1 rounded-full text-xs font-medium ${
+              active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}
+          >
+            {active ? 'نشط' : 'متوقف'}
+          </button>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-medium text-center ${
+              approved ? 'bg-luxor-gold/20 text-luxor-darkgold' : 'bg-yellow-100 text-yellow-700'
+            }`}
+          >
+            {approved ? 'موافَق عليه' : 'بانتظار الموافقة'}
+          </span>
+        </div>
       </td>
-      <td className="p-3 flex gap-1">
+      <td className="p-3 flex gap-1 flex-wrap">
+        {!approved && (
+          <button
+            onClick={approve}
+            disabled={pending}
+            className="p-2 rounded-lg hover:bg-green-50 text-green-700"
+            title="اعتماد المتجر"
+          >
+            <Check size={14} />
+          </button>
+        )}
         <Link
           href={`/stores/${store.slug}`}
           target="_blank"

@@ -77,6 +77,9 @@ export const translations: Record<Locale, TranslationShape> = {
       delete: 'حذف',
       noProducts: 'لا توجد منتجات بعد',
       views: 'مشاهدة',
+      askPrice: 'استعلم عن السعر',
+      loginToSeePrice: 'سجّل دخولك لرؤية السعر',
+      revealing: 'جاري عرض السعر...',
     },
     store: {
       createStore: 'أنشئ متجرك',
@@ -167,6 +170,9 @@ export const translations: Record<Locale, TranslationShape> = {
       delete: 'Delete',
       noProducts: 'No products yet',
       views: 'views',
+      askPrice: 'Ask for Price',
+      loginToSeePrice: 'Login to see the price',
+      revealing: 'Revealing price...',
     },
     store: {
       createStore: 'Create your store',

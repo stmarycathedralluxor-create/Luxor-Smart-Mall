@@ -16,9 +16,13 @@ export default async function StorePage({ params }: { params: { slug: string } }
     .select('*')
     .eq('slug', params.slug)
     .eq('is_active', true)
+    .eq('is_approved', true)
     .maybeSingle();
 
   if (!store) notFound();
+
+  // Track the store visit (fire & forget; RLS allows insert from anon)
+  supabase.rpc('track_store_visit', { p_store_id: store.id, p_session_id: null });
 
   const { data: products } = await supabase
     .from('products')

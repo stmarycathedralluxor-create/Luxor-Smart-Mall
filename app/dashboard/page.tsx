@@ -1,6 +1,16 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { Store, Package, Eye, Plus, ExternalLink } from 'lucide-react';
+import {
+  Store,
+  Package,
+  Eye,
+  Plus,
+  ExternalLink,
+  Tag,
+  ShoppingCart,
+  Hourglass,
+} from 'lucide-react';
+import type { StoreCounters } from '@/lib/types';
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -12,6 +22,8 @@ export default async function DashboardPage() {
 
   let productCount = 0;
   let totalViews = 0;
+  let counters: StoreCounters = { visits: 0, price_inquiries: 0, orders: 0 };
+
   if (store) {
     const { count } = await supabase
       .from('products')
@@ -21,7 +33,12 @@ export default async function DashboardPage() {
 
     const { data: views } = await supabase.from('products').select('views').eq('store_id', store.id);
     totalViews = (views ?? []).reduce((s, p) => s + (p.views ?? 0), 0);
+
+    const { data: c } = await supabase.rpc('get_store_counters', { p_store_id: store.id });
+    if (c) counters = c as StoreCounters;
   }
+
+  const isPendingSeller = profile?.wants_to_sell && !profile?.is_seller_approved;
 
   return (
     <div className="space-y-6">
@@ -32,21 +49,49 @@ export default async function DashboardPage() {
         <p className="text-white/70">لوحة تحكم متجرك في لوكسور سمارت مول</p>
       </div>
 
+      {isPendingSeller && (
+        <div className="card p-5 bg-luxor-gold/10 border-luxor-gold/40 flex items-center gap-3">
+          <Hourglass className="text-luxor-darkgold" size={22} />
+          <div>
+            <div className="font-bold text-luxor-navy">طلب تفعيل البائع قيد المراجعة</div>
+            <div className="text-xs text-luxor-navy/70">
+              ستتمكن من إنشاء متجرك فور موافقة الإدارة.
+            </div>
+          </div>
+        </div>
+      )}
+
       {!store ? (
         <div className="card p-8 text-center">
           <Store className="mx-auto text-luxor-gold mb-4" size={56} />
-          <h2 className="text-xl font-bold text-luxor-navy mb-2">لم تنشئ متجرك بعد</h2>
-          <p className="text-luxor-navy/70 mb-6">ابدأ ببيع منتجاتك للعالم بضع خطوات بسيطة</p>
-          <Link href="/dashboard/store" className="btn-primary inline-flex">
-            <Plus size={18} /> أنشئ متجرك الآن
-          </Link>
+          <h2 className="text-xl font-bold text-luxor-navy mb-2">
+            {isPendingSeller ? 'في انتظار تفعيل البائع' : 'لم تنشئ متجرك بعد'}
+          </h2>
+          <p className="text-luxor-navy/70 mb-6">
+            {isPendingSeller
+              ? 'بمجرد موافقة الإدارة على حسابك ستظهر لك واجهة إنشاء المتجر هنا.'
+              : 'ابدأ ببيع منتجاتك للعالم بضع خطوات بسيطة'}
+          </p>
+          {!isPendingSeller && (
+            <Link href="/dashboard/store" className="btn-primary inline-flex">
+              <Plus size={18} /> أنشئ متجرك الآن
+            </Link>
+          )}
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {!store.is_approved && (
+            <div className="card p-4 bg-luxor-gold/10 border-luxor-gold/40 text-sm text-luxor-navy">
+              ⏳ متجرك في انتظار موافقة الإدارة. لن يظهر للعملاء في الصفحات العامة حتى يتم اعتماده.
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <StatCard icon={Package} label="المنتجات" value={productCount} />
-            <StatCard icon={Eye} label="إجمالي المشاهدات" value={totalViews} />
-            <StatCard icon={Store} label="حالة المتجر" value={store.is_active ? 'نشط ✅' : 'غير نشط'} />
+            <StatCard icon={Eye} label="مشاهدات" value={totalViews} />
+            <StatCard icon={Store} label="زيارات المتجر" value={counters.visits} />
+            <StatCard icon={Tag} label="استعلامات السعر" value={counters.price_inquiries} />
+            <StatCard icon={ShoppingCart} label="الطلبات" value={counters.orders} />
           </div>
 
           <div className="card p-6">

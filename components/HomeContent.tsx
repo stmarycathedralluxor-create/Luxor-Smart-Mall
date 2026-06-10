@@ -71,7 +71,7 @@ export default function HomeContent({
                 <ShoppingBag size={20} />
                 {t.home.browseStores}
               </Link>
-              <Link href="/signup" className="btn-outline !text-base bg-white/10 backdrop-blur !text-white !border-luxor-gold hover:!bg-luxor-gold hover:!text-luxor-obsidian">
+              <Link href="/signup?as=seller" className="btn-outline !text-base bg-white/10 backdrop-blur !text-white !border-luxor-gold hover:!bg-luxor-gold hover:!text-luxor-obsidian">
                 <Store size={20} />
                 {t.home.openStore}
               </Link>
@@ -177,7 +177,7 @@ export default function HomeContent({
           </div>
 
           <div className="text-center mt-12">
-            <Link href="/signup" className="btn-primary !text-base">
+            <Link href="/signup?as=seller" className="btn-primary !text-base">
               <Store size={20} />
               {t.home.openStore}
             </Link>

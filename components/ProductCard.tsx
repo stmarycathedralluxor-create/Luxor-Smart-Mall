@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Store as StoreIcon } from 'lucide-react';
+import { Eye, Store as StoreIcon, Tag } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
-import { formatPrice } from '@/lib/utils';
 import type { ProductWithStore } from '@/lib/types';
 
 export default function ProductCard({ product }: { product: ProductWithStore }) {
@@ -46,21 +45,18 @@ export default function ProductCard({ product }: { product: ProductWithStore }) 
           {product.title}
         </h3>
         {product.store && (
-          <p className="text-xs text-luxor-navy/60 mb-2 flex items-center gap-1">
+          <p className="text-xs text-luxor-navy/60 mb-3 flex items-center gap-1">
             <StoreIcon size={12} />
             {product.store.name}
           </p>
         )}
-        <div className="flex items-end justify-between">
-          <div>
-            <span className="text-xl font-bold text-luxor-gold">
-              {formatPrice(product.price, locale)}
-            </span>
-            <span className="text-xs text-luxor-navy/60 ms-1">
-              {locale === 'ar' ? 'ج.م' : 'EGP'}
-            </span>
-          </div>
-          <span className="flex items-center gap-1 text-xs text-luxor-navy/50">
+
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-luxor-navy bg-luxor-gold/15 border border-luxor-gold/30 px-3 py-1.5 rounded-full group-hover:bg-luxor-gold group-hover:text-luxor-obsidian transition">
+            <Tag size={13} />
+            {t.product.askPrice}
+          </span>
+          <span className="flex items-center gap-1 text-xs text-luxor-navy/50 shrink-0">
             <Eye size={12} /> {product.views}
           </span>
         </div>

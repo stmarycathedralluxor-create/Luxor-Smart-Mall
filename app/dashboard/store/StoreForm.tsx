@@ -73,7 +73,8 @@ export default function StoreForm({
     if (initialStore) {
       res = await supabase.from('stores').update(payload).eq('id', initialStore.id);
     } else {
-      res = await supabase.from('stores').insert(payload);
+      // New stores must be approved by admin → start as not approved
+      res = await supabase.from('stores').insert({ ...payload, is_approved: false });
       // bump role to seller
       await supabase.from('profiles').update({ role: 'both' }).eq('id', userId);
     }
@@ -217,7 +218,9 @@ export default function StoreForm({
           onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
           className="w-4 h-4 accent-luxor-gold"
         />
-        <label htmlFor="is_active" className="text-sm text-luxor-navy">المتجر نشط ومرئي للجميع</label>
+        <label htmlFor="is_active" className="text-sm text-luxor-navy">
+          المتجر نشط <span className="text-luxor-navy/60 text-xs">(يظهر للعملاء فقط بعد موافقة الإدارة)</span>
+        </label>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{error}</div>}

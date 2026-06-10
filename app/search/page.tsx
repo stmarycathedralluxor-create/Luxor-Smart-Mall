@@ -18,7 +18,9 @@ export default async function SearchPage({ searchParams }: { searchParams: { q?:
       .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
       .order('created_at', { ascending: false })
       .limit(48);
-    products = data ?? [];
+    products = (data ?? []).filter(
+      (p: any) => p.store?.is_active && p.store?.is_approved
+    );
   }
 
   return (

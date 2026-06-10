@@ -16,12 +16,17 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
   if (!category) notFound();
 
-  const { data: products } = await supabase
+  const { data: productsRaw } = await supabase
     .from('products')
     .select('*, store:stores(*), category:categories(*)')
     .eq('category_id', category.id)
     .eq('is_available', true)
     .order('created_at', { ascending: false });
+
+  // Filter out products whose store isn't approved/active
+  const products = (productsRaw ?? []).filter(
+    (p: any) => p.store?.is_active && p.store?.is_approved
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

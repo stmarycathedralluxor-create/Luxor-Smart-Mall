@@ -4,10 +4,9 @@ import Image from 'next/image';
 import { MapPin, Store as StoreIcon, Eye, Tag } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import ProductGallery from '@/components/ProductGallery';
-import WhatsAppButton from '@/components/WhatsAppButton';
-import { formatPrice } from '@/lib/utils';
+import PriceReveal from '@/components/PriceReveal';
 
-export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -19,11 +18,13 @@ export default async function ProductPage({ params }: { params: { id: string } }
     .maybeSingle();
 
   if (!product || !product.store) notFound();
+  // hide products of unapproved stores from the public
+  if (!product.store.is_active || !product.store.is_approved) {
+    notFound();
+  }
 
   // Increment views (fire & forget)
   supabase.rpc('increment_product_views', { product_id: product.id });
-
-  const message = `السلام عليكم، أهتم بشراء المنتج التالي من متجر "${product.store.name}":\n\n*${product.title}*\nالسعر: ${formatPrice(product.price)} ج.م\n\nرابط المنتج: ${process.env.NEXT_PUBLIC_SITE_URL || ''}/products/${product.id}`;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -64,13 +65,15 @@ export default async function ProductPage({ params }: { params: { id: string } }
             )}
           </div>
 
-          <div className="card p-6 mb-6 bg-gradient-to-br from-luxor-sandlight to-white">
-            <div className="text-sm text-luxor-navy/70 mb-1">السعر</div>
-            <div className="text-4xl md:text-5xl font-bold text-luxor-gold">
-              {formatPrice(product.price)}
-              <span className="text-xl text-luxor-navy/60 ms-2">ج.م</span>
-            </div>
-          </div>
+          {/* Price reveal + WhatsApp order (client component) */}
+          <PriceReveal
+            productId={product.id}
+            productTitle={product.title}
+            price={product.price}
+            storeWhatsapp={product.store.whatsapp}
+            storeName={product.store.name}
+            isAvailable={product.is_available}
+          />
 
           {product.description && (
             <div className="mb-6">
@@ -102,21 +105,6 @@ export default async function ProductPage({ params }: { params: { id: string } }
             </div>
             <StoreIcon className="text-luxor-gold" size={20} />
           </Link>
-
-          {/* WhatsApp CTA */}
-          {product.is_available && (
-            <div className="space-y-3">
-              <WhatsAppButton
-                phone={product.store.whatsapp}
-                message={message}
-                label="اطلب الآن عبر واتساب"
-                className="w-full !text-base !py-4"
-              />
-              <p className="text-xs text-center text-luxor-navy/60">
-                ستتواصل مباشرة مع البائع لإتمام الطلب والدفع والتسليم
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>

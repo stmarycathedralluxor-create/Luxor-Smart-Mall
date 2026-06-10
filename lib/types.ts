@@ -6,6 +6,8 @@ export type Profile = {
   avatar_url: string | null;
   city: string | null;
   created_at: string;
+  is_seller_approved?: boolean;
+  wants_to_sell?: boolean;
 };
 
 export type Store = {
@@ -19,6 +21,7 @@ export type Store = {
   cover_url: string | null;
   city: string | null;
   is_active: boolean;
+  is_approved?: boolean;
   created_at: string;
 };
 
@@ -47,4 +50,19 @@ export type Product = {
 export type ProductWithStore = Product & {
   store: Store;
   category: Category | null;
+};
+
+export type AdminCounters = {
+  site_visits: number;
+  store_visits: number;
+  price_inquiries: number;
+  orders: number;
+  pending_sellers: number;
+  pending_stores: number;
+};
+
+export type StoreCounters = {
+  visits: number;
+  price_inquiries: number;
+  orders: number;
 };
