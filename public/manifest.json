@@ -1,11 +1,11 @@
 {
   "name": "Luxor Smart Mall - لوكسور سمارت مول",
   "short_name": "Luxor Mall",
-  "description": "سوق الأقصر الذكي - منصة تجمع البائعين والمشترين",
+  "description": "سوق الأقصر الذكي - منصة فاخرة تجمع البائعين والمشترين بطابع فرعوني أصيل",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FBF7EF",
-  "theme_color": "#0F2A47",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
   "orientation": "portrait",
   "dir": "rtl",
   "lang": "ar",
@@ -14,13 +14,25 @@
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [

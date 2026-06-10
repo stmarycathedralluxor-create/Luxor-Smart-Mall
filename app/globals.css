@@ -3,8 +3,13 @@
 @tailwind utilities;
 
 :root {
+  /* Warm ivory background with subtle pharaonic luxury */
   --background: #FBF7EF;
-  --foreground: #1a1a1a;
+  --foreground: #0A0A0A;
+  --gold: #D4AF37;
+  --gold-light: #E8C765;
+  --gold-dark: #9C7A1E;
+  --obsidian: #0A0A0A;
 }
 
 html { scroll-behavior: smooth; }
@@ -19,23 +24,28 @@ body {
 /* RTL adjustments */
 [dir="rtl"] { font-family: var(--font-cairo), system-ui, sans-serif; }
 
+/* Selection */
+::selection { background: var(--gold); color: var(--obsidian); }
+
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl
-           bg-luxor-gold text-luxor-navy font-semibold
-           hover:bg-luxor-darkgold transition-all duration-200
-           shadow-luxor hover:shadow-lg active:scale-[0.98];
+           bg-gold-gradient text-luxor-obsidian font-semibold
+           hover:brightness-110 transition-all duration-200
+           shadow-luxor hover:shadow-luxor-lg active:scale-[0.98]
+           ring-1 ring-luxor-gold/40;
   }
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl
-           bg-luxor-navy text-white font-semibold
-           hover:bg-luxor-navy/90 transition-all duration-200
-           active:scale-[0.98];
+           bg-luxor-obsidian text-luxor-gold font-semibold
+           hover:bg-luxor-charcoal transition-all duration-200
+           active:scale-[0.98] ring-1 ring-luxor-gold/30;
   }
   .btn-outline {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl
-           border-2 border-luxor-gold text-luxor-navy font-semibold
-           hover:bg-luxor-gold hover:text-luxor-navy transition-all duration-200;
+           border-2 border-luxor-gold text-luxor-obsidian font-semibold
+           bg-white/70 backdrop-blur
+           hover:bg-luxor-gold hover:text-luxor-obsidian transition-all duration-200;
   }
   .btn-whatsapp {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl
@@ -44,18 +54,36 @@ body {
            shadow-md hover:shadow-lg active:scale-[0.98];
   }
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl border border-luxor-sand
-           bg-white focus:border-luxor-gold focus:ring-2 focus:ring-luxor-gold/20
+    @apply w-full px-4 py-3 rounded-xl border border-luxor-gold/30
+           bg-white focus:border-luxor-gold focus:ring-2 focus:ring-luxor-gold/30
            outline-none transition-all;
   }
   .card {
     @apply bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl
-           transition-all duration-300 border border-luxor-sand/50;
+           transition-all duration-300 border border-luxor-gold/20
+           hover:border-luxor-gold/60;
   }
   .pattern-egyptian {
     background-image:
-      radial-gradient(circle at 20% 50%, rgba(212,175,55,0.08) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(15,42,71,0.06) 0%, transparent 50%);
+      radial-gradient(circle at 20% 50%, rgba(212,175,55,0.10) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(10,10,10,0.05) 0%, transparent 50%),
+      radial-gradient(circle at 50% 100%, rgba(232,199,101,0.05) 0%, transparent 60%);
+  }
+  /* Gold text with subtle gradient */
+  .text-gold-gradient {
+    background: linear-gradient(135deg, #E8C765 0%, #D4AF37 50%, #9C7A1E 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Hieroglyphic divider */
+  .divider-egyptian {
+    @apply flex items-center gap-3 text-luxor-gold/70 text-xs;
+  }
+  .divider-egyptian::before,
+  .divider-egyptian::after {
+    content: '';
+    @apply flex-1 h-px bg-gradient-to-r from-transparent via-luxor-gold/40 to-transparent;
   }
 }
 
@@ -66,8 +94,17 @@ body {
 }
 .animate-fade-in { animation: fadeIn 0.4s ease-out; }
 
+@keyframes goldShimmer {
+  0%, 100% { box-shadow: 0 0 20px rgba(212,175,55,0.25); }
+  50% { box-shadow: 0 0 40px rgba(212,175,55,0.55); }
+}
+.animate-gold-glow { animation: goldShimmer 3s ease-in-out infinite; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #F5EBD9; }
-::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #B8941F; }
+::-webkit-scrollbar-track { background: #1A1A1A; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #E8C765, #9C7A1E);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: #D4AF37; }
