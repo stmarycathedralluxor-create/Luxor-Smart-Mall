@@ -50,7 +50,7 @@ export default function StoreCard({
                 alt={store.name}
                 fill
                 sizes="64px"
-                className="object-cover"
+                className="object-contain p-0.5"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-luxor-gold to-luxor-darkgold flex items-center justify-center font-bold text-luxor-navy text-2xl">
