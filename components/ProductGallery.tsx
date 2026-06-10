@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react';
+import { useLocale } from './LocaleProvider';
 
 export default function ProductGallery({ images, title }: { images: string[]; title: string }) {
+  const { locale } = useLocale();
+  const isRtl = locale === 'ar';
+  // Multiplier so positive translateX moves "next" in the visual reading order.
+  // In LTR: next = move left (negative). In RTL: next = move right (positive).
+  const dir = isRtl ? 1 : -1;
+
   const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
   const dragDeltaX = useRef(0);
+  const didDrag = useRef(false);
 
   if (!images?.length) {
     return (
@@ -21,12 +30,14 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
 
   const total = images.length;
   const goTo = (i: number) => setActive((i + total) % total);
-  const next = () => goTo(active + 1);
-  const prev = () => goTo(active - 1);
+  // "next" advances forward in the user's reading order; "prev" goes back.
+  const next = useCallback(() => setActive((a) => (a + 1) % total), [total]);
+  const prev = useCallback(() => setActive((a) => (a - 1 + total) % total), [total]);
 
   // Pointer events for mouse + touch swipe (single unified handler)
   const onPointerDown = (e: React.PointerEvent) => {
     isDragging.current = true;
+    didDrag.current = false;
     dragStartX.current = e.clientX;
     dragDeltaX.current = 0;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -35,12 +46,14 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
   const onPointerMove = (e: React.PointerEvent) => {
     if (!isDragging.current) return;
     dragDeltaX.current = e.clientX - dragStartX.current;
+    if (Math.abs(dragDeltaX.current) > 5) didDrag.current = true;
     if (trackRef.current) {
-      trackRef.current.style.transform = `translateX(calc(${-active * 100}% + ${dragDeltaX.current}px))`;
+      // base offset uses `dir` so the active slide is correctly positioned in RTL/LTR.
+      trackRef.current.style.transform = `translateX(calc(${dir * active * 100}% + ${dragDeltaX.current}px))`;
     }
   };
 
-  const onPointerEnd = (e: React.PointerEvent) => {
+  const onPointerEnd = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
     const delta = dragDeltaX.current;
@@ -49,35 +62,69 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
       trackRef.current.style.transform = '';
     }
     const THRESHOLD = 60;
-    if (delta > THRESHOLD) prev();
-    else if (delta < -THRESHOLD) next();
+    // Dragging finger to the right (positive delta):
+    //   LTR -> reveals the previous slide (prev)
+    //   RTL -> reveals the next slide (next)
+    if (delta > THRESHOLD) {
+      isRtl ? next() : prev();
+    } else if (delta < -THRESHOLD) {
+      isRtl ? prev() : next();
+    }
   };
 
-  // Keyboard arrow navigation
+  // Keyboard arrow navigation: ArrowRight/ArrowLeft map to the user's reading order.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') next();
-      else if (e.key === 'ArrowRight') prev();
+      if (e.key === 'ArrowRight') {
+        isRtl ? prev() : next();
+      } else if (e.key === 'ArrowLeft') {
+        isRtl ? next() : prev();
+      } else if (e.key === 'Escape') {
+        setLightboxOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, total]);
+  }, [isRtl, next, prev]);
+
+  // Lock body scroll while lightbox is open
+  useEffect(() => {
+    if (lightboxOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [lightboxOpen]);
+
+  const openLightbox = () => {
+    // suppress click after a swipe so dragging doesn't open the modal
+    if (didDrag.current) {
+      didDrag.current = false;
+      return;
+    }
+    setLightboxOpen(true);
+  };
 
   return (
     <div>
       <div
-        className="aspect-square relative rounded-2xl overflow-hidden bg-luxor-sandlight mb-3 touch-pan-y select-none"
+        className="aspect-square relative rounded-2xl overflow-hidden bg-luxor-sandlight mb-3 touch-pan-y select-none cursor-zoom-in group"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerEnd}
+        onClick={openLightbox}
+        role="button"
+        tabIndex={0}
+        aria-label={isRtl ? 'اضغط لعرض الصورة بحجمها الكامل' : 'Tap to view full size'}
       >
         {/* Sliding track */}
         <div
           ref={trackRef}
           className="absolute inset-0 flex transition-transform duration-300 ease-out"
-          style={{ transform: `translateX(${-active * 100}%)` }}
+          style={{ transform: `translateX(${dir * active * 100}%)` }}
         >
           {images.map((img, i) => (
             <div key={i} className="relative w-full h-full flex-shrink-0">
@@ -94,26 +141,39 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
           ))}
         </div>
 
+        {/* Zoom hint */}
+        <div className="absolute bottom-3 end-3 bg-black/55 text-white text-xs font-medium px-2 py-1.5 rounded-full z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition pointer-events-none">
+          <ZoomIn size={14} />
+          {isRtl ? 'تكبير' : 'Zoom'}
+        </div>
+
         {/* Prev / Next buttons */}
         {total > 1 && (
           <>
+            {/* Button on the "start" side = visual previous in user's reading order */}
             <button
               type="button"
-              onClick={prev}
-              aria-label="السابق"
+              onClick={(e) => {
+                e.stopPropagation();
+                prev();
+              }}
+              aria-label={isRtl ? 'السابق' : 'Previous'}
               className="absolute top-1/2 -translate-y-1/2 start-2 w-10 h-10 rounded-full bg-white/85 hover:bg-white shadow-md text-luxor-navy flex items-center justify-center z-10"
             >
-              <ChevronRight size={22} className="rtl:hidden" />
-              <ChevronLeft size={22} className="ltr:hidden" />
+              {/* Chevron always points toward the "start" of the reading direction */}
+              {isRtl ? <ChevronRight size={22} /> : <ChevronLeft size={22} />}
             </button>
+            {/* Button on the "end" side = visual next */}
             <button
               type="button"
-              onClick={next}
-              aria-label="التالي"
+              onClick={(e) => {
+                e.stopPropagation();
+                next();
+              }}
+              aria-label={isRtl ? 'التالي' : 'Next'}
               className="absolute top-1/2 -translate-y-1/2 end-2 w-10 h-10 rounded-full bg-white/85 hover:bg-white shadow-md text-luxor-navy flex items-center justify-center z-10"
             >
-              <ChevronLeft size={22} className="rtl:hidden" />
-              <ChevronRight size={22} className="ltr:hidden" />
+              {isRtl ? <ChevronLeft size={22} /> : <ChevronRight size={22} />}
             </button>
 
             {/* Indicator dots */}
@@ -122,8 +182,11 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
                 <button
                   key={i}
                   type="button"
-                  onClick={() => goTo(i)}
-                  aria-label={`صورة ${i + 1}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goTo(i);
+                  }}
+                  aria-label={`${isRtl ? 'صورة' : 'image'} ${i + 1}`}
                   className={`h-2 rounded-full transition-all ${
                     active === i ? 'w-6 bg-luxor-gold' : 'w-2 bg-white/70'
                   }`}
@@ -154,6 +217,83 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
               <Image src={img} alt={`${title}-thumb-${i}`} fill sizes="20vw" className="object-cover" />
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Full-size lightbox modal */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
+          onClick={() => setLightboxOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+        >
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxOpen(false);
+            }}
+            aria-label={isRtl ? 'إغلاق' : 'Close'}
+            className="absolute top-4 end-4 w-11 h-11 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 transition"
+          >
+            <X size={24} />
+          </button>
+
+          {/* Counter */}
+          {total > 1 && (
+            <div
+              className="absolute top-5 start-4 bg-white/15 text-white text-sm font-medium px-3 py-1.5 rounded-full z-10"
+              dir="ltr"
+            >
+              {active + 1} / {total}
+            </div>
+          )}
+
+          {/* Image container — full size, contained, with circular corners */}
+          <div
+            className="relative w-full h-full max-w-5xl max-h-[88vh] rounded-2xl overflow-hidden flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image
+              src={images[active]}
+              alt={`${title}-${active}`}
+              fill
+              sizes="100vw"
+              className="object-contain rounded-2xl"
+              priority
+            />
+          </div>
+
+          {/* Prev / Next in lightbox */}
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prev();
+                }}
+                aria-label={isRtl ? 'السابق' : 'Previous'}
+                className="absolute top-1/2 -translate-y-1/2 start-4 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 transition"
+              >
+                {isRtl ? <ChevronRight size={26} /> : <ChevronLeft size={26} />}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  next();
+                }}
+                aria-label={isRtl ? 'التالي' : 'Next'}
+                className="absolute top-1/2 -translate-y-1/2 end-4 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 transition"
+              >
+                {isRtl ? <ChevronLeft size={26} /> : <ChevronRight size={26} />}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
