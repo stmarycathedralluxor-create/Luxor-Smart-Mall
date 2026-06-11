@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { removeStorageUrls } from '@/lib/storage';
 
 /**
  * Helper: ensure the caller is an authenticated admin.
@@ -133,8 +134,35 @@ export async function approveStoreAction(storeId: string) {
 export async function rejectStoreAction(storeId: string) {
   const { supabase } = await requireAdmin();
 
-  const { error } = await supabase.from('stores').delete().eq('id', storeId);
+  // Collect storage files (logo/cover + product images) BEFORE deleting
+  const urls: (string | null | undefined)[] = [];
+  const { data: store } = await supabase
+    .from('stores')
+    .select('logo_url, cover_url')
+    .eq('id', storeId)
+    .maybeSingle();
+  if (store) urls.push(store.logo_url, store.cover_url);
+  const { data: prods } = await supabase
+    .from('products')
+    .select('images')
+    .eq('store_id', storeId);
+  (prods ?? []).forEach((p: any) => {
+    if (p.images?.length) urls.push(...p.images);
+  });
+
+  // Delete + verify (RLS can silently match 0 rows)
+  const { data: deleted, error } = await supabase
+    .from('stores')
+    .delete()
+    .eq('id', storeId)
+    .select('id');
   if (error) return { ok: false, error: error.message };
+  if (!deleted || deleted.length === 0) {
+    return { ok: false, error: 'تعذر حذف المتجر — لا تملك الصلاحية أو تم حذفه مسبقاً' };
+  }
+
+  // Physically free the storage space
+  await removeStorageUrls(supabase, urls);
 
   refreshAdmin();
   return { ok: true };

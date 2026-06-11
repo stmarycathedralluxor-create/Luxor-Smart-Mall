@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ExternalLink, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { removeStorageUrls } from '@/lib/storage';
 import { formatPrice } from '@/lib/utils';
 
 export default function ProductRow({ product }: { product: any }) {
@@ -29,8 +30,32 @@ export default function ProductRow({ product }: { product: any }) {
 
   const remove = async () => {
     if (!confirm(`حذف المنتج "${product.title}" نهائياً؟`)) return;
-    const { error } = await supabase.from('products').delete().eq('id', product.id);
+
+    // Read image URLs first so we can free the storage afterwards
+    const { data: prod } = await supabase
+      .from('products')
+      .select('images')
+      .eq('id', product.id)
+      .maybeSingle();
+
+    // Delete + verify a row was actually removed (RLS can match 0 rows)
+    const { data: deleted, error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', product.id)
+      .select('id');
     if (error) return alert(error.message);
+    if (!deleted || deleted.length === 0) {
+      alert('تعذر حذف المنتج — لا تملك الصلاحية أو تم حذفه مسبقاً.');
+      router.refresh();
+      return;
+    }
+
+    // Physically remove image files from Supabase Storage
+    if (prod?.images?.length) {
+      await removeStorageUrls(supabase, prod.images);
+    }
+
     router.refresh();
   };
 

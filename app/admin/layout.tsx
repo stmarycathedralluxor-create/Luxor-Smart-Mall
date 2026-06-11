@@ -3,6 +3,10 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Shield, Users, Store, Package, ArrowLeft, CheckCircle2, BellRing, HardDrive } from 'lucide-react';
 
+// Dashboards must always show live data — never cache
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();

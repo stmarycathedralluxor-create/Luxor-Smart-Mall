@@ -3,7 +3,9 @@ import { isStoreOpen } from '@/lib/utils';
 import StoreCard from '@/components/StoreCard';
 import { Store as StoreIcon, Sparkles, ShieldCheck } from 'lucide-react';
 
-export const revalidate = 60;
+// Always render fresh data — ISR caching made deletes/updates appear with a delay
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function StoresPage() {
   const supabase = createClient();

@@ -40,6 +40,25 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 ---
 
+## 🆕 Recently Added (v6) — Cache & Storage Overhaul
+
+1. **No more stale pages** — deleted stores/products no longer "come back" or keep showing:
+   - All public pages switched from ISR (60s cache) to **fully dynamic rendering** (`force-dynamic`).
+   - Supabase server client now forces `cache: 'no-store'` on every request, so Next.js can never serve cached DB responses.
+   - Next.js client **Router Cache disabled** (`experimental.staleTimes: 0`) — navigating between pages always fetches fresh data.
+   - **`Cache-Control: no-store` headers** on every HTML response (build assets remain cached as they are immutable).
+   - New global **`FreshnessGuard`** — refreshes server data when a page is restored from the browser Back/Forward Cache or the tab becomes visible after >30s.
+   - **Service worker v3** — strict allowlist: only fixed static icons are ever cached. v2 was silently caching RSC payloads (client navigation data), which froze pages on old data.
+2. **Deletes are now verified** — delete operations use `.select('id')` to confirm a row was actually removed (RLS silently matching 0 rows used to make items reappear). A clear Arabic error is shown otherwise.
+3. **Storage is REALLY freed now** — the old DB triggers deleted only the `storage.objects` *record*, leaving the physical file orphaned forever (used space never went down). Cleanup now uses the official **Storage API** from the app:
+   - Deleting a product → all its image files are removed from storage.
+   - Deleting a store (admin delete or reject) → logo, cover, and **all product images** removed.
+   - Removing/replacing an image in the product form, replacing a store logo/cover, or replacing an avatar → the old file is deleted.
+
+> 📌 To activate v6: **run `supabase/migrations/0007_fix_storage_cleanup.sql` once in the Supabase SQL editor**. It drops the broken cleanup triggers (which raced with the app and orphaned files) and re-asserts owner/admin storage delete policies. Idempotent.
+
+---
+
 ## 🆕 Recently Added (v5)
 
 1. **Fixed view & visit counters** — product views and store visits were never counted (server-side fire-and-forget RPCs were silently dropped and ISR cached the pages). Counting now happens **client-side** via lightweight tracker components (`ProductViewTracker`, `StoreVisitTracker`) with sessionStorage dedup (one count per browser session).

@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { removeStorageUrls } from '@/lib/storage';
 import ExpiryCountdown from '@/components/ExpiryCountdown';
 import type { Store } from '@/lib/types';
 
@@ -141,8 +142,35 @@ export default function StoreRow({
 
   const remove = async () => {
     if (!confirm(`حذف المتجر "${store.name}" وكل منتجاته نهائياً؟`)) return;
-    const { error } = await supabase.from('stores').delete().eq('id', store.id);
+
+    // Collect every storage file belonging to this store BEFORE deleting:
+    // all product images + the store logo & cover.
+    const urls: (string | null | undefined)[] = [store.logo_url, store.cover_url];
+    const { data: prods } = await supabase
+      .from('products')
+      .select('images')
+      .eq('store_id', store.id);
+    (prods ?? []).forEach((p: any) => {
+      if (p.images?.length) urls.push(...p.images);
+    });
+
+    // Delete + verify a row was actually removed (RLS can match 0 rows,
+    // which made stores reappear after the page refreshed)
+    const { data: deleted, error } = await supabase
+      .from('stores')
+      .delete()
+      .eq('id', store.id)
+      .select('id');
     if (error) return alert(error.message);
+    if (!deleted || deleted.length === 0) {
+      alert('تعذر حذف المتجر — لا تملك الصلاحية أو تم حذفه مسبقاً.');
+      router.refresh();
+      return;
+    }
+
+    // Physically remove all files from Supabase Storage to free the space
+    await removeStorageUrls(supabase, urls);
+
     router.refresh();
   };
 

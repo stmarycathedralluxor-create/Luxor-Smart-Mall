@@ -7,7 +7,7 @@ import { Save, Upload, Store as StoreIcon, Crop } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
 import ImageEditor from '@/components/ImageEditor';
-import { blobExt, checkQuotaBeforeUpload } from '@/lib/storage';
+import { blobExt, checkQuotaBeforeUpload, removeStorageUrls } from '@/lib/storage';
 import type { Store } from '@/lib/types';
 
 type EditingState = {
@@ -41,6 +41,9 @@ export default function StoreForm({
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState<'logo' | 'cover' | null>(null);
   const [editing, setEditing] = useState<EditingState>(null);
+  // Original saved URLs — replaced files get physically deleted after save
+  const persistedLogo = initialStore?.logo_url ?? '';
+  const persistedCover = initialStore?.cover_url ?? '';
 
   /** Open the real-time editor for a freshly picked file */
   const pickFile = (file: File, kind: 'logo' | 'cover') => {
@@ -76,7 +79,17 @@ export default function StoreForm({
       setError(uploadErr.message);
     } else {
       const { data } = supabase.storage.from('store-assets').getPublicUrl(path);
-      setForm((f) => ({ ...f, [kind === 'logo' ? 'logo_url' : 'cover_url']: data.publicUrl }));
+      setForm((f) => {
+        const key = kind === 'logo' ? 'logo_url' : 'cover_url';
+        const old = f[key];
+        // If the replaced file was uploaded in THIS session (not the saved
+        // one), free its storage immediately
+        const persisted = kind === 'logo' ? persistedLogo : persistedCover;
+        if (old && old !== data.publicUrl && old !== persisted) {
+          void removeStorageUrls(supabase, [old]);
+        }
+        return { ...f, [key]: data.publicUrl };
+      });
     }
     if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
     setEditing(null);
@@ -121,6 +134,15 @@ export default function StoreForm({
       setError(res.error.message);
       setLoading(false);
       return;
+    }
+
+    // Storage cleanup: previously saved logo/cover that got replaced or
+    // removed are now orphaned → physically delete them to free space
+    const orphaned: string[] = [];
+    if (persistedLogo && persistedLogo !== form.logo_url) orphaned.push(persistedLogo);
+    if (persistedCover && persistedCover !== form.cover_url) orphaned.push(persistedCover);
+    if (orphaned.length) {
+      await removeStorageUrls(supabase, orphaned);
     }
 
     router.push('/dashboard');

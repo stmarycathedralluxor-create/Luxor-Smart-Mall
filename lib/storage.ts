@@ -12,6 +12,55 @@ export function blobExt(blob: Blob): string {
   return 'jpg';
 }
 
+/** Buckets this app owns; only these may ever be cleaned up */
+const APP_BUCKETS = ['product-images', 'store-assets'];
+
+/**
+ * Parse a Supabase public storage URL into { bucket, path }.
+ * Returns null for anything that's not one of our storage URLs.
+ */
+export function parseStorageUrl(url?: string | null): { bucket: string; path: string } | null {
+  if (!url) return null;
+  const m = url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/([^?]+)/);
+  if (!m) return null;
+  const bucket = m[1];
+  if (!APP_BUCKETS.includes(bucket)) return null;
+  try {
+    return { bucket, path: decodeURIComponent(m[2]) };
+  } catch {
+    return { bucket, path: m[2] };
+  }
+}
+
+/**
+ * Physically delete storage files behind the given public URLs.
+ * Best-effort: groups by bucket, ignores failures (RLS, already deleted...).
+ * This guarantees space is actually freed when products/stores/images are
+ * deleted — without depending on DB triggers being installed.
+ */
+export async function removeStorageUrls(
+  supabase: SupabaseClient,
+  urls: (string | null | undefined)[]
+): Promise<void> {
+  const byBucket = new Map<string, string[]>();
+  for (const url of urls) {
+    const parsed = parseStorageUrl(url);
+    if (!parsed) continue;
+    const list = byBucket.get(parsed.bucket) ?? [];
+    if (!list.includes(parsed.path)) list.push(parsed.path);
+    byBucket.set(parsed.bucket, list);
+  }
+  await Promise.all(
+    Array.from(byBucket.entries()).map(async ([bucket, paths]) => {
+      try {
+        await supabase.storage.from(bucket).remove(paths);
+      } catch {
+        /* best-effort cleanup — never block the main operation */
+      }
+    })
+  );
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';

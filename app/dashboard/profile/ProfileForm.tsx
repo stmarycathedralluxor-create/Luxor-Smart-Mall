@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Save, Camera, Crop, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
-import { blobExt, checkQuotaBeforeUpload } from '@/lib/storage';
+import { blobExt, checkQuotaBeforeUpload, removeStorageUrls } from '@/lib/storage';
 import type { Profile } from '@/lib/types';
 
 type EditingState = { src: string; isObjectUrl: boolean } | null;
@@ -50,9 +50,14 @@ export default function ProfileForm({ profile, email }: { profile: Profile | nul
       setError(upErr.message);
     } else {
       const { data } = supabase.storage.from('store-assets').getPublicUrl(path);
+      const oldAvatar = avatarUrl;
       setAvatarUrl(data.publicUrl);
       // save immediately so the change is live right away
       await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', profile.id);
+      // Physically delete the replaced avatar file to free storage space
+      if (oldAvatar && oldAvatar !== data.publicUrl) {
+        await removeStorageUrls(supabase, [oldAvatar]);
+      }
       setMsg('تم تحديث الصورة الشخصية');
       router.refresh();
     }

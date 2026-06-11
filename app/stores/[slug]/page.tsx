@@ -20,7 +20,9 @@ import Reviews from '@/components/Reviews';
 import StarRating from '@/components/StarRating';
 import { StoreVisitTracker } from '@/components/ViewTrackers';
 
-export const revalidate = 60;
+// Always render fresh data — ISR caching made deletes/updates appear with a delay
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 function formatJoinDate(iso?: string) {
   if (!iso) return null;
