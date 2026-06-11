@@ -59,6 +59,11 @@ export function getExpiryInfo(expires_at?: string | null): ExpiryInfo {
     return { expiresAt: null, expired: false, daysLeft: null, openForever: true };
   }
   const expiresAt = new Date(expires_at);
+  // Guard against malformed dates → treat as "open forever" instead of
+  // rendering NaN/Invalid Date (which crashes downstream UI).
+  if (isNaN(expiresAt.getTime())) {
+    return { expiresAt: null, expired: false, daysLeft: null, openForever: true };
+  }
   const ms = expiresAt.getTime() - Date.now();
   const expired = ms <= 0;
   const daysLeft = expired ? 0 : Math.ceil(ms / 86_400_000);
