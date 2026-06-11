@@ -42,3 +42,36 @@ export function timeAgo(date: string, locale: 'ar' | 'en' = 'ar'): string {
   }
   return locale === 'ar' ? 'الآن' : 'just now';
 }
+
+/* ─────────── Store activation period helpers ─────────── */
+
+export type ExpiryInfo = {
+  /** null = open forever */
+  expiresAt: Date | null;
+  expired: boolean;
+  /** whole days remaining (ceil); null when open forever */
+  daysLeft: number | null;
+  openForever: boolean;
+};
+
+export function getExpiryInfo(expires_at?: string | null): ExpiryInfo {
+  if (!expires_at) {
+    return { expiresAt: null, expired: false, daysLeft: null, openForever: true };
+  }
+  const expiresAt = new Date(expires_at);
+  const ms = expiresAt.getTime() - Date.now();
+  const expired = ms <= 0;
+  const daysLeft = expired ? 0 : Math.ceil(ms / 86_400_000);
+  return { expiresAt, expired, daysLeft, openForever: false };
+}
+
+/** Is the store publicly visible considering active/approved/expiry flags? */
+export function isStoreOpen(store: {
+  is_active?: boolean;
+  is_approved?: boolean;
+  expires_at?: string | null;
+}): boolean {
+  if (!store.is_active) return false;
+  if (store.is_approved === false) return false;
+  return !getExpiryInfo(store.expires_at).expired;
+}

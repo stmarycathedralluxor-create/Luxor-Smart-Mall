@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { Shield, Users, Store, Package, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Shield, Users, Store, Package, ArrowLeft, CheckCircle2, BellRing } from 'lucide-react';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
@@ -41,6 +41,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminLink href="/admin/approvals" icon={CheckCircle2} label="الموافقات" />
           <AdminLink href="/admin/users" icon={Users} label="المستخدمون" />
           <AdminLink href="/admin/stores" icon={Store} label="المتاجر" />
+          <AdminLink href="/admin/expiry" icon={BellRing} label="تذكيرات التفعيل" />
           <AdminLink href="/admin/products" icon={Package} label="المنتجات" />
         </aside>
         <div>{children}</div>

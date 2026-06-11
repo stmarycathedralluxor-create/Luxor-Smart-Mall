@@ -11,6 +11,8 @@ import {
   Hourglass,
 } from 'lucide-react';
 import type { StoreCounters } from '@/lib/types';
+import { getExpiryInfo } from '@/lib/utils';
+import ExpiryCountdown from '@/components/ExpiryCountdown';
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -39,6 +41,7 @@ export default async function DashboardPage() {
   }
 
   const isPendingSeller = profile?.wants_to_sell && !profile?.is_seller_approved;
+  const expiry = store ? getExpiryInfo(store.expires_at) : null;
 
   return (
     <div className="space-y-6">
@@ -83,6 +86,33 @@ export default async function DashboardPage() {
           {!store.is_approved && (
             <div className="card p-4 bg-luxor-gold/10 border-luxor-gold/40 text-sm text-luxor-navy">
               ⏳ متجرك في انتظار موافقة الإدارة. لن يظهر للعملاء في الصفحات العامة حتى يتم اعتماده.
+            </div>
+          )}
+
+          {/* Activation period status */}
+          {expiry && !expiry.openForever && (
+            <div
+              className={`card p-5 flex items-center justify-between gap-3 flex-wrap ${
+                expiry.expired
+                  ? 'bg-red-50 border-red-200'
+                  : (expiry.daysLeft ?? 99) <= 3
+                    ? 'bg-red-50 border-red-200'
+                    : (expiry.daysLeft ?? 99) <= 7
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-green-50 border-green-200'
+              }`}
+            >
+              <div>
+                <div className="font-bold text-luxor-navy mb-0.5">
+                  {expiry.expired ? '⛔ انتهت فترة تفعيل متجرك' : '⏱️ فترة تفعيل المتجر'}
+                </div>
+                <div className="text-xs text-luxor-navy/70">
+                  {expiry.expired
+                    ? 'تم إخفاء متجرك من المنصة. تواصل مع الإدارة لتجديد التفعيل.'
+                    : `ينتهي التفعيل بتاريخ ${expiry.expiresAt!.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}. تواصل مع الإدارة للتجديد.`}
+                </div>
+              </div>
+              <ExpiryCountdown expiresAt={store.expires_at} size="lg" />
             </div>
           )}
 

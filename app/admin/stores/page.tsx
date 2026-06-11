@@ -25,6 +25,7 @@ export default async function AdminStoresPage() {
               <th className="text-start p-3">المالك</th>
               <th className="text-start p-3">واتساب</th>
               <th className="text-start p-3">الحالة</th>
+              <th className="text-start p-3">مدة التفعيل</th>
               <th className="text-start p-3">إجراءات</th>
             </tr>
           </thead>

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { isStoreOpen } from '@/lib/utils';
 import HomeContent from '@/components/HomeContent';
 
 export const revalidate = 60; // ISR every 60s
@@ -24,10 +25,16 @@ export default async function HomePage() {
     supabase.from('categories').select('*').order('id'),
   ]);
 
+  // Hide products/stores whose activation period expired
+  const openStores = (stores ?? []).filter((s) => isStoreOpen(s));
+  const openProducts = (products ?? []).filter(
+    (p: any) => p.store && isStoreOpen(p.store)
+  );
+
   return (
     <HomeContent
-      products={products ?? []}
-      stores={stores ?? []}
+      products={openProducts}
+      stores={openStores}
       categories={categories ?? []}
     />
   );
