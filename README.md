@@ -38,6 +38,26 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 > 📌 To activate v2: **run `supabase/migrations/0003_approvals_analytics.sql` once in the Supabase SQL editor**. It's idempotent and back-fills existing stores/sellers to `approved=true` so nothing breaks.
 
+---
+
+## 🆕 Recently Added (v3)
+
+1. **Real-time image editor (crop / zoom / reposition)** — uploading a store cover, store logo, profile avatar, or product image now opens a live editor modal:
+   - Drag the image to reposition it inside the exact frame used on the public site
+   - Zoom with a slider, mouse-wheel, or two-finger pinch on mobile
+   - 90° rotation + reset, rule-of-thirds grid, live preview in real time
+   - On save the visible frame is rendered to canvas and uploaded as an optimized JPEG
+   - Existing images can be re-edited any time via the "تعديل الموضع والحجم" button
+2. **Profile avatar** — the profile page now supports uploading & editing a personal photo (saved instantly).
+3. **Feedback + star ratings (real-time)** — products and stores now have a full reviews section:
+   - 1–5 star rating + optional written feedback (one review per user, editable/deletable)
+   - Average rating, review count, and a 5→1 distribution chart
+   - **Live via Supabase Realtime** — new reviews appear instantly for everyone viewing the page, no refresh
+   - Average star ratings shown on the product page header and the store header
+4. **New tables/RPCs** — `reviews` table with RLS, `get_product_rating()` / `get_store_rating()` aggregates, realtime publication.
+
+> 📌 To activate v3: **run `supabase/migrations/0004_reviews_ratings.sql` once in the Supabase SQL editor**. It's idempotent. Also make sure **Realtime** is enabled for your project (Database → Replication → the `supabase_realtime` publication should include `public.reviews` — the migration adds it automatically).
+
 ### Configuring Google OAuth in Supabase
 1. In your Supabase project go to **Authentication → Providers → Google** and turn it **on**.
 2. Create a Google OAuth client in [Google Cloud Console](https://console.cloud.google.com/) (Authorized redirect URI must be the value Supabase shows on that page, e.g. `https://<project>.supabase.co/auth/v1/callback`).
@@ -54,7 +74,8 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 3. Once ready, go to **SQL Editor** → paste the entire content of `supabase/migrations/0001_initial_schema.sql` → **Run**
 4. Then paste `supabase/migrations/0002_admin_and_backfill.sql` → **Run** (adds admin role + backfills any users created before the trigger)
 5. Then paste `supabase/migrations/0003_approvals_analytics.sql` → **Run** (adds seller/store approvals + analytics tables + tracking RPCs)
-6. Go to **Project Settings → API** → copy `Project URL` and `anon public` key
+6. Then paste `supabase/migrations/0004_reviews_ratings.sql` → **Run** (adds real-time reviews & star ratings)
+7. Go to **Project Settings → API** → copy `Project URL` and `anon public` key
 
 ### 🛡️ Create your first admin
 After signing up your account on the live site, run this in Supabase SQL Editor:

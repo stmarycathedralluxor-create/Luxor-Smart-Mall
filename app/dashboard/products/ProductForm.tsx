@@ -3,9 +3,18 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Upload, X, Save, Package } from 'lucide-react';
+import { Upload, X, Save, Crop } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import ImageEditor from '@/components/ImageEditor';
 import type { Category, Product } from '@/lib/types';
+
+type EditingState = {
+  src: string;
+  isObjectUrl: boolean;
+  /** index to replace, or null to append. Remaining queue of files to edit after this one */
+  replaceIndex: number | null;
+  queue: File[];
+} | null;
 
 export default function ProductForm({
   storeId,
@@ -31,23 +40,60 @@ export default function ProductForm({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState<EditingState>(null);
 
-  const uploadImages = async (files: FileList) => {
-    setUploading(true);
-    const uploaded: string[] = [];
-    for (const file of Array.from(files)) {
-      const ext = file.name.split('.').pop();
-      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage.from('product-images').upload(path, file);
-      if (error) {
-        setError(error.message);
-        continue;
-      }
-      const { data } = supabase.storage.from('product-images').getPublicUrl(path);
-      uploaded.push(data.publicUrl);
+  /** New files picked → open the editor for the first one, queue the rest */
+  const pickFiles = (files: FileList) => {
+    const list = Array.from(files).slice(0, 8 - form.images.length);
+    if (!list.length) return;
+    const [first, ...rest] = list;
+    setEditing({ src: URL.createObjectURL(first), isObjectUrl: true, replaceIndex: null, queue: rest });
+  };
+
+  /** Re-edit an already uploaded image */
+  const editExisting = (idx: number) => {
+    setEditing({ src: form.images[idx], isObjectUrl: false, replaceIndex: idx, queue: [] });
+  };
+
+  const advanceQueue = (queue: File[]) => {
+    if (queue.length) {
+      const [next, ...rest] = queue;
+      setEditing({ src: URL.createObjectURL(next), isObjectUrl: true, replaceIndex: null, queue: rest });
+    } else {
+      setEditing(null);
     }
-    setForm((f) => ({ ...f, images: [...f.images, ...uploaded].slice(0, 8) }));
+  };
+
+  const handleEditorSave = async (blob: Blob) => {
+    if (!editing) return;
+    setUploading(true);
+    const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const { error: upErr } = await supabase.storage
+      .from('product-images')
+      .upload(path, blob, { contentType: 'image/jpeg' });
+    if (upErr) {
+      setError(upErr.message);
+    } else {
+      const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+      const replaceIndex = editing.replaceIndex;
+      setForm((f) => {
+        if (replaceIndex !== null) {
+          const images = [...f.images];
+          images[replaceIndex] = data.publicUrl;
+          return { ...f, images };
+        }
+        return { ...f, images: [...f.images, data.publicUrl].slice(0, 8) };
+      });
+    }
+    if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
     setUploading(false);
+    advanceQueue(editing.queue);
+  };
+
+  const closeEditor = () => {
+    if (!editing) return;
+    if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
+    advanceQueue(editing.queue);
   };
 
   const removeImage = (idx: number) => {
@@ -88,6 +134,18 @@ export default function ProductForm({
 
   return (
     <form onSubmit={handleSubmit} className="card p-6 space-y-5">
+      {/* Real-time crop/zoom/reposition editor */}
+      {editing && (
+        <ImageEditor
+          src={editing.src}
+          aspect={1}
+          title="تعديل صورة المنتج"
+          outputWidth={1000}
+          onCancel={closeEditor}
+          onSave={handleEditorSave}
+        />
+      )}
+
       {/* Images */}
       <div>
         <label className="block text-sm font-medium text-luxor-navy mb-2">
@@ -100,9 +158,19 @@ export default function ProductForm({
               <button
                 type="button"
                 onClick={() => removeImage(i)}
+                title="حذف"
                 className="absolute top-1 end-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
               >
                 <X size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => editExisting(i)}
+                title="تعديل الموضع والحجم"
+                className="absolute bottom-1 end-1 inline-flex items-center gap-1 bg-luxor-obsidian/70 hover:bg-luxor-obsidian text-white rounded-full px-2 py-1 text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition backdrop-blur"
+              >
+                <Crop size={11} />
+                تعديل
               </button>
             </div>
           ))}
@@ -115,11 +183,15 @@ export default function ProductForm({
                 accept="image/*"
                 multiple
                 className="hidden"
-                onChange={(e) => e.target.files && uploadImages(e.target.files)}
+                onChange={(e) => {
+                  if (e.target.files) pickFiles(e.target.files);
+                  e.target.value = '';
+                }}
               />
             </label>
           )}
         </div>
+        <p className="text-xs text-luxor-navy/50 mt-1.5">عند رفع صورة سيفتح محرر مباشر للتكبير وتغيير الموضع قبل الحفظ — ويمكنك تعديل أي صورة لاحقاً</p>
       </div>
 
       <div>

@@ -3,10 +3,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Save, Upload, Store as StoreIcon } from 'lucide-react';
+import { Save, Upload, Store as StoreIcon, Crop } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
+import ImageEditor from '@/components/ImageEditor';
 import type { Store } from '@/lib/types';
+
+type EditingState = {
+  kind: 'logo' | 'cover';
+  src: string;
+  isObjectUrl: boolean;
+} | null;
 
 export default function StoreForm({
   initialStore,
@@ -32,22 +39,43 @@ export default function StoreForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState<'logo' | 'cover' | null>(null);
+  const [editing, setEditing] = useState<EditingState>(null);
 
-  const handleUpload = async (file: File, kind: 'logo' | 'cover') => {
+  /** Open the real-time editor for a freshly picked file */
+  const pickFile = (file: File, kind: 'logo' | 'cover') => {
+    const url = URL.createObjectURL(file);
+    setEditing({ kind, src: url, isObjectUrl: true });
+  };
+
+  /** Re-open the editor for an already-uploaded image */
+  const editExisting = (kind: 'logo' | 'cover') => {
+    const url = kind === 'logo' ? form.logo_url : form.cover_url;
+    if (url) setEditing({ kind, src: url, isObjectUrl: false });
+  };
+
+  /** Upload the cropped blob and update the form URL */
+  const handleEditorSave = async (blob: Blob) => {
+    if (!editing) return;
+    const kind = editing.kind;
     setUploading(kind);
-    const ext = file.name.split('.').pop();
-    const path = `${userId}/${kind}-${Date.now()}.${ext}`;
+    const path = `${userId}/${kind}-${Date.now()}.jpg`;
     const { error: uploadErr } = await supabase.storage
       .from('store-assets')
-      .upload(path, file, { upsert: true });
+      .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
     if (uploadErr) {
       setError(uploadErr.message);
-      setUploading(null);
-      return;
+    } else {
+      const { data } = supabase.storage.from('store-assets').getPublicUrl(path);
+      setForm((f) => ({ ...f, [kind === 'logo' ? 'logo_url' : 'cover_url']: data.publicUrl }));
     }
-    const { data } = supabase.storage.from('store-assets').getPublicUrl(path);
-    setForm((f) => ({ ...f, [kind === 'logo' ? 'logo_url' : 'cover_url']: data.publicUrl }));
+    if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
+    setEditing(null);
     setUploading(null);
+  };
+
+  const closeEditor = () => {
+    if (editing?.isObjectUrl) URL.revokeObjectURL(editing.src);
+    setEditing(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,10 +119,23 @@ export default function StoreForm({
 
   return (
     <form onSubmit={handleSubmit} className="card p-6 space-y-5">
+      {/* Real-time crop/reposition editor */}
+      {editing && (
+        <ImageEditor
+          src={editing.src}
+          aspect={editing.kind === 'cover' ? 16 / 6 : 1}
+          title={editing.kind === 'cover' ? 'تعديل صورة الغلاف' : 'تعديل شعار المتجر'}
+          outputWidth={editing.kind === 'cover' ? 1600 : 600}
+          round={editing.kind === 'logo'}
+          onCancel={closeEditor}
+          onSave={handleEditorSave}
+        />
+      )}
+
       {/* Cover */}
       <div>
         <label className="block text-sm font-medium text-luxor-navy mb-2">صورة الغلاف</label>
-        <div className="relative aspect-[16/6] rounded-xl overflow-hidden bg-luxor-sandlight border-2 border-dashed border-luxor-sand">
+        <div className="relative aspect-[16/6] rounded-xl overflow-hidden bg-luxor-sandlight border-2 border-dashed border-luxor-sand group">
           {form.cover_url ? (
             <Image src={form.cover_url} alt="cover" fill className="object-cover" />
           ) : (
@@ -107,21 +148,35 @@ export default function StoreForm({
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], 'cover')}
+              onChange={(e) => {
+                if (e.target.files?.[0]) pickFile(e.target.files[0], 'cover');
+                e.target.value = '';
+              }}
             />
           </label>
+          {form.cover_url && (
+            <button
+              type="button"
+              onClick={() => editExisting('cover')}
+              className="absolute bottom-2 end-2 inline-flex items-center gap-1.5 bg-luxor-obsidian/70 hover:bg-luxor-obsidian text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur transition"
+            >
+              <Crop size={13} />
+              تعديل الموضع والحجم
+            </button>
+          )}
           {uploading === 'cover' && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white">
               جاري الرفع...
             </div>
           )}
         </div>
+        <p className="text-xs text-luxor-navy/50 mt-1.5">اضغط على الصورة لرفع غلاف جديد — سيفتح محرر مباشر للتكبير وتغيير الموضع</p>
       </div>
 
       {/* Logo */}
       <div>
         <label className="block text-sm font-medium text-luxor-navy mb-2">شعار المتجر</label>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="w-24 h-24 rounded-2xl overflow-hidden bg-luxor-sandlight border-2 border-dashed border-luxor-sand relative">
             {form.logo_url ? (
               <Image src={form.logo_url} alt="logo" fill className="object-cover" />
@@ -131,16 +186,31 @@ export default function StoreForm({
               </div>
             )}
           </div>
-          <label className="btn-outline !py-2 !px-4 !text-sm cursor-pointer">
-            <Upload size={16} />
-            رفع شعار
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')}
-            />
-          </label>
+          <div className="flex flex-col gap-2">
+            <label className="btn-outline !py-2 !px-4 !text-sm cursor-pointer">
+              <Upload size={16} />
+              رفع شعار
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) pickFile(e.target.files[0], 'logo');
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {form.logo_url && (
+              <button
+                type="button"
+                onClick={() => editExisting('logo')}
+                className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-luxor-navy/70 hover:text-luxor-darkgold border border-luxor-sand hover:border-luxor-gold rounded-xl px-4 py-2 transition"
+              >
+                <Crop size={13} />
+                تعديل الموضع والحجم
+              </button>
+            )}
+          </div>
           {uploading === 'logo' && <span className="text-sm text-luxor-navy/60">جاري الرفع...</span>}
         </div>
       </div>

@@ -13,6 +13,8 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import ProductCard from '@/components/ProductCard';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import Reviews from '@/components/Reviews';
+import StarRating from '@/components/StarRating';
 
 export const revalidate = 60;
 
@@ -51,6 +53,19 @@ export default async function StorePage({ params }: { params: { slug: string } }
 
   const productCount = products?.length ?? 0;
   const joinDate = formatJoinDate(store.created_at);
+
+  // Rating summary (gracefully degrades if migration 0004 hasn't run yet)
+  let avgRating = 0;
+  let reviewCount = 0;
+  try {
+    const { data: rating } = await supabase.rpc('get_store_rating', { p_store_id: store.id });
+    if (rating && rating[0]) {
+      avgRating = Number(rating[0].avg_rating) || 0;
+      reviewCount = Number(rating[0].review_count) || 0;
+    }
+  } catch {
+    /* reviews not installed yet */
+  }
 
   // Unique categories represented in this store
   const categoryMap = new Map<number, { id: number; slug?: string; name_ar: string; name_en: string; icon: string | null; count: number }>();
@@ -159,6 +174,11 @@ export default async function StorePage({ params }: { params: { slug: string } }
                   <h1 className="text-2xl md:text-4xl font-black text-luxor-obsidian leading-tight">
                     {store.name}
                   </h1>
+                  {reviewCount > 0 && (
+                    <a href="#reviews" className="inline-block mt-2 hover:opacity-80 transition">
+                      <StarRating value={avgRating} size={16} showValue count={reviewCount} />
+                    </a>
+                  )}
                   {store.description && (
                     <p className="text-luxor-obsidian/70 mt-3 leading-relaxed max-w-2xl mx-auto md:mx-0">
                       {store.description}
@@ -260,12 +280,17 @@ export default async function StorePage({ params }: { params: { slug: string } }
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-16">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {products.map((p: any) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
           )}
+        </div>
+
+        {/* Real-time reviews and star ratings */}
+        <div className="pb-16">
+          <Reviews storeId={store.id} title="تقييمات المتجر" />
         </div>
       </div>
     </div>
