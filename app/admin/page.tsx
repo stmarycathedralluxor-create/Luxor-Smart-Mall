@@ -10,7 +10,9 @@ import {
   Tag,
   ShoppingCart,
   Clock,
+  BellRing,
 } from 'lucide-react';
+import ExpiryCountdown from '@/components/ExpiryCountdown';
 import type { AdminCounters } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -51,12 +53,39 @@ export default async function AdminOverviewPage() {
 
   const { data: recentStores } = await supabase
     .from('stores')
-    .select('id, name, slug, is_active, is_approved, created_at')
+    .select('id, name, slug, is_active, is_approved, expires_at, created_at')
     .order('created_at', { ascending: false })
     .limit(5);
 
+  // Pending expiry reminders (gracefully degrades if migration 0005 hasn't run)
+  let pendingReminders = 0;
+  try {
+    const { data: expiring } = await supabase.rpc('get_expiring_stores');
+    pendingReminders = (expiring ?? []).length;
+  } catch {
+    /* migration 0005 not run yet */
+  }
+
   return (
     <div className="space-y-6">
+      {pendingReminders > 0 && (
+        <Link
+          href="/admin/expiry"
+          className="card p-4 flex items-center gap-3 bg-red-50 border-red-200 hover:border-red-400 transition"
+        >
+          <BellRing className="text-red-600" size={22} />
+          <div className="flex-1">
+            <div className="font-bold text-luxor-navy">
+              {pendingReminders} تذكير انتهاء تفعيل بانتظار الإرسال
+            </div>
+            <div className="text-xs text-luxor-navy/70">
+              رسائل واتساب جاهزة (3 أيام / يوم واحد / إغلاق)
+            </div>
+          </div>
+          <span className="btn-primary !py-2 !px-3 !text-xs">إرسال الآن</span>
+        </Link>
+      )}
+
       {(counters.pending_sellers > 0 || counters.pending_stores > 0) && (
         <Link
           href="/admin/approvals"
@@ -151,6 +180,7 @@ export default async function AdminOverviewPage() {
                 >
                   <span className="font-medium text-luxor-navy">{s.name}</span>
                   <div className="flex items-center gap-2">
+                    {s.expires_at && <ExpiryCountdown expiresAt={s.expires_at} size="sm" />}
                     {!s.is_approved && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
                         بانتظار الموافقة

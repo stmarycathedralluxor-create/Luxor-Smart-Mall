@@ -5,13 +5,15 @@ import {
   MapPin,
   Store as StoreIcon,
   Package,
-  ShieldCheck,
+  BadgeCheck,
   Sparkles,
   Calendar,
   ChevronLeft,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { getExpiryInfo } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
+import StoreLogoFrame from '@/components/StoreLogoFrame';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import Reviews from '@/components/Reviews';
 import StarRating from '@/components/StarRating';
@@ -40,6 +42,10 @@ export default async function StorePage({ params }: { params: { slug: string } }
     .maybeSingle();
 
   if (!store) notFound();
+  // Hide stores whose activation period has expired
+  if (getExpiryInfo(store.expires_at).expired) notFound();
+
+  const isVerified = store.is_verified === true;
 
   // Track the store visit (fire & forget; RLS allows insert from anon)
   supabase.rpc('track_store_visit', { p_store_id: store.id, p_session_id: null });
@@ -122,34 +128,21 @@ export default async function StorePage({ params }: { params: { slug: string } }
       {/* ─────────── STORE IDENTITY HEADER ─────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative -mt-20 md:-mt-24 z-10">
-          {/* Logo floating above the card (NOT clipped, no overflow-hidden parent) */}
+          {/* Logo floating above the card — golden metal frame + 2px white frame */}
           <div className="flex justify-center md:justify-start md:ps-8">
             <div className="relative">
               {/* Soft golden halo */}
-              <div className="absolute -inset-2 bg-gradient-to-br from-luxor-goldlight/40 via-luxor-gold/20 to-transparent rounded-3xl blur-xl" aria-hidden />
-              <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-3xl bg-white shadow-2xl ring-4 ring-white overflow-hidden">
-                {store.logo_url ? (
-                  <Image
-                    src={store.logo_url}
-                    alt={store.name}
-                    fill
-                    sizes="(max-width: 768px) 112px, 144px"
-                    className="object-contain p-2"
-                    priority
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-luxor-goldlight via-luxor-gold to-luxor-darkgold flex items-center justify-center text-luxor-obsidian font-black text-5xl">
-                    {store.name.charAt(0)}
-                  </div>
-                )}
-              </div>
-              {/* Verified badge */}
-              <div
-                className="absolute -bottom-1 -end-1 bg-gradient-to-br from-luxor-gold to-luxor-darkgold text-luxor-obsidian rounded-full p-1.5 shadow-lg ring-2 ring-white"
-                title="متجر موثّق"
-              >
-                <ShieldCheck size={16} strokeWidth={2.5} />
-              </div>
+              <div className="absolute -inset-3 bg-gradient-to-br from-luxor-goldlight/40 via-luxor-gold/20 to-transparent rounded-3xl blur-xl" aria-hidden />
+              <StoreLogoFrame
+                logoUrl={store.logo_url}
+                name={store.name}
+                isVerified={isVerified}
+                sizeClass="w-28 h-28 md:w-36 md:h-36"
+                fallbackTextClass="text-5xl"
+                badgeSize={16}
+                sizes="(max-width: 768px) 112px, 144px"
+                priority
+              />
             </div>
           </div>
 
@@ -164,6 +157,12 @@ export default async function StorePage({ params }: { params: { slug: string } }
                       <Sparkles size={11} />
                       متجر رسمي
                     </span>
+                    {isVerified && (
+                      <span className="inline-flex items-center gap-1 bg-gold-gradient text-luxor-obsidian px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider shadow-sm">
+                        <BadgeCheck size={11} strokeWidth={2.5} />
+                        موثّق
+                      </span>
+                    )}
                     {store.city && (
                       <span className="inline-flex items-center gap-1 bg-luxor-obsidian/5 text-luxor-obsidian/80 border border-luxor-obsidian/10 px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
                         <MapPin size={11} className="text-luxor-gold" />

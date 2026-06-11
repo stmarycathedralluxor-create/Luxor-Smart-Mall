@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Store as StoreIcon, Eye, Tag } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { isStoreOpen } from '@/lib/utils';
 import ProductGallery from '@/components/ProductGallery';
 import PriceReveal from '@/components/PriceReveal';
 import Reviews from '@/components/Reviews';
@@ -20,8 +21,8 @@ export default async function ProductPage({ params }: { params: { id: string } }
     .maybeSingle();
 
   if (!product || !product.store) notFound();
-  // hide products of unapproved stores from the public
-  if (!product.store.is_active || !product.store.is_approved) {
+  // hide products of unapproved / expired stores from the public
+  if (!isStoreOpen(product.store)) {
     notFound();
   }
 

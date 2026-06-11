@@ -22,6 +22,9 @@ export type Store = {
   city: string | null;
   is_active: boolean;
   is_approved?: boolean;
+  is_verified?: boolean;
+  activated_at?: string | null;
+  expires_at?: string | null;
   created_at: string;
 };
 

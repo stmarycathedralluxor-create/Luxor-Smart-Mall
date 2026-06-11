@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { isStoreOpen } from '@/lib/utils';
 import StoreCard from '@/components/StoreCard';
 import { Store as StoreIcon, Sparkles, ShieldCheck } from 'lucide-react';
 
@@ -6,12 +7,15 @@ export const revalidate = 60;
 
 export default async function StoresPage() {
   const supabase = createClient();
-  const { data: stores } = await supabase
+  const { data: storesRaw } = await supabase
     .from('stores')
     .select('*')
     .eq('is_active', true)
     .eq('is_approved', true)
     .order('created_at', { ascending: false });
+
+  // Hide stores whose activation period expired
+  const stores = (storesRaw ?? []).filter((s) => isStoreOpen(s));
 
   // count products per store
   const ids = (stores ?? []).map((s) => s.id);
@@ -43,13 +47,13 @@ export default async function StoresPage() {
           <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-luxor-gold/15 border border-luxor-gold/30 text-luxor-goldlight px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4">
               <Sparkles size={12} />
-              متاجر موثّقة في الأقصر
+              متاجر رسمية في الأقصر
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4">
               جميع <span className="text-gold-gradient">المتاجر</span>
             </h1>
             <p className="text-white/70 text-base md:text-lg max-w-2xl mx-auto">
-              اكتشف متاجر الأقصر المميزة، وتسوّق بثقة من بائعين موثّقين بتجربة فاخرة
+              اكتشف متاجر الأقصر المميزة، وتسوّق بثقة من بائعين معتمدين بتجربة فاخرة
             </p>
 
             {/* Stat pills */}
@@ -68,7 +72,7 @@ export default async function StoresPage() {
                   <div className="text-[11px] text-white/80 font-semibold leading-tight text-start">
                     جميع المتاجر
                     <br />
-                    موثّقة
+                    معتمدة من الإدارة
                   </div>
                 </div>
               </div>

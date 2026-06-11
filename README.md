@@ -40,6 +40,20 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 ---
 
+## 🆕 Recently Added (v4)
+
+1. **Golden metal logo frame** — store profile pictures now have a thin **2px white inner frame** wrapped in a **metallic gold gradient outer frame** with **pharaonic corner brackets** (on store cards and the store page).
+2. **Admin-granted verified badge** — `stores.is_verified` flag. The gold `BadgeCheck` badge only appears on stores the admin verifies via the toggle in **/admin/stores**. Sellers can't grant it to themselves (DB trigger protection).
+3. **Store activation periods** — admin can activate a store for **1 month, 3 months, 6 months, 1 year, a custom months+days combo, or forever** (`stores.expires_at`, null = forever):
+   - **Remaining-days counter** shown in the seller dashboard, admin overview, admin stores table, and the new **/admin/expiry** page.
+   - Expired stores (and their products) are automatically hidden from all public pages.
+   - **WhatsApp reminders**: the **/admin/expiry** center lists due notifications — *3 days left*, *1 day left*, and *closure*. One click opens WhatsApp with a prepared Arabic message and logs it (closure also deactivates the store). Each reminder is sent only once per expiry date.
+4. **Pharaonic card redesign** — product & store cards now use a **black/gold elegant look**: metallic gold border, black obsidian image headers with a golden hairline, gold-on-black chips, and a **creamy white marble** card body (`.bg-marble`).
+
+> 📌 To activate v4: **run `supabase/migrations/0005_verification_expiry.sql` once in the Supabase SQL editor**. Idempotent — existing stores remain "open forever" and unverified.
+
+---
+
 ## 🆕 Recently Added (v3)
 
 1. **Real-time image editor (crop / zoom / reposition)** — uploading a store cover, store logo, profile avatar, or product image now opens a live editor modal:
