@@ -201,7 +201,7 @@ export default async function StorePage({ params }: { params: { slug: string } }
                 <div className="flex flex-col items-center md:items-end gap-3 shrink-0">
                   <WhatsAppButton
                     phone={store.whatsapp}
-                    message={`السلام عليكم، أتواصل معكم من لوكسور سمارت مول بخصوص متجركم ${store.name}`}
+                    message={`مرحباً، أتواصل معكم من لوكسور سمارت مول بخصوص متجركم ${store.name}`}
                     label="تواصل عبر واتساب"
                   />
                 </div>

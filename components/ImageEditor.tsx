@@ -88,7 +88,18 @@ export default function ImageEditor({
   } | null>(null);
 
   // Load the image (CORS-safe so canvas export works for remote URLs)
+  // IMPORTANT: when the editor is reused for the NEXT image in a multi-image
+  // queue (the `src` prop changes without unmounting), every piece of state
+  // must be reset — otherwise `saving` stays true and the editor hangs on
+  // "جاري الحفظ..." forever, blocking the rest of the queue.
   useEffect(() => {
+    setLoaded(false);
+    setSaving(false);
+    setZoom(1);
+    setRotation(0);
+    setOffset({ x: 0, y: 0 });
+    pointers.current.clear();
+    gesture.current = null;
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
@@ -274,6 +285,9 @@ export default function ImageEditor({
       await onSave(blob);
     } catch (err) {
       console.error(err);
+    } finally {
+      // Always release the button — if the editor moves on to the next
+      // queued image (same component instance) it must be usable again.
       setSaving(false);
     }
   };

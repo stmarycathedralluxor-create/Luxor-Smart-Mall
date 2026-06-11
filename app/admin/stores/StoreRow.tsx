@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { removeStorageUrls } from '@/lib/storage';
+import { removeStorageUrls, removeStoreOwnerFiles } from '@/lib/storage';
 import ExpiryCountdown from '@/components/ExpiryCountdown';
 import type { Store } from '@/lib/types';
 
@@ -168,8 +168,14 @@ export default function StoreRow({
       return;
     }
 
-    // Physically remove all files from Supabase Storage to free the space
+    // Physically remove all files from Supabase Storage to free the space:
+    // 1) the exact URLs we collected (products + logo + cover)
+    // 2) deep-sweep of the owner's folders (catches files the URL pass
+    //    missed — this is what left store assets orphaned before)
     await removeStorageUrls(supabase, urls);
+    if (store.owner_id) {
+      await removeStoreOwnerFiles(supabase, store.owner_id);
+    }
 
     router.refresh();
   };

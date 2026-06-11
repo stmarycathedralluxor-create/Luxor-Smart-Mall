@@ -53,12 +53,75 @@ export async function removeStorageUrls(
   await Promise.all(
     Array.from(byBucket.entries()).map(async ([bucket, paths]) => {
       try {
-        await supabase.storage.from(bucket).remove(paths);
+        const { data } = await supabase.storage.from(bucket).remove(paths);
+        // Verify what was ACTUALLY deleted — RLS can silently skip files.
+        // Retry the missing ones one-by-one so a single bad path can't
+        // poison the whole batch (this is why store-assets files were
+        // sometimes left behind while product-images got cleaned).
+        const removed = new Set((data ?? []).map((o: { name: string }) => o.name));
+        const missing = paths.filter((p) => !removed.has(p));
+        if (missing.length) {
+          await Promise.all(
+            missing.map((p) =>
+              supabase.storage
+                .from(bucket)
+                .remove([p])
+                .catch(() => {})
+            )
+          );
+        }
       } catch {
         /* best-effort cleanup — never block the main operation */
       }
     })
   );
+}
+
+/**
+ * Deep-clean ALL storage files of a store owner when their store is deleted.
+ *
+ * Why: URL-based cleanup can miss files (stale URLs, renamed files, silent
+ * RLS skips) — which left store logos/covers orphaned in `store-assets`.
+ * Since each user owns at most ONE store (unique owner_id), deleting the
+ * store means we can safely sweep:
+ *   - the whole `product-images/{ownerId}/` folder
+ *   - `store-assets/{ownerId}/` logo-* and cover-* files (avatar is kept)
+ */
+export async function removeStoreOwnerFiles(
+  supabase: SupabaseClient,
+  ownerId: string
+): Promise<void> {
+  if (!ownerId) return;
+  const sweep = async (bucket: string, keepAvatar: boolean) => {
+    try {
+      // Supabase list() paginates at 100 by default — loop until empty
+      const toRemove: string[] = [];
+      for (let page = 0; page < 20; page++) {
+        const { data, error } = await supabase.storage
+          .from(bucket)
+          .list(ownerId, { limit: 100, offset: page * 100 });
+        if (error || !data || data.length === 0) break;
+        for (const f of data) {
+          if (!f.name) continue;
+          if (keepAvatar && f.name.startsWith('avatar-')) continue;
+          toRemove.push(`${ownerId}/${f.name}`);
+        }
+        if (data.length < 100) break;
+      }
+      if (toRemove.length) {
+        // remove in chunks of 50 to stay well under API limits
+        for (let i = 0; i < toRemove.length; i += 50) {
+          await supabase.storage.from(bucket).remove(toRemove.slice(i, i + 50));
+        }
+      }
+    } catch {
+      /* best-effort — never block the main operation */
+    }
+  };
+  await Promise.all([
+    sweep('product-images', false),
+    sweep('store-assets', true), // keep the user's personal avatar
+  ]);
 }
 
 export function formatBytes(bytes: number): string {
