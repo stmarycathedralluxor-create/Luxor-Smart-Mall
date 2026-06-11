@@ -64,9 +64,53 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+                  navigator.serviceWorker.register('/sw.js').then((reg) => {
+                    // Check for a new SW on every page load so deployments
+                    // propagate quickly instead of serving stale assets.
+                    reg.update().catch(() => {});
+                  }).catch(() => {});
+                  // Reload once when a new service worker takes control,
+                  // so the page always matches the latest deployment.
+                  let refreshed = false;
+                  navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (refreshed) return;
+                    refreshed = true;
+                    window.location.reload();
+                  });
                 });
               }
+              // Recovery: if a hashed JS/CSS chunk from an old deployment
+              // fails to load (404 after redeploy), clear caches + SW and
+              // reload once to fetch the fresh HTML/chunks.
+              (function () {
+                const KEY = 'lsm_chunk_reload_at';
+                function recover() {
+                  try {
+                    const last = +(sessionStorage.getItem(KEY) || 0);
+                    if (Date.now() - last < 30000) return; // avoid reload loops
+                    sessionStorage.setItem(KEY, String(Date.now()));
+                  } catch (e) {}
+                  const work = [];
+                  if ('caches' in window) {
+                    work.push(caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))).catch(() => {}));
+                  }
+                  if ('serviceWorker' in navigator) {
+                    work.push(navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister()))).catch(() => {}));
+                  }
+                  Promise.all(work).finally(() => window.location.reload());
+                }
+                window.addEventListener('error', (e) => {
+                  const t = e.target;
+                  if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+                    const src = t.src || t.href || '';
+                    if (src.indexOf('/_next/static/') !== -1) recover();
+                  }
+                }, true);
+                window.addEventListener('unhandledrejection', (e) => {
+                  const msg = (e.reason && (e.reason.message || String(e.reason))) || '';
+                  if (/Loading chunk|ChunkLoadError|Failed to fetch dynamically imported module/i.test(msg)) recover();
+                });
+              })();
             `,
           }}
         />
