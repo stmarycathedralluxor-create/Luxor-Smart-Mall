@@ -1,9 +1,9 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Store as StoreIcon, Eye, Tag } from 'lucide-react';
+import { MapPin, Store as StoreIcon, Eye, Tag, Zap, CalendarClock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { isStoreOpen } from '@/lib/utils';
+import { isStoreOpen, deliveryDaysLabel } from '@/lib/utils';
 import ProductGallery from '@/components/ProductGallery';
 import PriceReveal from '@/components/PriceReveal';
 import Reviews from '@/components/Reviews';
@@ -87,6 +87,33 @@ export default async function ProductPage({ params }: { params: { id: string } }
               </span>
             )}
           </div>
+
+          {/* طريقة التوفر: فوري أو حجز مسبق */}
+          {product.delivery_type === 'preorder' ? (
+            <div className="mb-6 flex items-center gap-3 bg-amber-50 border border-amber-300 rounded-xl p-4">
+              <span className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0">
+                <CalendarClock size={20} />
+              </span>
+              <div>
+                <div className="font-bold text-amber-800">حجز مسبق</div>
+                <div className="text-sm text-amber-700">
+                  {product.delivery_days
+                    ? deliveryDaysLabel(product.delivery_days, 'ar')
+                    : 'المنتج يتطلب حجزاً مسبقاً — تواصل مع البائع لمعرفة مدة الوصول'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-6 flex items-center gap-3 bg-emerald-50 border border-emerald-300 rounded-xl p-4">
+              <span className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <Zap size={20} />
+              </span>
+              <div>
+                <div className="font-bold text-emerald-800">متاح فوراً</div>
+                <div className="text-sm text-emerald-700">المنتج متوفر وجاهز للتسليم</div>
+              </div>
+            </div>
+          )}
 
           {/* Price reveal + WhatsApp order (client component) */}
           <PriceReveal

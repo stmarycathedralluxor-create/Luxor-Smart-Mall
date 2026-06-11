@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Store as StoreIcon, Tag, MapPin, BadgeCheck } from 'lucide-react';
+import { Eye, Store as StoreIcon, Tag, MapPin, BadgeCheck, Zap, CalendarClock } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
+import { deliveryDaysLabel } from '@/lib/utils';
 import type { ProductWithStore } from '@/lib/types';
 
 export default function ProductCard({ product }: { product: ProductWithStore }) {
   const { locale, t } = useLocale();
   const img = product.images?.[0];
+  const isPreorder = product.delivery_type === 'preorder';
 
   return (
     <Link
@@ -57,6 +59,22 @@ export default function ProductCard({ product }: { product: ProductWithStore }) 
             {/* views pill */}
             <span className="absolute top-2 end-2 bg-black/55 backdrop-blur text-luxor-goldlight border border-luxor-gold/25 px-2 py-0.5 rounded-full text-[10px] font-medium inline-flex items-center gap-1">
               <Eye size={11} /> {product.views ?? 0}
+            </span>
+
+            {/* delivery badge: instant vs pre-order */}
+            <span
+              className={`absolute bottom-2 start-2 backdrop-blur px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 shadow-sm border ${
+                isPreorder
+                  ? 'bg-amber-500/90 text-white border-amber-300/60'
+                  : 'bg-emerald-600/90 text-white border-emerald-300/60'
+              }`}
+            >
+              {isPreorder ? <CalendarClock size={11} /> : <Zap size={11} />}
+              {isPreorder
+                ? product.delivery_days
+                  ? deliveryDaysLabel(product.delivery_days, locale)
+                  : t.product.preorder
+                : t.product.instantDelivery}
             </span>
           </div>
 

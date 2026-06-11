@@ -81,6 +81,11 @@ export const translations: Record<Locale, TranslationShape> = {
       askPrice: 'استعلم عن السعر',
       loginToSeePrice: 'سجّل دخولك لرؤية السعر',
       revealing: 'جاري عرض السعر...',
+      instantDelivery: 'متاح فوراً',
+      preorder: 'حجز مسبق',
+      arrivesWithin: 'يصل خلال',
+      day: 'يوم',
+      days: 'أيام',
     },
     store: {
       createStore: 'أنشئ متجرك',
@@ -190,6 +195,11 @@ export const translations: Record<Locale, TranslationShape> = {
       askPrice: 'Ask for Price',
       loginToSeePrice: 'Login to see the price',
       revealing: 'Revealing price...',
+      instantDelivery: 'In Stock — Instant',
+      preorder: 'Pre-order',
+      arrivesWithin: 'Arrives within',
+      day: 'day',
+      days: 'days',
     },
     store: {
       createStore: 'Create your store',
