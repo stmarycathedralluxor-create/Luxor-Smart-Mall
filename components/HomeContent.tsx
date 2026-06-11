@@ -2,20 +2,28 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, ShoppingBag, Store, Users, Sparkles } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Store, Sparkles, Globe, Eye } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
 import ProductCard from './ProductCard';
 import StoreCard from './StoreCard';
 import type { ProductWithStore, Store as StoreType, Category } from '@/lib/types';
 
+type SiteStats = { site_visits: number; store_visits: number; product_views: number };
+
+function formatCount(n: number, locale: 'ar' | 'en'): string {
+  return n.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US');
+}
+
 export default function HomeContent({
   products,
   stores,
   categories,
+  siteStats,
 }: {
   products: ProductWithStore[];
   stores: StoreType[];
   categories: Category[];
+  siteStats?: SiteStats;
 }) {
   const { locale, t } = useLocale();
 
@@ -80,9 +88,21 @@ export default function HomeContent({
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 mt-16 max-w-2xl mx-auto">
               {[
-                { icon: Store, value: stores.length + '+', label: t.nav.stores },
-                { icon: ShoppingBag, value: products.length + '+', label: locale === 'ar' ? 'منتج' : 'Products' },
-                { icon: Users, value: '∞', label: locale === 'ar' ? 'عميل سعيد' : 'Happy Customers' },
+                {
+                  icon: Globe,
+                  value: formatCount(siteStats?.site_visits ?? 0, locale),
+                  label: locale === 'ar' ? 'زيارة للموقع' : 'Site Visits',
+                },
+                {
+                  icon: Store,
+                  value: formatCount(siteStats?.store_visits ?? 0, locale),
+                  label: locale === 'ar' ? 'زيارة للمتاجر' : 'Store Visits',
+                },
+                {
+                  icon: Eye,
+                  value: formatCount(siteStats?.product_views ?? 0, locale),
+                  label: locale === 'ar' ? 'مشاهدة للمنتجات' : 'Product Views',
+                },
               ].map((s, i) => (
                 <div key={i} className="text-center">
                   <s.icon className="mx-auto text-luxor-gold mb-2" size={28} />

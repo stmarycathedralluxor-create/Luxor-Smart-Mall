@@ -7,10 +7,19 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminStoresPage() {
   const supabase = createClient();
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('*, owner:profiles(full_name)')
-    .order('created_at', { ascending: false });
+  const [{ data: stores }, { data: visitRows }] = await Promise.all([
+    supabase
+      .from('stores')
+      .select('*, owner:profiles(full_name)')
+      .order('created_at', { ascending: false }),
+    supabase.from('store_visits').select('store_id'),
+  ]);
+
+  // Aggregate visits per store (admin can read store_visits via RLS)
+  const visitCounts = new Map<string, number>();
+  (visitRows ?? []).forEach((v: any) => {
+    visitCounts.set(v.store_id, (visitCounts.get(v.store_id) ?? 0) + 1);
+  });
 
   return (
     <div className="card overflow-hidden">
@@ -24,6 +33,7 @@ export default async function AdminStoresPage() {
               <th className="text-start p-3">الاسم</th>
               <th className="text-start p-3">المالك</th>
               <th className="text-start p-3">واتساب</th>
+              <th className="text-start p-3">الزيارات</th>
               <th className="text-start p-3">الحالة</th>
               <th className="text-start p-3">مدة التفعيل</th>
               <th className="text-start p-3">إجراءات</th>
@@ -31,7 +41,7 @@ export default async function AdminStoresPage() {
           </thead>
           <tbody>
             {(stores ?? []).map((s: any) => (
-              <StoreRow key={s.id} store={s} ownerName={s.owner?.full_name ?? '—'} />
+              <StoreRow key={s.id} store={s} ownerName={s.owner?.full_name ?? '—'} visitCount={visitCounts.get(s.id) ?? 0} />
             ))}
           </tbody>
         </table>

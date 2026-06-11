@@ -9,6 +9,7 @@ import {
   Sparkles,
   Calendar,
   ChevronLeft,
+  Eye,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getExpiryInfo } from '@/lib/utils';
@@ -17,6 +18,7 @@ import StoreLogoFrame from '@/components/StoreLogoFrame';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import Reviews from '@/components/Reviews';
 import StarRating from '@/components/StarRating';
+import { StoreVisitTracker } from '@/components/ViewTrackers';
 
 export const revalidate = 60;
 
@@ -47,8 +49,15 @@ export default async function StorePage({ params }: { params: { slug: string } }
 
   const isVerified = store.is_verified === true;
 
-  // Track the store visit (fire & forget; RLS allows insert from anon)
-  supabase.rpc('track_store_visit', { p_store_id: store.id, p_session_id: null });
+  // Visit tracking now happens client-side via <StoreVisitTracker> —
+  // server-side fire-and-forget RPCs were dropped & this page is ISR-cached.
+  let visitCount = 0;
+  try {
+    const { data: vc } = await supabase.rpc('get_store_visits_count', { p_store_id: store.id });
+    visitCount = Number(vc) || 0;
+  } catch {
+    /* migration 0006 not run yet */
+  }
 
   const { data: products } = await supabase
     .from('products')
@@ -89,6 +98,7 @@ export default async function StorePage({ params }: { params: { slug: string } }
 
   return (
     <div className="bg-luxor-sandlight/30 min-h-screen">
+      <StoreVisitTracker storeId={store.id} />
       {/* ─────────── COVER / HERO ─────────── */}
       <div className="relative">
         <div className="relative aspect-[16/6] md:aspect-[16/5] lg:aspect-[16/4] bg-gradient-to-br from-luxor-obsidian via-luxor-charcoal to-luxor-darkgold overflow-hidden">
@@ -200,13 +210,20 @@ export default async function StorePage({ params }: { params: { slug: string } }
             <div className="h-px bg-gradient-to-r from-transparent via-luxor-gold/30 to-transparent" />
 
             {/* Stats row */}
-            <div className="grid grid-cols-3 divide-x divide-luxor-gold/15 rtl:divide-x-reverse">
+            <div className="grid grid-cols-4 divide-x divide-luxor-gold/15 rtl:divide-x-reverse">
               <div className="p-4 md:p-5 text-center">
                 <div className="flex items-center justify-center gap-1.5 text-luxor-darkgold mb-1">
                   <Package size={14} />
                   <span className="text-[11px] font-semibold uppercase tracking-wider">منتجات</span>
                 </div>
                 <div className="text-2xl md:text-3xl font-black text-luxor-obsidian">{productCount}</div>
+              </div>
+              <div className="p-4 md:p-5 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-luxor-darkgold mb-1">
+                  <Eye size={14} />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">زيارات</span>
+                </div>
+                <div className="text-2xl md:text-3xl font-black text-luxor-obsidian">{visitCount.toLocaleString('ar-EG')}</div>
               </div>
               <div className="p-4 md:p-5 text-center">
                 <div className="flex items-center justify-center gap-1.5 text-luxor-darkgold mb-1">

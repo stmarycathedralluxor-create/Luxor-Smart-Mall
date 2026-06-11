@@ -40,6 +40,18 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 ---
 
+## 🆕 Recently Added (v5)
+
+1. **Fixed view & visit counters** — product views and store visits were never counted (server-side fire-and-forget RPCs were silently dropped and ISR cached the pages). Counting now happens **client-side** via lightweight tracker components (`ProductViewTracker`, `StoreVisitTracker`) with sessionStorage dedup (one count per browser session).
+2. **Public statistics** — the homepage hero now shows live totals (**site visits, store visits, product views** via `get_public_site_stats()`), each store page shows its **visit count** in the stats row, and the admin stores table got a **visits column**.
+3. **Smart image compression** — the image editor now exports **WebP** (JPEG fallback for old Safari) with an adaptive quality loop targeting ≤220KB — typically **60–80% smaller** files without visible quality loss.
+4. **Storage quotas** — every uploader gets a **200MB default quota** (admin can change per user via `profiles.storage_limit_mb`). Enforced at the DB level (storage INSERT policy) **and** pre-checked client-side with a friendly Arabic error. New **/admin/storage** page shows per-store usage with progress bars and per-user limit editing.
+5. **Automatic storage cleanup** — deleting a product/store, removing an image from a product, or replacing a logo/cover/avatar now **deletes the old files from Supabase Storage** via DB triggers (previously files were orphaned forever).
+
+> 📌 To activate v5: **run `supabase/migrations/0006_stats_storage.sql` once in the Supabase SQL editor**. Idempotent.
+
+---
+
 ## 🆕 Recently Added (v4)
 
 1. **Golden metal logo frame** — store profile pictures now have a thin **2px white inner frame** wrapped in a **metallic gold gradient outer frame** with **pharaonic corner brackets** (on store cards and the store page).

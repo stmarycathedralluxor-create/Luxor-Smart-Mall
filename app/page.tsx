@@ -8,7 +8,7 @@ export const revalidate = 60; // ISR every 60s
 export default async function HomePage() {
   const supabase = createClient();
 
-  const [{ data: products }, { data: stores }, { data: categories }] = await Promise.all([
+  const [{ data: products }, { data: stores }, { data: categories }, statsRes] = await Promise.all([
     supabase
       .from('products')
       .select('*, store:stores(*), category:categories(*)')
@@ -23,7 +23,13 @@ export default async function HomePage() {
       .order('created_at', { ascending: false })
       .limit(6),
     supabase.from('categories').select('*').order('id'),
+    // Public site stats (gracefully degrades if migration 0006 hasn't run)
+    supabase.rpc('get_public_site_stats').then((r) => r, () => ({ data: null })),
   ]);
+
+  const siteStats =
+    (statsRes?.data as { site_visits: number; store_visits: number; product_views: number } | null) ??
+    { site_visits: 0, store_visits: 0, product_views: 0 };
 
   // Hide products/stores whose activation period expired
   const openStores = (stores ?? []).filter((s) => isStoreOpen(s));
@@ -36,6 +42,7 @@ export default async function HomePage() {
       products={openProducts}
       stores={openStores}
       categories={categories ?? []}
+      siteStats={siteStats}
     />
   );
 }
