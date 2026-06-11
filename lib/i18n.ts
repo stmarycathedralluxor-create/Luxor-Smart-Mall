@@ -8,6 +8,7 @@ type TranslationShape = {
   auth: Record<string, string>;
   product: Record<string, string>;
   store: Record<string, string>;
+  reviews: Record<string, string>;
   common: Record<string, string>;
 };
 
@@ -92,6 +93,22 @@ export const translations: Record<Locale, TranslationShape> = {
       storeSettings: 'إعدادات المتجر',
       logo: 'شعار المتجر',
       cover: 'صورة الغلاف',
+    },
+    reviews: {
+      title: 'التقييمات والآراء',
+      productReviews: 'تقييمات المنتج',
+      storeReviews: 'تقييمات المتجر',
+      yourRating: 'تقييمك',
+      yourFeedback: 'رأيك (اختياري)',
+      submit: 'إرسال التقييم',
+      update: 'تحديث التقييم',
+      loginToReview: 'سجّل دخولك لتترك تقييمك ورأيك',
+      beFirst: 'كن أول من يقيّم!',
+      noReviews: 'لا توجد تقييمات بعد',
+      reviewsCount: 'تقييم',
+      live: 'مباشر',
+      delete: 'حذف',
+      edit: 'تعديل',
     },
     common: {
       egp: 'ج.م',
@@ -185,6 +202,22 @@ export const translations: Record<Locale, TranslationShape> = {
       storeSettings: 'Store Settings',
       logo: 'Store Logo',
       cover: 'Cover Image',
+    },
+    reviews: {
+      title: 'Ratings & Reviews',
+      productReviews: 'Product Reviews',
+      storeReviews: 'Store Reviews',
+      yourRating: 'Your rating',
+      yourFeedback: 'Your feedback (optional)',
+      submit: 'Submit Review',
+      update: 'Update Review',
+      loginToReview: 'Login to leave your rating and feedback',
+      beFirst: 'Be the first to review!',
+      noReviews: 'No reviews yet',
+      reviewsCount: 'reviews',
+      live: 'Live',
+      delete: 'Delete',
+      edit: 'Edit',
     },
     common: {
       egp: 'EGP',

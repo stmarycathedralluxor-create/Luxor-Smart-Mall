@@ -61,6 +61,23 @@ export type AdminCounters = {
   pending_stores: number;
 };
 
+export type Review = {
+  id: string;
+  user_id: string;
+  product_id: string | null;
+  store_id: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
+  profile?: Pick<Profile, 'full_name' | 'avatar_url'> | null;
+};
+
+export type RatingSummary = {
+  avg_rating: number;
+  review_count: number;
+};
+
 export type StoreCounters = {
   visits: number;
   price_inquiries: number;

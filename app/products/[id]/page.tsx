@@ -5,6 +5,8 @@ import { MapPin, Store as StoreIcon, Eye, Tag } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import ProductGallery from '@/components/ProductGallery';
 import PriceReveal from '@/components/PriceReveal';
+import Reviews from '@/components/Reviews';
+import StarRating from '@/components/StarRating';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +27,19 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
   // Increment views (fire & forget)
   supabase.rpc('increment_product_views', { product_id: product.id });
+
+  // Rating summary (gracefully degrades if migration 0004 hasn't run yet)
+  let avgRating = 0;
+  let reviewCount = 0;
+  try {
+    const { data: rating } = await supabase.rpc('get_product_rating', { p_product_id: product.id });
+    if (rating && rating[0]) {
+      avgRating = Number(rating[0].avg_rating) || 0;
+      reviewCount = Number(rating[0].review_count) || 0;
+    }
+  } catch {
+    /* reviews not installed yet */
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -54,10 +69,15 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
           <h1 className="text-3xl md:text-4xl font-bold text-luxor-navy mb-3">{product.title}</h1>
 
-          <div className="flex items-center gap-4 text-sm text-luxor-navy/60 mb-6">
+          <div className="flex items-center gap-4 text-sm text-luxor-navy/60 mb-6 flex-wrap">
             <span className="flex items-center gap-1">
               <Eye size={14} /> {product.views} مشاهدة
             </span>
+            {reviewCount > 0 && (
+              <a href="#reviews" className="hover:opacity-80 transition">
+                <StarRating value={avgRating} size={14} showValue count={reviewCount} />
+              </a>
+            )}
             {!product.is_available && (
               <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
                 غير متاح حالياً
@@ -113,6 +133,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
           </Link>
         </div>
       </div>
+
+      {/* ── Real-time reviews & star ratings ── */}
+      <Reviews productId={product.id} title="تقييمات المنتج" />
     </div>
   );
 }
