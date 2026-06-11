@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { removeStorageUrls } from '@/lib/storage';
 
 export default function DeleteProductButton({ productId }: { productId: string }) {
   const supabase = createClient();
@@ -13,12 +14,40 @@ export default function DeleteProductButton({ productId }: { productId: string }
   const handleDelete = async () => {
     if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
     setLoading(true);
-    const { error } = await supabase.from('products').delete().eq('id', productId);
-    setLoading(false);
+
+    // 1) Grab the image URLs BEFORE deleting the row so we can free storage
+    const { data: prod } = await supabase
+      .from('products')
+      .select('images')
+      .eq('id', productId)
+      .maybeSingle();
+
+    // 2) Delete the row and VERIFY it was actually deleted (RLS can
+    //    silently match 0 rows, which made items "come back" later)
+    const { data: deleted, error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId)
+      .select('id');
+
     if (error) {
+      setLoading(false);
       alert(error.message);
       return;
     }
+    if (!deleted || deleted.length === 0) {
+      setLoading(false);
+      alert('تعذر حذف المنتج — لا تملك الصلاحية أو تم حذفه مسبقاً. حدّث الصفحة.');
+      router.refresh();
+      return;
+    }
+
+    // 3) Physically remove the image files from Supabase Storage
+    if (prod?.images?.length) {
+      await removeStorageUrls(supabase, prod.images);
+    }
+
+    setLoading(false);
     router.refresh();
   };
 

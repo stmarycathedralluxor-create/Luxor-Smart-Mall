@@ -4,7 +4,9 @@ import { isStoreOpen } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
 import { Package } from 'lucide-react';
 
-export const revalidate = 60;
+// Always render fresh data — ISR caching made deletes/updates appear with a delay
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
   const supabase = createClient();

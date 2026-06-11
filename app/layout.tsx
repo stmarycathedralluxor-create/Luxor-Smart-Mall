@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { LocaleProvider } from '@/components/LocaleProvider';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
+import FreshnessGuard from '@/components/FreshnessGuard';
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen flex flex-col pattern-egyptian">
         <LocaleProvider>
           <AnalyticsTracker />
+          <FreshnessGuard />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />

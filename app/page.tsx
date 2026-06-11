@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { isStoreOpen } from '@/lib/utils';
 import HomeContent from '@/components/HomeContent';
 
-export const revalidate = 60; // ISR every 60s
+// Always render fresh data — ISR caching made deletes/updates appear with a delay
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function HomePage() {
   const supabase = createClient();

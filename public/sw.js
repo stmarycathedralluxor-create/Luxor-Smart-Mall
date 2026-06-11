@@ -1,9 +1,25 @@
 // Luxor Smart Mall - Service Worker
-// v2: never cache Next.js build assets or HTML aggressively.
-// Stale HTML referencing old /_next/static chunks was crashing the app
-// after each deployment ("Application error: a client-side exception").
-const CACHE_NAME = 'luxor-mall-v2';
-const STATIC_ASSETS = ['/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/logo.png'];
+// v3: STRICT allowlist caching.
+//
+// v2 used cache-first for every non-navigation GET request. That silently
+// cached Next.js RSC payload fetches (client-side navigations like
+// /dashboard/products?_rsc=xxx), so after deleting a store/product the SW
+// kept serving the OLD page data forever — items appeared to "come back",
+// counters froze, and everything felt unpredictable.
+//
+// Now ONLY a fixed list of truly-static public files is ever cached.
+// Everything else (HTML, RSC payloads, API, data) goes straight to the
+// network, with a minimal offline fallback for navigations.
+const CACHE_NAME = 'luxor-mall-v3';
+const STATIC_ASSETS = [
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/logo.png',
+  '/apple-touch-icon.png',
+  '/favicon-16.png',
+  '/favicon-32.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -29,14 +45,9 @@ self.addEventListener('fetch', (event) => {
 
   // Never intercept cross-origin (Supabase, fonts, etc.)
   if (url.origin !== self.location.origin) return;
-  // Never intercept API or any Next.js build/data assets.
-  // /_next/static files are content-hashed and change every deployment;
-  // serving stale copies (or stale HTML pointing at them) breaks the app.
-  if (url.pathname.startsWith('/api') || url.pathname.startsWith('/_next')) return;
 
   // HTML navigations: network-only with a minimal offline fallback.
-  // We intentionally do NOT serve cached HTML when online, because cached
-  // pages reference old hashed chunks that no longer exist after a deploy.
+  // Cached HTML references old hashed chunks and breaks after deploys.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(
@@ -50,7 +61,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static public assets (icons, logo, manifest): cache-first is safe.
+  // STRICT ALLOWLIST: only the fixed static files above are cache-first.
+  // RSC payloads, /_next/*, /api/*, and anything dynamic are NOT touched —
+  // the browser talks to the network directly so data is always fresh.
+  if (!STATIC_ASSETS.includes(url.pathname)) return;
+
   event.respondWith(
     caches.match(request).then(
       (cached) =>

@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Upload, X, Save, Crop } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
-import { blobExt, checkQuotaBeforeUpload } from '@/lib/storage';
+import { blobExt, checkQuotaBeforeUpload, removeStorageUrls } from '@/lib/storage';
 import type { Category, Product } from '@/lib/types';
 
 type EditingState = {
@@ -42,6 +42,9 @@ export default function ProductForm({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<EditingState>(null);
+  // Images that already exist on the saved product (cleanup happens on submit)
+  const persistedImages = initialProduct?.images ?? [];
+  const isPersisted = (url: string) => persistedImages.includes(url);
 
   /** New files picked → open the editor for the first one, queue the rest */
   const pickFiles = (files: FileList) => {
@@ -89,7 +92,13 @@ export default function ProductForm({
       setForm((f) => {
         if (replaceIndex !== null) {
           const images = [...f.images];
+          const old = images[replaceIndex];
           images[replaceIndex] = data.publicUrl;
+          // The replaced image: if it was uploaded in THIS session (not yet
+          // saved on the product), free its storage immediately
+          if (old && old !== data.publicUrl && !isPersisted(old)) {
+            void removeStorageUrls(supabase, [old]);
+          }
           return { ...f, images };
         }
         return { ...f, images: [...f.images, data.publicUrl].slice(0, 8) };
@@ -107,7 +116,13 @@ export default function ProductForm({
   };
 
   const removeImage = (idx: number) => {
+    const url = form.images[idx];
     setForm((f) => ({ ...f, images: f.images.filter((_, i) => i !== idx) }));
+    // Newly uploaded (unsaved) image → delete its file right away.
+    // Persisted images are deleted from storage on submit (see handleSubmit).
+    if (url && !isPersisted(url)) {
+      void removeStorageUrls(supabase, [url]);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,6 +151,13 @@ export default function ProductForm({
       setError(res.error.message);
       setLoading(false);
       return;
+    }
+
+    // Storage cleanup: persisted images the user removed in this edit
+    // session are now orphaned → physically delete them to free space
+    const removedPersisted = persistedImages.filter((u) => !form.images.includes(u));
+    if (removedPersisted.length) {
+      await removeStorageUrls(supabase, removedPersisted);
     }
 
     router.push('/dashboard/products');
