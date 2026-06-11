@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Save, Camera, Crop, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
+import { blobExt, checkQuotaBeforeUpload } from '@/lib/storage';
 import type { Profile } from '@/lib/types';
 
 type EditingState = { src: string; isObjectUrl: boolean } | null;
@@ -32,10 +33,19 @@ export default function ProfileForm({ profile, email }: { profile: Profile | nul
   const handleEditorSave = async (blob: Blob) => {
     if (!profile) return;
     setUploading(true);
-    const path = `${profile.id}/avatar-${Date.now()}.jpg`;
+    // Pre-check the storage quota before uploading
+    const quotaError = await checkQuotaBeforeUpload(supabase, blob.size);
+    if (quotaError) {
+      setError(quotaError);
+      if (editing?.isObjectUrl) URL.revokeObjectURL(editing.src);
+      setEditing(null);
+      setUploading(false);
+      return;
+    }
+    const path = `${profile.id}/avatar-${Date.now()}.${blobExt(blob)}`;
     const { error: upErr } = await supabase.storage
       .from('store-assets')
-      .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+      .upload(path, blob, { upsert: true, contentType: blob.type });
     if (upErr) {
       setError(upErr.message);
     } else {

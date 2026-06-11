@@ -8,6 +8,8 @@ export type Profile = {
   created_at: string;
   is_seller_approved?: boolean;
   wants_to_sell?: boolean;
+  /** Admin-set storage limit in MB (null = default 200MB) */
+  storage_limit_mb?: number | null;
 };
 
 export type Store = {

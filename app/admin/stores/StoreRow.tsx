@@ -30,7 +30,15 @@ function addPeriod(months: number, days: number): Date {
   return d;
 }
 
-export default function StoreRow({ store, ownerName }: { store: Store; ownerName: string }) {
+export default function StoreRow({
+  store,
+  ownerName,
+  visitCount = 0,
+}: {
+  store: Store;
+  ownerName: string;
+  visitCount?: number;
+}) {
   const router = useRouter();
   const supabase = createClient();
   const [active, setActive] = useState(store.is_active);
@@ -150,6 +158,11 @@ export default function StoreRow({ store, ownerName }: { store: Store; ownerName
         <td className="p-3 text-luxor-navy/70">{ownerName}</td>
         <td className="p-3 text-luxor-navy/70 ltr:font-mono" dir="ltr">{store.whatsapp}</td>
         <td className="p-3">
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-luxor-navy bg-luxor-gold/15 px-2 py-1 rounded-full">
+            👁️ {visitCount.toLocaleString('ar-EG')}
+          </span>
+        </td>
+        <td className="p-3">
           <div className="flex flex-col gap-1">
             <button
               onClick={toggleActive}
@@ -227,7 +240,7 @@ export default function StoreRow({ store, ownerName }: { store: Store; ownerName
 
       {showPeriod && (
         <tr className="border-t border-luxor-gold/20 bg-luxor-sandlight/60">
-          <td colSpan={6} className="p-4">
+          <td colSpan={7} className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="font-bold text-luxor-navy text-sm flex items-center gap-2">
                 <CalendarClock size={16} className="text-luxor-darkgold" />

@@ -21,7 +21,7 @@ export type ImageEditorProps = {
   title: string;
   /** Output size of the longest edge in px */
   outputWidth?: number;
-  /** 'image/jpeg' | 'image/png' | 'image/webp' */
+  /** @deprecated output format is now chosen automatically (WebP with JPEG fallback) */
   outputType?: string;
   /** Rounded preview (avatar/logo feel) */
   round?: boolean;
@@ -32,12 +32,38 @@ export type ImageEditorProps = {
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 5;
 
+/**
+ * Compress the canvas as aggressively as possible without visibly ruining
+ * the image. Tries WebP first (much smaller), falls back to JPEG on old
+ * Safari. Steps quality down until the target size is reached.
+ */
+async function compressCanvas(canvas: HTMLCanvasElement, targetBytes = 220 * 1024): Promise<Blob> {
+  const encode = (type: string, q: number) =>
+    new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, q));
+  const probe = await encode('image/webp', 0.8);
+  const useWebp = !!probe && probe.type === 'image/webp';
+  const type = useWebp ? 'image/webp' : 'image/jpeg';
+  const qualities = [0.82, 0.74, 0.66, 0.6];
+  let best: Blob | null = null;
+  for (const q of qualities) {
+    const blob = await encode(type, q);
+    if (!blob) continue;
+    best = blob;
+    if (blob.size <= targetBytes) break;
+  }
+  if (!best) {
+    const fallback = await encode('image/jpeg', 0.85);
+    if (!fallback) throw new Error('export failed');
+    return fallback;
+  }
+  return best;
+}
+
 export default function ImageEditor({
   src,
   aspect,
   title,
   outputWidth = 1200,
-  outputType = 'image/jpeg',
   round = false,
   onCancel,
   onSave,
@@ -228,10 +254,9 @@ export default function ImageEditor({
       const ctx = canvas.getContext('2d')!;
       ctx.imageSmoothingQuality = 'high';
 
-      if (outputType === 'image/jpeg') {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, outW, outH);
-      }
+      // White background (transparent sources flatten cleanly into WebP/JPEG)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, outW, outH);
 
       // map output frame → rotated-image space → original image space
       ctx.save();
@@ -245,9 +270,7 @@ export default function ImageEditor({
       ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
       ctx.restore();
 
-      const blob: Blob = await new Promise((resolve, reject) =>
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('export failed'))), outputType, 0.92)
-      );
+      const blob = await compressCanvas(canvas);
       await onSave(blob);
     } catch (err) {
       console.error(err);

@@ -8,6 +8,7 @@ import ProductGallery from '@/components/ProductGallery';
 import PriceReveal from '@/components/PriceReveal';
 import Reviews from '@/components/Reviews';
 import StarRating from '@/components/StarRating';
+import { ProductViewTracker } from '@/components/ViewTrackers';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,8 +27,8 @@ export default async function ProductPage({ params }: { params: { id: string } }
     notFound();
   }
 
-  // Increment views (fire & forget)
-  supabase.rpc('increment_product_views', { product_id: product.id });
+  // View counting now happens client-side via <ProductViewTracker> —
+  // server-side fire-and-forget RPCs were silently dropped & cached by ISR.
 
   // Rating summary (gracefully degrades if migration 0004 hasn't run yet)
   let avgRating = 0;
@@ -44,6 +45,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <ProductViewTracker productId={product.id} />
       <nav className="text-sm text-luxor-navy/60 mb-6 flex items-center gap-2 flex-wrap">
         <Link href="/" className="hover:text-luxor-gold">الرئيسية</Link>
         <span>/</span>

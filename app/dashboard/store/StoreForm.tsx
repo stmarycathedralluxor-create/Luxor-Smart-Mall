@@ -7,6 +7,7 @@ import { Save, Upload, Store as StoreIcon, Crop } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
 import ImageEditor from '@/components/ImageEditor';
+import { blobExt, checkQuotaBeforeUpload } from '@/lib/storage';
 import type { Store } from '@/lib/types';
 
 type EditingState = {
@@ -58,10 +59,19 @@ export default function StoreForm({
     if (!editing) return;
     const kind = editing.kind;
     setUploading(kind);
-    const path = `${userId}/${kind}-${Date.now()}.jpg`;
+    // Pre-check the storage quota before uploading
+    const quotaError = await checkQuotaBeforeUpload(supabase, blob.size);
+    if (quotaError) {
+      setError(quotaError);
+      if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
+      setEditing(null);
+      setUploading(null);
+      return;
+    }
+    const path = `${userId}/${kind}-${Date.now()}.${blobExt(blob)}`;
     const { error: uploadErr } = await supabase.storage
       .from('store-assets')
-      .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+      .upload(path, blob, { upsert: true, contentType: blob.type });
     if (uploadErr) {
       setError(uploadErr.message);
     } else {

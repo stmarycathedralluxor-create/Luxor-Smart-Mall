@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Upload, X, Save, Crop } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
+import { blobExt, checkQuotaBeforeUpload } from '@/lib/storage';
 import type { Category, Product } from '@/lib/types';
 
 type EditingState = {
@@ -67,10 +68,19 @@ export default function ProductForm({
   const handleEditorSave = async (blob: Blob) => {
     if (!editing) return;
     setUploading(true);
-    const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    // Pre-check the seller's storage quota before uploading
+    const quotaError = await checkQuotaBeforeUpload(supabase, blob.size);
+    if (quotaError) {
+      setError(quotaError);
+      if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
+      setUploading(false);
+      setEditing(null);
+      return;
+    }
+    const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${blobExt(blob)}`;
     const { error: upErr } = await supabase.storage
       .from('product-images')
-      .upload(path, blob, { contentType: 'image/jpeg' });
+      .upload(path, blob, { contentType: blob.type });
     if (upErr) {
       setError(upErr.message);
     } else {
