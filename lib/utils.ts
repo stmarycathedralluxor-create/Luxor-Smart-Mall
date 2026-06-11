@@ -80,3 +80,14 @@ export function isStoreOpen(store: {
   if (store.is_approved === false) return false;
   return !getExpiryInfo(store.expires_at).expired;
 }
+
+/** Arabic/English label for delivery duration: "يصل خلال ٣ أيام" / "Arrives within 3 days" */
+export function deliveryDaysLabel(days: number, locale: 'ar' | 'en' = 'ar'): string {
+  if (locale === 'ar') {
+    if (days === 1) return 'يصل خلال يوم واحد';
+    if (days === 2) return 'يصل خلال يومين';
+    if (days <= 10) return `يصل خلال ${days} أيام`;
+    return `يصل خلال ${days} يوماً`;
+  }
+  return `Arrives within ${days} day${days > 1 ? 's' : ''}`;
+}

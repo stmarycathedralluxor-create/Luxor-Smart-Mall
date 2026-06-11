@@ -49,6 +49,10 @@ export type Product = {
   images: string[];
   is_available: boolean;
   views: number;
+  /** 'instant' = متاح فوراً — 'preorder' = حجز / طلب مسبق */
+  delivery_type?: 'instant' | 'preorder';
+  /** عدد أيام الوصول عند الحجز المسبق */
+  delivery_days?: number | null;
   created_at: string;
 };
 

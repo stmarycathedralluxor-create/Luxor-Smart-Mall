@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Upload, X, Save, Crop } from 'lucide-react';
+import { Upload, X, Save, Crop, Zap, CalendarClock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
 import { blobExt, checkQuotaBeforeUpload, removeStorageUrls } from '@/lib/storage';
@@ -37,6 +37,8 @@ export default function ProductForm({
     category_id: initialProduct?.category_id ?? null as number | null,
     images: initialProduct?.images ?? [] as string[],
     is_available: initialProduct?.is_available ?? true,
+    delivery_type: initialProduct?.delivery_type ?? 'instant' as 'instant' | 'preorder',
+    delivery_days: initialProduct?.delivery_days ?? 3,
   });
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -138,6 +140,8 @@ export default function ProductForm({
       category_id: form.category_id,
       images: form.images,
       is_available: form.is_available,
+      delivery_type: form.delivery_type,
+      delivery_days: form.delivery_type === 'preorder' ? Math.max(1, Number(form.delivery_days) || 1) : null,
     };
 
     let res;
@@ -275,6 +279,60 @@ export default function ProductForm({
           className="input-field"
           placeholder="اكتب وصفاً تفصيلياً للمنتج..."
         />
+      </div>
+
+      {/* نوع التوفر: فوري أو حجز مسبق */}
+      <div>
+        <label className="block text-sm font-medium text-luxor-navy mb-2">طريقة التوفر *</label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, delivery_type: 'instant' })}
+            className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-bold transition ${
+              form.delivery_type === 'instant'
+                ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-navy'
+                : 'border-luxor-sand bg-white text-luxor-navy/50 hover:border-luxor-gold/50'
+            }`}
+          >
+            <Zap size={18} className={form.delivery_type === 'instant' ? 'text-luxor-darkgold' : ''} />
+            متاح فوراً
+          </button>
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, delivery_type: 'preorder' })}
+            className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-bold transition ${
+              form.delivery_type === 'preorder'
+                ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-navy'
+                : 'border-luxor-sand bg-white text-luxor-navy/50 hover:border-luxor-gold/50'
+            }`}
+          >
+            <CalendarClock size={18} className={form.delivery_type === 'preorder' ? 'text-luxor-darkgold' : ''} />
+            حجز مسبق
+          </button>
+        </div>
+        {form.delivery_type === 'preorder' && (
+          <div className="mt-3 flex items-center gap-3 bg-luxor-sandlight border border-luxor-sand rounded-xl p-3 animate-fade-in">
+            <label htmlFor="delivery_days" className="text-sm font-medium text-luxor-navy whitespace-nowrap">
+              يصل خلال
+            </label>
+            <input
+              id="delivery_days"
+              type="number"
+              min="1"
+              max="365"
+              required
+              value={form.delivery_days}
+              onChange={(e) => setForm({ ...form, delivery_days: parseInt(e.target.value) || 1 })}
+              className="input-field !w-24 text-center"
+            />
+            <span className="text-sm font-medium text-luxor-navy">{Number(form.delivery_days) === 1 ? 'يوم' : Number(form.delivery_days) === 2 ? 'يومان' : Number(form.delivery_days) <= 10 ? 'أيام' : 'يوماً'}</span>
+          </div>
+        )}
+        <p className="text-xs text-luxor-navy/50 mt-1.5">
+          {form.delivery_type === 'instant'
+            ? 'المنتج متوفر وجاهز للتسليم فوراً'
+            : 'المنتج يتطلب حجزاً مسبقاً وستظهر مدة الوصول للعميل على كارت المنتج'}
+        </p>
       </div>
 
       <div className="flex items-center gap-2">
