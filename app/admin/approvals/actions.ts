@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { removeStorageUrls } from '@/lib/storage';
+import { removeStorageUrls, removeStoreOwnerFiles } from '@/lib/storage';
 
 /**
  * Helper: ensure the caller is an authenticated admin.
@@ -138,7 +138,7 @@ export async function rejectStoreAction(storeId: string) {
   const urls: (string | null | undefined)[] = [];
   const { data: store } = await supabase
     .from('stores')
-    .select('logo_url, cover_url')
+    .select('logo_url, cover_url, owner_id')
     .eq('id', storeId)
     .maybeSingle();
   if (store) urls.push(store.logo_url, store.cover_url);
@@ -161,8 +161,12 @@ export async function rejectStoreAction(storeId: string) {
     return { ok: false, error: 'تعذر حذف المتجر — لا تملك الصلاحية أو تم حذفه مسبقاً' };
   }
 
-  // Physically free the storage space
+  // Physically free the storage space (exact URLs + deep folder sweep so
+  // no store logo/cover stays orphaned in store-assets)
   await removeStorageUrls(supabase, urls);
+  if (store?.owner_id) {
+    await removeStoreOwnerFiles(supabase, store.owner_id);
+  }
 
   refreshAdmin();
   return { ok: true };

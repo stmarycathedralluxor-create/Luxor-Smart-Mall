@@ -186,7 +186,7 @@ export default function PriceReveal({
       /* ignore */
     }
 
-    const msg = `السلام عليكم، أرغب في طلب المنتج التالي من متجر "${storeName}":\n\n*${productTitle}*\nالسعر: ${formatPrice(price)} ج.م\n\nرابط المنتج: ${window.location.origin}/products/${productId}`;
+    const msg = `مرحباً، أرغب في طلب المنتج التالي من متجر "${storeName}":\n\n*${productTitle}*\nالسعر: ${formatPrice(price)} ج.م\n\nرابط المنتج: ${window.location.origin}/products/${productId}`;
     const link = buildWhatsAppLink(storeWhatsapp, msg);
     window.open(link, '_blank', 'noopener,noreferrer');
   };

@@ -13,7 +13,7 @@ function buildMessage(row: ExpiringStore): string {
     month: 'long',
     day: 'numeric',
   });
-  const greeting = `السلام عليكم ${row.owner_name || ''} 🌟\nرسالة من إدارة لوكسور سمارت مول بخصوص متجركم «${row.store_name}».`;
+  const greeting = `مرحباً ${row.owner_name || ''} 🌟\nرسالة من إدارة لوكسور سمارت مول بخصوص متجركم «${row.store_name}».`;
 
   switch (row.kind) {
     case 'reminder_3d':
