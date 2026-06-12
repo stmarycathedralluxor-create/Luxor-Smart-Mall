@@ -42,9 +42,9 @@ export default function DeleteProductButton({ productId }: { productId: string }
       return;
     }
 
-    // 3) Physically remove the image files from Supabase Storage
+    // 3) Physically remove the image files from storage (Cloudflare R2)
     if (prod?.images?.length) {
-      await removeStorageUrls(supabase, prod.images);
+      await removeStorageUrls(prod.images);
     }
 
     setLoading(false);

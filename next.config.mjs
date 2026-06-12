@@ -2,9 +2,17 @@
 const nextConfig = {
   images: {
     remotePatterns: [
+      // Legacy images still hosted on Supabase Storage (transition period)
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: '**.supabase.in' },
+      // Cloudflare R2 public bucket (r2.dev subdomain or custom domain)
+      { protocol: 'https', hostname: '**.r2.dev' },
+      ...(process.env.NEXT_PUBLIC_R2_PUBLIC_URL
+        ? [{ protocol: 'https', hostname: new URL(process.env.NEXT_PUBLIC_R2_PUBLIC_URL).hostname }]
+        : []),
     ],
+    // Images on R2 use unique immutable filenames → cache aggressively
+    minimumCacheTTL: 31536000,
   },
   experimental: {
     serverActions: { bodySizeLimit: '10mb' },

@@ -1,9 +1,17 @@
+// =============================================================
+// Client-safe storage helpers — images now live on CLOUDFLARE R2.
+// Uploads/deletes go through our own API routes (/api/storage/*)
+// which hold the R2 credentials server-side. Legacy Supabase URLs
+// keep working and are still cleaned up during the transition.
+// =============================================================
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type QuotaInfo = {
   used_bytes: number;
   limit_bytes: number;
 };
+
+export type AppBucket = 'product-images' | 'store-assets';
 
 /** Extension that matches the compressed blob's real mime type */
 export function blobExt(blob: Blob): string {
@@ -16,8 +24,9 @@ export function blobExt(blob: Blob): string {
 const APP_BUCKETS = ['product-images', 'store-assets'];
 
 /**
- * Parse a Supabase public storage URL into { bucket, path }.
- * Returns null for anything that's not one of our storage URLs.
+ * Parse a LEGACY Supabase public storage URL into { bucket, path }.
+ * Returns null for anything else (including the new R2 URLs).
+ * Kept for the transition period: old images still live on Supabase.
  */
 export function parseStorageUrl(url?: string | null): { bucket: string; path: string } | null {
   if (!url) return null;
@@ -33,95 +42,67 @@ export function parseStorageUrl(url?: string | null): { bucket: string; path: st
 }
 
 /**
- * Physically delete storage files behind the given public URLs.
- * Best-effort: groups by bucket, ignores failures (RLS, already deleted...).
- * This guarantees space is actually freed when products/stores/images are
- * deleted — without depending on DB triggers being installed.
+ * Upload an image blob to Cloudflare R2 (via our server API).
+ * Returns the public URL, or throws with a user-friendly message.
  */
-export async function removeStorageUrls(
-  supabase: SupabaseClient,
-  urls: (string | null | undefined)[]
-): Promise<void> {
-  const byBucket = new Map<string, string[]>();
-  for (const url of urls) {
-    const parsed = parseStorageUrl(url);
-    if (!parsed) continue;
-    const list = byBucket.get(parsed.bucket) ?? [];
-    if (!list.includes(parsed.path)) list.push(parsed.path);
-    byBucket.set(parsed.bucket, list);
+export async function uploadImage(
+  bucket: AppBucket,
+  blob: Blob,
+  filename?: string
+): Promise<string> {
+  const form = new FormData();
+  form.append('file', blob);
+  form.append('bucket', bucket);
+  if (filename) form.append('filename', filename);
+  const res = await fetch('/api/storage/upload', { method: 'POST', body: form });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.url) {
+    throw new Error(json.error || 'فشل رفع الصورة');
   }
-  await Promise.all(
-    Array.from(byBucket.entries()).map(async ([bucket, paths]) => {
-      try {
-        const { data } = await supabase.storage.from(bucket).remove(paths);
-        // Verify what was ACTUALLY deleted — RLS can silently skip files.
-        // Retry the missing ones one-by-one so a single bad path can't
-        // poison the whole batch (this is why store-assets files were
-        // sometimes left behind while product-images got cleaned).
-        const removed = new Set((data ?? []).map((o: { name: string }) => o.name));
-        const missing = paths.filter((p) => !removed.has(p));
-        if (missing.length) {
-          await Promise.all(
-            missing.map((p) =>
-              supabase.storage
-                .from(bucket)
-                .remove([p])
-                .catch(() => {})
-            )
-          );
-        }
-      } catch {
-        /* best-effort cleanup — never block the main operation */
-      }
-    })
-  );
+  return json.url as string;
 }
 
 /**
- * Deep-clean ALL storage files of a store owner when their store is deleted.
- *
- * Why: URL-based cleanup can miss files (stale URLs, renamed files, silent
- * RLS skips) — which left store logos/covers orphaned in `store-assets`.
- * Since each user owns at most ONE store (unique owner_id), deleting the
- * store means we can safely sweep:
- *   - the whole `product-images/{ownerId}/` folder
- *   - `store-assets/{ownerId}/` logo-* and cover-* files (avatar is kept)
+ * Physically delete storage files behind the given public URLs
+ * (R2 + legacy Supabase). Best-effort: never throws.
+ */
+export async function removeStorageUrls(
+  urls: (string | null | undefined)[]
+): Promise<void> {
+  const clean = urls.filter((u): u is string => !!u);
+  if (!clean.length) return;
+  try {
+    await fetch('/api/storage/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls: clean }),
+    });
+  } catch {
+    /* best-effort cleanup — never block the main operation */
+  }
+}
+
+/**
+ * Deep-clean ALL storage files of a store owner when their store is
+ * deleted (avatar is kept). Admin-only on the server (or self-sweep).
  */
 export async function removeStoreOwnerFiles(
-  supabase: SupabaseClient,
-  ownerId: string
+  ownerId: string,
+  extraUrls: (string | null | undefined)[] = []
 ): Promise<void> {
   if (!ownerId) return;
-  const sweep = async (bucket: string, keepAvatar: boolean) => {
-    try {
-      // Supabase list() paginates at 100 by default — loop until empty
-      const toRemove: string[] = [];
-      for (let page = 0; page < 20; page++) {
-        const { data, error } = await supabase.storage
-          .from(bucket)
-          .list(ownerId, { limit: 100, offset: page * 100 });
-        if (error || !data || data.length === 0) break;
-        for (const f of data) {
-          if (!f.name) continue;
-          if (keepAvatar && f.name.startsWith('avatar-')) continue;
-          toRemove.push(`${ownerId}/${f.name}`);
-        }
-        if (data.length < 100) break;
-      }
-      if (toRemove.length) {
-        // remove in chunks of 50 to stay well under API limits
-        for (let i = 0; i < toRemove.length; i += 50) {
-          await supabase.storage.from(bucket).remove(toRemove.slice(i, i + 50));
-        }
-      }
-    } catch {
-      /* best-effort — never block the main operation */
-    }
-  };
-  await Promise.all([
-    sweep('product-images', false),
-    sweep('store-assets', true), // keep the user's personal avatar
-  ]);
+  try {
+    await fetch('/api/storage/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        urls: extraUrls.filter(Boolean),
+        sweepOwnerId: ownerId,
+      }),
+    });
+  } catch {
+    /* best-effort — never block the main operation */
+  }
 }
 
 export function formatBytes(bytes: number): string {
@@ -134,8 +115,7 @@ export function formatBytes(bytes: number): string {
 /**
  * Friendly pre-check before uploading: returns an Arabic error message when
  * the user's storage quota would be exceeded, or null when OK.
- * Gracefully allows the upload if the RPC isn't installed yet â the
- * DB-level storage policy still enforces the hard limit.
+ * The hard limit is also enforced server-side in /api/storage/upload.
  */
 export async function checkQuotaBeforeUpload(
   supabase: SupabaseClient,

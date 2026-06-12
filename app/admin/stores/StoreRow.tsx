@@ -168,13 +168,14 @@ export default function StoreRow({
       return;
     }
 
-    // Physically remove all files from Supabase Storage to free the space:
+    // Physically remove all files from storage (Cloudflare R2 + legacy):
     // 1) the exact URLs we collected (products + logo + cover)
     // 2) deep-sweep of the owner's folders (catches files the URL pass
     //    missed — this is what left store assets orphaned before)
-    await removeStorageUrls(supabase, urls);
     if (store.owner_id) {
-      await removeStoreOwnerFiles(supabase, store.owner_id);
+      await removeStoreOwnerFiles(store.owner_id, urls);
+    } else {
+      await removeStorageUrls(urls);
     }
 
     router.refresh();

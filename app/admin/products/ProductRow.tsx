@@ -51,9 +51,9 @@ export default function ProductRow({ product }: { product: any }) {
       return;
     }
 
-    // Physically remove image files from Supabase Storage
+    // Physically remove image files from storage (Cloudflare R2)
     if (prod?.images?.length) {
-      await removeStorageUrls(supabase, prod.images);
+      await removeStorageUrls(prod.images);
     }
 
     router.refresh();

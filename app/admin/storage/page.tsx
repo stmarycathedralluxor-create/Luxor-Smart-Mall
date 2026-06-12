@@ -29,7 +29,7 @@ export default async function AdminStoragePage() {
           <div>
             لتفعيل هذه الصفحة شغّل ملف{' '}
             <code className="bg-white px-1.5 py-0.5 rounded border border-amber-200" dir="ltr">
-              supabase/migrations/0006_stats_storage.sql
+              supabase/migrations/0009_r2_storage.sql
             </code>{' '}
             مرة واحدة في Supabase SQL Editor.
           </div>
@@ -101,6 +101,7 @@ export default async function AdminStoragePage() {
 
       <div className="card p-4 text-xs text-luxor-navy/70 leading-relaxed space-y-1">
         <div className="font-bold text-luxor-navy text-sm mb-1">ℹ️ كيف يعمل النظام؟</div>
+        <p>• الصور تُخزّن الآن على Cloudflare R2 وتُقدّم عبر شبكة Cloudflare العالمية — سرعة تحميل ممتازة وبدون رسوم نقل بيانات.</p>
         <p>• الصور تُضغط تلقائياً قبل الرفع (WebP بجودة عالية) لتقليل المساحة لأقل حد ممكن دون التأثير على الجودة.</p>
         <p>• عند حذف منتج أو متجر أو استبدال صورة، تُحذف الملفات القديمة من التخزين فوراً وتتحرر المساحة.</p>
         <p>• عند تجاوز المستخدم حدّه الأقصى يُمنع من رفع صور جديدة حتى يحذف صوراً قديمة أو ترفع له الحد من هنا.</p>

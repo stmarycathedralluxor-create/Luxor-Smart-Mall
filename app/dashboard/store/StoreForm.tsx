@@ -7,7 +7,7 @@ import { Save, Upload, Store as StoreIcon, Crop } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
 import ImageEditor from '@/components/ImageEditor';
-import { blobExt, checkQuotaBeforeUpload, removeStorageUrls } from '@/lib/storage';
+import { blobExt, checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
 import type { Store } from '@/lib/types';
 
 type EditingState = {
@@ -71,25 +71,22 @@ export default function StoreForm({
       setUploading(null);
       return;
     }
-    const path = `${userId}/${kind}-${Date.now()}.${blobExt(blob)}`;
-    const { error: uploadErr } = await supabase.storage
-      .from('store-assets')
-      .upload(path, blob, { upsert: true, contentType: blob.type });
-    if (uploadErr) {
-      setError(uploadErr.message);
-    } else {
-      const { data } = supabase.storage.from('store-assets').getPublicUrl(path);
+    try {
+      // Upload to Cloudflare R2 via our server API
+      const publicUrl = await uploadImage('store-assets', blob, `${kind}-${Date.now()}.${blobExt(blob)}`);
       setForm((f) => {
         const key = kind === 'logo' ? 'logo_url' : 'cover_url';
         const old = f[key];
         // If the replaced file was uploaded in THIS session (not the saved
         // one), free its storage immediately
         const persisted = kind === 'logo' ? persistedLogo : persistedCover;
-        if (old && old !== data.publicUrl && old !== persisted) {
-          void removeStorageUrls(supabase, [old]);
+        if (old && old !== publicUrl && old !== persisted) {
+          void removeStorageUrls([old]);
         }
-        return { ...f, [key]: data.publicUrl };
+        return { ...f, [key]: publicUrl };
       });
+    } catch (err: any) {
+      setError(err?.message || 'فشل رفع الصورة');
     }
     if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
     setEditing(null);
@@ -142,7 +139,7 @@ export default function StoreForm({
     if (persistedLogo && persistedLogo !== form.logo_url) orphaned.push(persistedLogo);
     if (persistedCover && persistedCover !== form.cover_url) orphaned.push(persistedCover);
     if (orphaned.length) {
-      await removeStorageUrls(supabase, orphaned);
+      await removeStorageUrls(orphaned);
     }
 
     router.push('/dashboard');
