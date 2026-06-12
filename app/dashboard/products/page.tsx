@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Plus, Edit, Eye, Package } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, discountPercent } from '@/lib/utils';
 import DeleteProductButton from './DeleteProductButton';
 
 export default async function ProductsPage() {
@@ -57,8 +57,18 @@ export default async function ProductsPage() {
               </div>
               <h3 className="font-semibold text-luxor-navy line-clamp-2 min-h-[3rem]">{p.title}</h3>
               <div className="flex items-center justify-between mt-2 mb-3">
-                <span className="text-lg font-bold text-luxor-gold">
+                <span className="text-lg font-bold text-luxor-gold flex items-center gap-2 flex-wrap">
                   {formatPrice(p.price)} ج.م
+                  {discountPercent(p.price, p.compare_at_price) !== null && (
+                    <>
+                      <span className="text-xs text-luxor-navy/40 line-through font-normal">
+                        {formatPrice(p.compare_at_price)}
+                      </span>
+                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full" dir="ltr">
+                        -{discountPercent(p.price, p.compare_at_price)}%
+                      </span>
+                    </>
+                  )}
                 </span>
                 <span className="flex items-center gap-1 text-xs text-luxor-navy/60">
                   <Eye size={12} /> {p.views}

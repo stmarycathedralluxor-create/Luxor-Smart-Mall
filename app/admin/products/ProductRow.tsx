@@ -32,11 +32,21 @@ export default function ProductRow({ product }: { product: any }) {
     if (!confirm(`حذف المنتج "${product.title}" نهائياً؟`)) return;
 
     // Read image URLs first so we can free the storage afterwards
-    const { data: prod } = await supabase
-      .from('products')
-      .select('images')
-      .eq('id', product.id)
-      .maybeSingle();
+    // (cropped images + full-size originals)
+    let prod: { images?: string[]; images_full?: string[] } | null = null;
+    {
+      const r = await supabase
+        .from('products')
+        .select('images, images_full')
+        .eq('id', product.id)
+        .maybeSingle();
+      prod = r.data;
+      if (!prod) {
+        // migration 0010 not run yet → fall back to images only
+        const r2 = await supabase.from('products').select('images').eq('id', product.id).maybeSingle();
+        prod = r2.data;
+      }
+    }
 
     // Delete + verify a row was actually removed (RLS can match 0 rows)
     const { data: deleted, error } = await supabase
@@ -52,8 +62,9 @@ export default function ProductRow({ product }: { product: any }) {
     }
 
     // Physically remove image files from storage (Cloudflare R2)
-    if (prod?.images?.length) {
-      await removeStorageUrls(prod.images);
+    const allUrls = [...(prod?.images ?? []), ...(prod?.images_full ?? [])].filter(Boolean);
+    if (allUrls.length) {
+      await removeStorageUrls(allUrls);
     }
 
     router.refresh();

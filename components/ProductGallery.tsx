@@ -5,7 +5,16 @@ import Image from 'next/image';
 import { Package, ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
 
-export default function ProductGallery({ images, title }: { images: string[]; title: string }) {
+export default function ProductGallery({
+  images,
+  imagesFull,
+  title,
+}: {
+  images: string[];
+  /** الصور الأصلية كاملة الأبعاد — تُعرض في اللايت بوكس بدون قص */
+  imagesFull?: string[];
+  title: string;
+}) {
   const { locale } = useLocale();
   const isRtl = locale === 'ar';
   // Multiplier so positive translateX moves "next" in the visual reading order.
@@ -86,6 +95,19 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [isRtl, next, prev]);
+
+  // React to color swatch clicks on the product page: jump to the image
+  // linked to the selected color (fired by <ProductVariants/>).
+  useEffect(() => {
+    const onShowImage = (e: Event) => {
+      const url = (e as CustomEvent<{ url?: string }>).detail?.url;
+      if (!url) return;
+      const idx = images.indexOf(url);
+      if (idx >= 0) setActive(idx);
+    };
+    window.addEventListener('lsm:show-product-image', onShowImage);
+    return () => window.removeEventListener('lsm:show-product-image', onShowImage);
+  }, [images]);
 
   // Lock body scroll while lightbox is open
   useEffect(() => {
@@ -260,13 +282,13 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
             </button>
           </div>
 
-          {/* Image container — full size, contained, with circular corners */}
+          {/* Image container — the FULL ORIGINAL image (uncropped), contained */}
           <div
             className="relative w-full h-full max-w-5xl max-h-[88vh] rounded-2xl overflow-hidden flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
             <Image
-              src={images[active]}
+              src={imagesFull?.[active] || images[active]}
               alt={`${title}-${active}`}
               fill
               sizes="100vw"

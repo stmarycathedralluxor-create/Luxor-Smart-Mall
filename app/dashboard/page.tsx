@@ -49,7 +49,7 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-bold mb-1">
           أهلاً، {profile?.full_name || user.email} 👋
         </h1>
-        <p className="text-white/70">لوحة تحكم متجرك في لوكسور سمارت مول</p>
+        <p className="text-white/70">لوحة تحكم متجرك في الأقصر سمارت مول</p>
       </div>
 
       {isPendingSeller && (

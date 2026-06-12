@@ -14,7 +14,7 @@ type TranslationShape = {
 
 export const translations: Record<Locale, TranslationShape> = {
   ar: {
-    siteName: 'لوكسور سمارت مول',
+    siteName: 'الأقصر سمارت مول',
     tagline: 'سوق الأقصر الذكي - اربط متجرك بالعالم',
     nav: {
       home: 'الرئيسية',
