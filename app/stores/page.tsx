@@ -97,7 +97,7 @@ export default async function StoresPage() {
               لا توجد متاجر بعد
             </h3>
             <p className="text-luxor-obsidian/60 max-w-md mx-auto">
-              كن أول من ينشئ متجراً في لوكسور سمارت مول!
+              كن أول من ينشئ متجراً في الأقصر سمارت مول!
             </p>
           </div>
         ) : (

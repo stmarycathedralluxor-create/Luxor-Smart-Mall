@@ -16,11 +16,21 @@ export default function DeleteProductButton({ productId }: { productId: string }
     setLoading(true);
 
     // 1) Grab the image URLs BEFORE deleting the row so we can free storage
-    const { data: prod } = await supabase
-      .from('products')
-      .select('images')
-      .eq('id', productId)
-      .maybeSingle();
+    //    (cropped images + full-size originals)
+    let prod: { images?: string[]; images_full?: string[] } | null = null;
+    {
+      const r = await supabase
+        .from('products')
+        .select('images, images_full')
+        .eq('id', productId)
+        .maybeSingle();
+      prod = r.data;
+      if (!prod) {
+        // migration 0010 not run yet → fall back to images only
+        const r2 = await supabase.from('products').select('images').eq('id', productId).maybeSingle();
+        prod = r2.data;
+      }
+    }
 
     // 2) Delete the row and VERIFY it was actually deleted (RLS can
     //    silently match 0 rows, which made items "come back" later)
@@ -43,8 +53,9 @@ export default function DeleteProductButton({ productId }: { productId: string }
     }
 
     // 3) Physically remove the image files from storage (Cloudflare R2)
-    if (prod?.images?.length) {
-      await removeStorageUrls(prod.images);
+    const allUrls = [...(prod?.images ?? []), ...(prod?.images_full ?? [])].filter(Boolean);
+    if (allUrls.length) {
+      await removeStorageUrls(allUrls);
     }
 
     setLoading(false);

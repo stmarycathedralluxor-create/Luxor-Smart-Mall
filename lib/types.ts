@@ -38,6 +38,24 @@ export type Category = {
   icon: string | null;
 };
 
+/** مقاس متاح/غير متاح للمنتج */
+export type ProductSize = {
+  name: string;
+  /** الكمية المتاحة (اختياري) */
+  qty?: number | null;
+  available: boolean;
+};
+
+/** لون للمنتج مع إمكانية ربطه بصورة */
+export type ProductColor = {
+  name: string;
+  /** كود اللون hex للعرض */
+  hex?: string | null;
+  /** رابط صورة المنتج المرتبطة بهذا اللون */
+  image?: string | null;
+  available?: boolean;
+};
+
 export type Product = {
   id: string;
   store_id: string;
@@ -45,14 +63,22 @@ export type Product = {
   title: string;
   description: string | null;
   price: number;
+  /** السعر قبل الخصم — عندما يكون أكبر من price يظهر الخصم تلقائياً */
+  compare_at_price?: number | null;
   currency: string;
   images: string[];
+  /** الصور الأصلية كاملة الأبعاد (بنفس ترتيب images؛ '' = لا يوجد أصل) */
+  images_full?: string[];
   is_available: boolean;
   views: number;
   /** 'instant' = متاح فوراً — 'preorder' = حجز / طلب مسبق */
   delivery_type?: 'instant' | 'preorder';
   /** عدد أيام الوصول عند الحجز المسبق */
   delivery_days?: number | null;
+  /** المقاسات المتاحة وغير المتاحة */
+  sizes?: ProductSize[];
+  /** الألوان مع صورها المرتبطة */
+  colors?: ProductColor[];
   created_at: string;
 };
 

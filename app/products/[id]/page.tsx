@@ -5,6 +5,7 @@ import { MapPin, Store as StoreIcon, Eye, Tag, Zap, CalendarClock } from 'lucide
 import { createClient } from '@/lib/supabase/server';
 import { isStoreOpen, deliveryDaysLabel } from '@/lib/utils';
 import ProductGallery from '@/components/ProductGallery';
+import ProductVariants from '@/components/ProductVariants';
 import PriceReveal from '@/components/PriceReveal';
 import Reviews from '@/components/Reviews';
 import StarRating from '@/components/StarRating';
@@ -57,7 +58,11 @@ export default async function ProductPage({ params }: { params: { id: string } }
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ProductGallery images={product.images} title={product.title} />
+        <ProductGallery
+          images={product.images}
+          imagesFull={product.images_full}
+          title={product.title}
+        />
 
         <div className="flex flex-col">
           {product.category && (
@@ -115,11 +120,15 @@ export default async function ProductPage({ params }: { params: { id: string } }
             </div>
           )}
 
+          {/* المقاسات والألوان المتاحة */}
+          <ProductVariants sizes={product.sizes} colors={product.colors} />
+
           {/* Price reveal + WhatsApp order (client component) */}
           <PriceReveal
             productId={product.id}
             productTitle={product.title}
             price={product.price}
+            compareAtPrice={product.compare_at_price}
             storeWhatsapp={product.store.whatsapp}
             storeName={product.store.name}
             isAvailable={product.is_available}

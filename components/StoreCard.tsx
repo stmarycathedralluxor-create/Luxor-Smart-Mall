@@ -103,7 +103,7 @@ export default function StoreCard({
               </p>
             ) : (
               <p className="text-sm text-luxor-obsidian/40 italic mb-4">
-                {isRtl ? 'متجر رسمي على لوكسور سمارت مول' : 'Official store on Luxor Smart Mall'}
+                {isRtl ? 'متجر رسمي على الأقصر سمارت مول' : 'Official store on Luxor Smart Mall'}
               </p>
             )}
 

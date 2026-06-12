@@ -144,10 +144,11 @@ export async function rejectStoreAction(storeId: string) {
   if (store) urls.push(store.logo_url, store.cover_url);
   const { data: prods } = await supabase
     .from('products')
-    .select('images')
+    .select('images, images_full')
     .eq('store_id', storeId);
   (prods ?? []).forEach((p: any) => {
     if (p.images?.length) urls.push(...p.images);
+    if (p.images_full?.length) urls.push(...p.images_full);
   });
 
   // Delete + verify (RLS can silently match 0 rows)

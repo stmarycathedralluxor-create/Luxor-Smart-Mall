@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Tag, LogIn, MessageCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useLocale } from './LocaleProvider';
-import { buildWhatsAppLink, formatPrice } from '@/lib/utils';
+import { buildWhatsAppLink, formatPrice, discountPercent } from '@/lib/utils';
 
 // sessionStorage key used to remember a one-shot auto-reveal request that
 // survives the login redirect. We deliberately do NOT use the URL for this so
@@ -17,6 +17,7 @@ export default function PriceReveal({
   productId,
   productTitle,
   price,
+  compareAtPrice,
   storeWhatsapp,
   storeName,
   isAvailable,
@@ -24,6 +25,8 @@ export default function PriceReveal({
   productId: string;
   productTitle: string;
   price: number;
+  /** السعر قبل الخصم (اختياري) */
+  compareAtPrice?: number | null;
   storeWhatsapp: string;
   storeName: string;
   isAvailable: boolean;
@@ -228,17 +231,38 @@ export default function PriceReveal({
     );
   }
 
-  // Revealed: show price + order button
+  // Revealed: show price (+ discount when present) + order button
+  const pct = discountPercent(price, compareAtPrice);
+
   return (
     <div className="space-y-3 mb-6">
       <div className="card p-6 bg-gradient-to-br from-luxor-sandlight to-white animate-fade-in">
-        <div className="text-sm text-luxor-navy/70 mb-1">{t.product.price}</div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm text-luxor-navy/70">{t.product.price}</span>
+          {pct !== null && (
+            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full" dir="ltr">
+              -{pct}%
+            </span>
+          )}
+        </div>
         <div className="text-4xl md:text-5xl font-bold text-luxor-gold">
           {formatPrice(price, locale)}
           <span className="text-xl text-luxor-navy/60 ms-2">
             {locale === 'ar' ? 'ج.م' : 'EGP'}
           </span>
         </div>
+        {pct !== null && compareAtPrice && (
+          <div className="mt-1 text-luxor-navy/50">
+            <span className="line-through text-lg">
+              {formatPrice(compareAtPrice, locale)} {locale === 'ar' ? 'ج.م' : 'EGP'}
+            </span>
+            <span className="text-sm text-emerald-700 font-semibold ms-3">
+              {locale === 'ar'
+                ? `وفّرت ${formatPrice(compareAtPrice - price, locale)} ج.م`
+                : `You save ${formatPrice(compareAtPrice - price, locale)} EGP`}
+            </span>
+          </div>
+        )}
       </div>
 
       {isAvailable && (

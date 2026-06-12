@@ -81,6 +81,21 @@ export function isStoreOpen(store: {
   return !getExpiryInfo(store.expires_at).expired;
 }
 
+/* ─────────── Discount helpers ─────────── */
+
+/**
+ * نسبة الخصم المحسوبة تلقائياً من السعر قبل/بعد.
+ * Returns null when there is no real discount.
+ */
+export function discountPercent(
+  price: number,
+  compareAt?: number | null
+): number | null {
+  if (!compareAt || compareAt <= price || price < 0) return null;
+  const pct = Math.round(((compareAt - price) / compareAt) * 100);
+  return pct >= 1 ? pct : null;
+}
+
 /** Arabic/English label for delivery duration: "يصل خلال ٣ أيام" / "Arrives within 3 days" */
 export function deliveryDaysLabel(days: number, locale: 'ar' | 'en' = 'ar'): string {
   if (locale === 'ar') {

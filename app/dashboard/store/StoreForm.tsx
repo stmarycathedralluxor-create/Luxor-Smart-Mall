@@ -123,8 +123,16 @@ export default function StoreForm({
     } else {
       // New stores must be approved by admin → start as not approved
       res = await supabase.from('stores').insert({ ...payload, is_approved: false });
-      // bump role to seller
-      await supabase.from('profiles').update({ role: 'both' }).eq('id', userId);
+      // bump role to seller — but NEVER downgrade an admin account
+      // (this used to blindly set role='both' and reset admins to regular users)
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+      if (prof && prof.role !== 'admin' && prof.role !== 'both') {
+        await supabase.from('profiles').update({ role: 'both' }).eq('id', userId);
+      }
     }
 
     if (res.error) {

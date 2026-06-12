@@ -14,7 +14,7 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: 'لوكسور سمارت مول | Luxor Smart Mall',
+  title: 'الأقصر سمارت مول | Luxor Smart Mall',
   description: 'سوق الأقصر الذكي - منصة تجمع بائعي ومشتري الأقصر | The Smart Marketplace of Luxor',
   manifest: '/manifest.json',
   appleWebApp: {
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     shortcut: '/favicon.ico',
   },
   openGraph: {
-    title: 'لوكسور سمارت مول',
+    title: 'الأقصر سمارت مول',
     description: 'سوق الأقصر الذكي',
     type: 'website',
   },

@@ -25,12 +25,35 @@ export type ImageEditorProps = {
   outputType?: string;
   /** Rounded preview (avatar/logo feel) */
   round?: boolean;
+  /**
+   * Also export the FULL original image (uncropped, only compressed &
+   * capped at 2000px) so the public lightbox can show it complete.
+   */
+  captureOriginal?: boolean;
   onCancel: () => void;
-  onSave: (blob: Blob) => void | Promise<void>;
+  onSave: (blob: Blob, originalBlob?: Blob | null) => void | Promise<void>;
 };
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 5;
+
+/**
+ * Resolve the URL the editor should actually load.
+ * Local object/data URLs load directly. Remote URLs (R2 / Supabase) are
+ * routed through our same-origin proxy because the public buckets don't
+ * send CORS headers — loading them with crossOrigin='anonymous' fails
+ * silently and the editor used to hang on "جاري التحميل" forever.
+ */
+function resolveEditorSrc(src: string): string {
+  if (src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('/')) return src;
+  try {
+    const u = new URL(src);
+    if (typeof window !== 'undefined' && u.origin === window.location.origin) return src;
+    return `/api/storage/proxy?url=${encodeURIComponent(src)}`;
+  } catch {
+    return src;
+  }
+}
 
 /**
  * Compress the canvas as aggressively as possible without visibly ruining
@@ -65,6 +88,7 @@ export default function ImageEditor({
   title,
   outputWidth = 1200,
   round = false,
+  captureOriginal = false,
   onCancel,
   onSave,
 }: ImageEditorProps) {
@@ -72,6 +96,8 @@ export default function ImageEditor({
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [displaySrc, setDisplaySrc] = useState<string>(() => resolveEditorSrc(src));
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0); // 0 | 90 | 180 | 270
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -94,20 +120,43 @@ export default function ImageEditor({
   // "جاري الحفظ..." forever, blocking the rest of the queue.
   useEffect(() => {
     setLoaded(false);
+    setLoadError(false);
     setSaving(false);
     setZoom(1);
     setRotation(0);
     setOffset({ x: 0, y: 0 });
     pointers.current.clear();
     gesture.current = null;
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      imgRef.current = img;
-      setLoaded(true);
+
+    let cancelled = false;
+    const primary = resolveEditorSrc(src);
+    setDisplaySrc(primary);
+
+    const tryLoad = (url: string, fallback?: string) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        if (cancelled) return;
+        imgRef.current = img;
+        setDisplaySrc(url);
+        setLoaded(true);
+      };
+      img.onerror = () => {
+        if (cancelled) return;
+        if (fallback) {
+          // proxy failed (e.g. route not deployed yet) → try the direct URL
+          tryLoad(fallback);
+        } else {
+          setLoadError(true);
+        }
+      };
+      img.src = url;
     };
-    img.src = src;
+
+    tryLoad(primary, primary !== src ? src : undefined);
+
     return () => {
+      cancelled = true;
       imgRef.current = null;
     };
   }, [src]);
@@ -282,7 +331,38 @@ export default function ImageEditor({
       ctx.restore();
 
       const blob = await compressCanvas(canvas);
-      await onSave(blob);
+
+      // ── Optional: export the COMPLETE original (rotation applied, no crop) ──
+      let originalBlob: Blob | null = null;
+      if (captureOriginal) {
+        try {
+          const MAX_EDGE = 2000;
+          const scale = Math.min(1, MAX_EDGE / Math.max(dw, dh));
+          const fw = Math.max(1, Math.round(dw * scale));
+          const fh = Math.max(1, Math.round(dh * scale));
+          const full = document.createElement('canvas');
+          full.width = fw;
+          full.height = fh;
+          const fctx = full.getContext('2d')!;
+          fctx.imageSmoothingQuality = 'high';
+          fctx.fillStyle = '#ffffff';
+          fctx.fillRect(0, 0, fw, fh);
+          fctx.translate(fw / 2, fh / 2);
+          fctx.rotate((rotation * Math.PI) / 180);
+          fctx.drawImage(
+            img,
+            (-img.naturalWidth * scale) / 2,
+            (-img.naturalHeight * scale) / 2,
+            img.naturalWidth * scale,
+            img.naturalHeight * scale
+          );
+          originalBlob = await compressCanvas(full, 480 * 1024);
+        } catch {
+          originalBlob = null; // best-effort — never block the crop save
+        }
+      }
+
+      await onSave(blob, originalBlob);
     } catch (err) {
       console.error(err);
     } finally {
@@ -335,7 +415,7 @@ export default function ImageEditor({
               {loaded && frameSize.w > 0 && imgRef.current && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={src}
+                  src={displaySrc}
                   alt="editing"
                   draggable={false}
                   className="absolute pointer-events-none max-w-none"
@@ -352,8 +432,14 @@ export default function ImageEditor({
                   }}
                 />
               )}
-              {!loaded && (
+              {!loaded && !loadError && (
                 <div className="absolute inset-0 flex items-center justify-center text-luxor-navy/40 text-sm">جاري التحميل...</div>
+              )}
+              {loadError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4">
+                  <span className="text-red-500 text-sm font-semibold">تعذر تحميل الصورة</span>
+                  <span className="text-luxor-navy/50 text-xs">تحقق من اتصالك بالإنترنت ثم أعد المحاولة</span>
+                </div>
               )}
               {/* rule-of-thirds grid */}
               <div className="absolute inset-0 pointer-events-none opacity-40">
