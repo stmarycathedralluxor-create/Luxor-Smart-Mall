@@ -2,10 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Tag, LogIn, MessageCircle } from 'lucide-react';
+import { Tag, LogIn, MessageCircle, HandCoins } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useLocale } from './LocaleProvider';
-import { buildWhatsAppLink, formatPrice, discountPercent } from '@/lib/utils';
+import {
+  buildWhatsAppLink,
+  formatPrice,
+  discountPercent,
+  depositAmount,
+  deliveryDaysLabel,
+} from '@/lib/utils';
+import { VARIANT_EVENT, type VariantSelection } from './ProductVariants';
+import type { ProductColor, ProductSize } from '@/lib/types';
 
 // sessionStorage key used to remember a one-shot auto-reveal request that
 // survives the login redirect. We deliberately do NOT use the URL for this so
@@ -21,6 +29,13 @@ export default function PriceReveal({
   storeWhatsapp,
   storeName,
   isAvailable,
+  depositType,
+  depositValue,
+  deliveryType,
+  deliveryDays,
+  sizes,
+  colors,
+  categoryName,
 }: {
   productId: string;
   productTitle: string;
@@ -30,6 +45,14 @@ export default function PriceReveal({
   storeWhatsapp: string;
   storeName: string;
   isAvailable: boolean;
+  /** الدفع المقدم (العربون) */
+  depositType?: 'none' | 'percent' | 'amount' | null;
+  depositValue?: number | null;
+  deliveryType?: 'instant' | 'preorder' | null;
+  deliveryDays?: number | null;
+  sizes?: ProductSize[] | null;
+  colors?: ProductColor[] | null;
+  categoryName?: string | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -39,6 +62,17 @@ export default function PriceReveal({
   const [checking, setChecking] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
+  // المقاس/اللون المختاران في <ProductVariants/> — يُبلّغان عبر حدث مخصص
+  const [selection, setSelection] = useState<VariantSelection>({ size: null, color: null });
+
+  useEffect(() => {
+    const onVariant = (e: Event) => {
+      const detail = (e as CustomEvent<VariantSelection>).detail;
+      if (detail) setSelection(detail);
+    };
+    window.addEventListener(VARIANT_EVENT, onVariant);
+    return () => window.removeEventListener(VARIANT_EVENT, onVariant);
+  }, []);
 
   // 1) Resolve current auth state on mount + react to auth state changes.
   //    Also re-check whenever the page is restored from the BFCache (mobile
@@ -189,8 +223,64 @@ export default function PriceReveal({
       /* ignore */
     }
 
-    const msg = `مرحباً، أرغب في طلب المنتج التالي من متجر "${storeName}":\n\n*${productTitle}*\nالسعر: ${formatPrice(price)} ج.م\n\nرابط المنتج: ${window.location.origin}/products/${productId}`;
-    const link = buildWhatsAppLink(storeWhatsapp, msg);
+    // ── رسالة واتساب كاملة التفاصيل للبائع ──
+    const pctMsg = discountPercent(price, compareAtPrice);
+    const depositAmt = depositAmount(price, depositType, depositValue);
+    const lines: string[] = [];
+
+    lines.push(`مرحباً، أرغب في طلب المنتج التالي من متجر "${storeName}":`);
+    lines.push('');
+    lines.push(`🛍️ *${productTitle}*`);
+    if (categoryName) lines.push(`📂 القسم: ${categoryName}`);
+    lines.push('');
+
+    // السعر + الخصم
+    if (pctMsg !== null && compareAtPrice) {
+      lines.push(`💰 السعر: ${formatPrice(price)} ج.م (بدلاً من ${formatPrice(compareAtPrice)} ج.م)`);
+      lines.push(`🏷️ خصم: ${pctMsg}% — توفير ${formatPrice(compareAtPrice - price)} ج.م`);
+    } else {
+      lines.push(`💰 السعر: ${formatPrice(price)} ج.م`);
+    }
+
+    // الدفع المقدم (العربون)
+    if (depositAmt !== null) {
+      const depositDesc =
+        depositType === 'percent'
+          ? `${depositValue}% = ${formatPrice(depositAmt)} ج.م`
+          : `${formatPrice(depositAmt)} ج.م`;
+      lines.push(`💳 الدفع المقدم (عربون): ${depositDesc}`);
+      lines.push(`💵 المتبقي عند الاستلام: ${formatPrice(price - depositAmt)} ج.م`);
+    }
+
+    // المقاس واللون المختاران (أو المتاح منهما لو لم يختر العميل)
+    const availableSizes = (sizes ?? []).filter(
+      (s) => s.available && !(typeof s.qty === 'number' && s.qty <= 0)
+    );
+    const availableColors = (colors ?? []).filter((c) => c.available !== false);
+    if (selection.size) {
+      lines.push(`📏 المقاس المطلوب: ${selection.size}`);
+    } else if (availableSizes.length) {
+      lines.push(`📏 المقاسات المتاحة: ${availableSizes.map((s) => s.name).join('، ')} (لم أحدد بعد)`);
+    }
+    if (selection.color) {
+      lines.push(`🎨 اللون المطلوب: ${selection.color}`);
+    } else if (availableColors.length) {
+      lines.push(`🎨 الألوان المتاحة: ${availableColors.map((c) => c.name).join('، ')} (لم أحدد بعد)`);
+    }
+
+    // طريقة التوفر
+    if (deliveryType === 'preorder') {
+      lines.push(
+        `⏳ التوفر: حجز مسبق${deliveryDays ? ` — ${deliveryDaysLabel(deliveryDays, 'ar')}` : ''}`
+      );
+    } else {
+      lines.push('⚡ التوفر: متاح فوراً');
+    }
+
+    lines.push('');
+    lines.push(`🔗 رابط المنتج: ${window.location.origin}/products/${productId}`);
+
+    const link = buildWhatsAppLink(storeWhatsapp, lines.join('\n'));
     window.open(link, '_blank', 'noopener,noreferrer');
   };
 
@@ -233,6 +323,7 @@ export default function PriceReveal({
 
   // Revealed: show price (+ discount when present) + order button
   const pct = discountPercent(price, compareAtPrice);
+  const depAmt = depositAmount(price, depositType, depositValue);
 
   return (
     <div className="space-y-3 mb-6">
@@ -261,6 +352,31 @@ export default function PriceReveal({
                 ? `وفّرت ${formatPrice(compareAtPrice - price, locale)} ج.م`
                 : `You save ${formatPrice(compareAtPrice - price, locale)} EGP`}
             </span>
+          </div>
+        )}
+
+        {/* الدفع المقدم (العربون) */}
+        {depAmt !== null && (
+          <div className="mt-3 flex items-center gap-2.5 bg-luxor-gold/10 border border-luxor-gold/40 rounded-xl p-3">
+            <span className="w-9 h-9 rounded-full bg-luxor-gold text-luxor-obsidian flex items-center justify-center shrink-0">
+              <HandCoins size={18} />
+            </span>
+            <div className="text-sm">
+              <div className="font-bold text-luxor-navy">
+                {locale === 'ar' ? 'دفع مقدم (عربون)' : 'Deposit required'}
+                {': '}
+                <span className="text-luxor-darkgold">
+                  {depositType === 'percent'
+                    ? `${depositValue}% = ${formatPrice(depAmt, locale)} ${locale === 'ar' ? 'ج.م' : 'EGP'}`
+                    : `${formatPrice(depAmt, locale)} ${locale === 'ar' ? 'ج.م' : 'EGP'}`}
+                </span>
+              </div>
+              <div className="text-xs text-luxor-navy/60 mt-0.5">
+                {locale === 'ar'
+                  ? `المتبقي عند الاستلام: ${formatPrice(price - depAmt, locale)} ج.م`
+                  : `Remaining on delivery: ${formatPrice(price - depAmt, locale)} EGP`}
+              </div>
+            </div>
           </div>
         )}
       </div>

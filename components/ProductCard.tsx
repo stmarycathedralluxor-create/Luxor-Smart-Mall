@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Eye, Store as StoreIcon, Tag, MapPin, BadgeCheck, Zap, CalendarClock } from 'lucide-react';
+import CroppedImage from './CroppedImage';
 import { useLocale } from './LocaleProvider';
 import { deliveryDaysLabel, discountPercent } from '@/lib/utils';
 import type { ProductWithStore } from '@/lib/types';
@@ -10,6 +10,7 @@ import type { ProductWithStore } from '@/lib/types';
 export default function ProductCard({ product }: { product: ProductWithStore }) {
   const { locale, t } = useLocale();
   const img = product.images?.[0];
+  const imgCrop = product.images_meta?.[0] ?? null;
   const isPreorder = product.delivery_type === 'preorder';
   const pct = discountPercent(product.price, product.compare_at_price);
 
@@ -25,13 +26,14 @@ export default function ProductCard({ product }: { product: ProductWithStore }) 
           {/* ── Clean image: no badges covering it ── */}
           <div className="aspect-square relative overflow-hidden bg-gradient-to-br from-luxor-obsidian via-luxor-charcoal to-black">
             {img ? (
-              <Image
-                src={img}
-                alt={product.title}
-                fill
-                sizes="(max-width: 768px) 50vw, 25vw"
-                className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-              />
+              <span className="absolute inset-0 block group-hover:scale-110 transition-transform duration-700 ease-out">
+                <CroppedImage
+                  src={img}
+                  crop={imgCrop}
+                  alt={product.title}
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                />
+              </span>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-luxor-gold/40">
                 <StoreIcon size={56} />

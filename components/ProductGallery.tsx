@@ -4,15 +4,20 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Package, ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
+import CroppedImage from './CroppedImage';
+import type { ImageCrop } from '@/lib/types';
 
 export default function ProductGallery({
   images,
   imagesFull,
+  imagesMeta,
   title,
 }: {
   images: string[];
-  /** الصور الأصلية كاملة الأبعاد — تُعرض في اللايت بوكس بدون قص */
+  /** الصور الأصلية كاملة الأبعاد — للمنتجات القديمة فقط (نظام الملفين) */
   imagesFull?: string[];
+  /** بيانات القص المحفوظة — تُطبّق على الصورة الأصلية الوحيدة عند العرض */
+  imagesMeta?: (ImageCrop | null)[];
   title: string;
 }) {
   const { locale } = useLocale();
@@ -149,13 +154,13 @@ export default function ProductGallery({
           style={{ transform: `translateX(${dir * active * 100}%)` }}
         >
           {images.map((img, i) => (
-            <div key={i} className="relative w-full h-full flex-shrink-0">
-              <Image
+            <div key={i} className="relative w-full h-full flex-shrink-0 overflow-hidden">
+              <CroppedImage
                 src={img}
+                crop={imagesMeta?.[i]}
                 alt={`${title}-${i}`}
-                fill
                 sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover pointer-events-none"
+                imgClassName="pointer-events-none"
                 priority={i === 0}
                 draggable={false}
               />
@@ -236,7 +241,7 @@ export default function ProductGallery({
                 active === i ? 'border-luxor-gold' : 'border-transparent opacity-70 hover:opacity-100'
               }`}
             >
-              <Image src={img} alt={`${title}-thumb-${i}`} fill sizes="20vw" className="object-cover" />
+              <CroppedImage src={img} crop={imagesMeta?.[i]} alt={`${title}-thumb-${i}`} sizes="20vw" />
             </button>
           ))}
         </div>

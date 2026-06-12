@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Plus, Edit, Eye, Package } from 'lucide-react';
+import CroppedImage from '@/components/CroppedImage';
 import { createClient } from '@/lib/supabase/server';
 import { formatPrice, discountPercent } from '@/lib/utils';
 import DeleteProductButton from './DeleteProductButton';
@@ -43,7 +43,7 @@ export default async function ProductsPage() {
             <div key={p.id} className="card p-4">
               <div className="aspect-square relative rounded-lg overflow-hidden bg-luxor-sandlight mb-3">
                 {p.images?.[0] ? (
-                  <Image src={p.images[0]} alt={p.title} fill className="object-cover" />
+                  <CroppedImage src={p.images[0]} crop={p.images_meta?.[0]} alt={p.title} sizes="(max-width: 640px) 100vw, 33vw" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-luxor-gold">
                     <Package size={40} />

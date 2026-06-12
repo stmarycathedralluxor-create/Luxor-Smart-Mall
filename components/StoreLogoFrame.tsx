@@ -4,7 +4,7 @@ import { BadgeCheck } from 'lucide-react';
 /**
  * Store profile picture with:
  *  – a thin 2px white inner frame
- *  – a golden "metal" outer frame with pharaonic corner brackets
+ *  – a golden "metal" outer frame
  *  – an optional admin-granted verified badge
  */
 export default function StoreLogoFrame({
@@ -28,12 +28,6 @@ export default function StoreLogoFrame({
 }) {
   return (
     <div className="relative">
-      {/* Pharaonic golden corner brackets */}
-      <span className="gold-corner gold-corner-tl" aria-hidden />
-      <span className="gold-corner gold-corner-tr" aria-hidden />
-      <span className="gold-corner gold-corner-bl" aria-hidden />
-      <span className="gold-corner gold-corner-br" aria-hidden />
-
       {/* Golden metal outer frame */}
       <div className="bg-gold-metal p-[3px] rounded-xl shadow-luxor">
         {/* Thin 2px white frame */}

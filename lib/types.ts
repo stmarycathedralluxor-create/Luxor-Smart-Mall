@@ -38,6 +38,20 @@ export type Category = {
   icon: string | null;
 };
 
+/**
+ * بيانات قص الصورة المحفوظة كمتغيرات (بدلاً من تخزين صورة مقصوصة منفصلة).
+ * كل القيم كسرية (0..1) نسبةً لأبعاد الصورة الأصلية بعد التدوير:
+ *  x, y = الركن العلوي الأيسر لمنطقة القص — w, h = عرض/ارتفاع المنطقة
+ *  r    = زاوية التدوير (0 | 90 | 180 | 270)
+ */
+export type ImageCrop = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  r?: number;
+};
+
 /** مقاس متاح/غير متاح للمنتج */
 export type ProductSize = {
   name: string;
@@ -67,8 +81,15 @@ export type Product = {
   compare_at_price?: number | null;
   currency: string;
   images: string[];
-  /** الصور الأصلية كاملة الأبعاد (بنفس ترتيب images؛ '' = لا يوجد أصل) */
+  /** الصور الأصلية كاملة الأبعاد — للمنتجات القديمة فقط (بنفس ترتيب images؛ '' = لا يوجد أصل) */
   images_full?: string[];
+  /**
+   * بيانات القص لكل صورة (بنفس ترتيب images).
+   * عندما توجد بيانات قص لصورة، فإن images[i] هي الصورة الأصلية
+   * الوحيدة المخزّنة ويُطبّق القص عليها بـ CSS عند العرض (لا ملف ثانٍ).
+   * null = لا قص (عرض object-cover افتراضي) أو صورة قديمة مقصوصة فعلياً.
+   */
+  images_meta?: (ImageCrop | null)[];
   is_available: boolean;
   views: number;
   /** 'instant' = متاح فوراً — 'preorder' = حجز / طلب مسبق */
@@ -79,6 +100,10 @@ export type Product = {
   sizes?: ProductSize[];
   /** الألوان مع صورها المرتبطة */
   colors?: ProductColor[];
+  /** الدفع المقدم (عربون): none = بدون — percent = نسبة مئوية — amount = مبلغ ثابت */
+  deposit_type?: 'none' | 'percent' | 'amount';
+  /** قيمة العربون: النسبة (1-100) أو المبلغ بالجنيه */
+  deposit_value?: number | null;
   created_at: string;
 };
 

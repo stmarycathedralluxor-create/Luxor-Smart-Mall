@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, RotateCw, Check, X, Move, RefreshCw } from 'lucide-react';
+import type { ImageCrop } from '@/lib/types';
 
 export type ImageEditorProps = {
   /** Object URL or remote URL of the image being edited */
@@ -30,8 +31,21 @@ export type ImageEditorProps = {
    * capped at 2000px) so the public lightbox can show it complete.
    */
   captureOriginal?: boolean;
+  /**
+   * META MODE — بدلاً من تصدير صورة مقصوصة، يُرجع بيانات القص
+   * كمتغيرات (x, y, w, h كسور 0..1) + الصورة الأصلية مرة واحدة فقط
+   * عند الحاجة (ملف جديد أو تدوير). إعادة القص = تحديث JSON فقط
+   * بدون رفع أي ملف جديد — توفير كبير في مساحة التخزين.
+   */
+  metaMode?: boolean;
+  /** المصدر مخزّن بالفعل على الخادم — لا حاجة لرفعه مجدداً إلا عند التدوير */
+  sourceIsRemote?: boolean;
+  /** بيانات قص سابقة لاستعادة الوضع عند إعادة التحرير */
+  initialCrop?: ImageCrop | null;
+  /** نتيجة وضع الـ meta: بيانات القص + الصورة الأصلية (null = لا حاجة للرفع) */
+  onSaveMeta?: (result: { crop: ImageCrop; blob: Blob | null }) => void | Promise<void>;
   onCancel: () => void;
-  onSave: (blob: Blob, originalBlob?: Blob | null) => void | Promise<void>;
+  onSave?: (blob: Blob, originalBlob?: Blob | null) => void | Promise<void>;
 };
 
 const MIN_ZOOM = 1;
@@ -89,6 +103,10 @@ export default function ImageEditor({
   outputWidth = 1200,
   round = false,
   captureOriginal = false,
+  metaMode = false,
+  sourceIsRemote = false,
+  initialCrop = null,
+  onSaveMeta,
   onCancel,
   onSave,
 }: ImageEditorProps) {
@@ -103,6 +121,9 @@ export default function ImageEditor({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [saving, setSaving] = useState(false);
   const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
+
+  // one-shot flag: restore the previous crop once when the image + frame are ready
+  const appliedInitialCrop = useRef(false);
 
   // pointer state (supports mouse drag + touch drag + pinch zoom)
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -127,6 +148,7 @@ export default function ImageEditor({
     setOffset({ x: 0, y: 0 });
     pointers.current.clear();
     gesture.current = null;
+    appliedInitialCrop.current = false;
 
     let cancelled = false;
     const primary = resolveEditorSrc(src);
@@ -209,6 +231,27 @@ export default function ImageEditor({
     setOffset((o) => clampOffset(o, zoom));
   }, [zoom, clampOffset]);
 
+  // Restore a previously saved crop (meta mode) once everything is measured
+  useEffect(() => {
+    if (!metaMode || !initialCrop || appliedInitialCrop.current) return;
+    if (!loaded || !frameSize.w || !frameSize.h || !imgRef.current) return;
+    const c = initialCrop;
+    if (!(c.w > 0 && c.h > 0 && c.w <= 1 && c.h <= 1)) return;
+    appliedInitialCrop.current = true;
+    const { w: dw, h: dh } = getDims();
+    const base = getBaseScale();
+    if (!base) return;
+    // scale that makes the crop region exactly fill the frame
+    const s = frameSize.w / (c.w * dw);
+    const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, s / base));
+    const s2 = base * z;
+    const ox = dw * s2 * (0.5 - c.x) - frameSize.w / 2 - (c.w * dw * s2 - frameSize.w) / 2;
+    const oy = dh * s2 * (0.5 - c.y) - frameSize.h / 2 - (c.h * dh * s2 - frameSize.h) / 2;
+    setZoom(z);
+    setOffset(clampOffset({ x: ox, y: oy }, z));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metaMode, initialCrop, loaded, frameSize]);
+
   const setZoomClamped = (z: number) => setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z)));
 
   // ───────────── pointer handlers (drag + pinch) ─────────────
@@ -288,6 +331,33 @@ export default function ImageEditor({
     setOffset({ x: 0, y: 0 });
   };
 
+  /** Export the FULL image (rotation applied, capped at 2000px) as one compressed blob */
+  const exportFullImage = async (targetBytes = 420 * 1024): Promise<Blob> => {
+    const img = imgRef.current!;
+    const { w: dw, h: dh } = getDims();
+    const MAX_EDGE = 2000;
+    const scale = Math.min(1, MAX_EDGE / Math.max(dw, dh));
+    const fw = Math.max(1, Math.round(dw * scale));
+    const fh = Math.max(1, Math.round(dh * scale));
+    const full = document.createElement('canvas');
+    full.width = fw;
+    full.height = fh;
+    const fctx = full.getContext('2d')!;
+    fctx.imageSmoothingQuality = 'high';
+    fctx.fillStyle = '#ffffff';
+    fctx.fillRect(0, 0, fw, fh);
+    fctx.translate(fw / 2, fh / 2);
+    fctx.rotate((rotation * Math.PI) / 180);
+    fctx.drawImage(
+      img,
+      (-img.naturalWidth * scale) / 2,
+      (-img.naturalHeight * scale) / 2,
+      img.naturalWidth * scale,
+      img.naturalHeight * scale
+    );
+    return compressCanvas(full, targetBytes);
+  };
+
   // ───────────── export the visible frame to a Blob ─────────────
   const handleSave = async () => {
     const img = imgRef.current;
@@ -304,6 +374,29 @@ export default function ImageEditor({
       const sy = -top / s;
       const sw = frameSize.w / s;
       const sh = frameSize.h / s;
+
+      // ── META MODE: لا تصدير صورة مقصوصة — نحفظ متغيرات القص فقط ──
+      if (metaMode && onSaveMeta) {
+        const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+        const crop: ImageCrop = {
+          x: clamp01(sx / dw),
+          y: clamp01(sy / dh),
+          w: clamp01(sw / dw),
+          h: clamp01(sh / dh),
+        };
+        // round to 5 decimals — دقة أكثر من كافية وتُصغّر الـ JSON
+        crop.x = Math.round(crop.x * 1e5) / 1e5;
+        crop.y = Math.round(crop.y * 1e5) / 1e5;
+        crop.w = Math.max(0.01, Math.round(crop.w * 1e5) / 1e5);
+        crop.h = Math.max(0.01, Math.round(crop.h * 1e5) / 1e5);
+        // الرفع مطلوب فقط لملف جديد أو عند تغيير التدوير (نخبز التدوير في الملف)
+        let blob: Blob | null = null;
+        if (!sourceIsRemote || rotation !== 0) {
+          blob = await exportFullImage();
+        }
+        await onSaveMeta({ crop, blob });
+        return;
+      }
 
       const outW = Math.round(outputWidth);
       const outH = Math.round(outputWidth / aspect);
@@ -336,33 +429,13 @@ export default function ImageEditor({
       let originalBlob: Blob | null = null;
       if (captureOriginal) {
         try {
-          const MAX_EDGE = 2000;
-          const scale = Math.min(1, MAX_EDGE / Math.max(dw, dh));
-          const fw = Math.max(1, Math.round(dw * scale));
-          const fh = Math.max(1, Math.round(dh * scale));
-          const full = document.createElement('canvas');
-          full.width = fw;
-          full.height = fh;
-          const fctx = full.getContext('2d')!;
-          fctx.imageSmoothingQuality = 'high';
-          fctx.fillStyle = '#ffffff';
-          fctx.fillRect(0, 0, fw, fh);
-          fctx.translate(fw / 2, fh / 2);
-          fctx.rotate((rotation * Math.PI) / 180);
-          fctx.drawImage(
-            img,
-            (-img.naturalWidth * scale) / 2,
-            (-img.naturalHeight * scale) / 2,
-            img.naturalWidth * scale,
-            img.naturalHeight * scale
-          );
-          originalBlob = await compressCanvas(full, 480 * 1024);
+          originalBlob = await exportFullImage(480 * 1024);
         } catch {
           originalBlob = null; // best-effort — never block the crop save
         }
       }
 
-      await onSave(blob, originalBlob);
+      await onSave?.(blob, originalBlob);
     } catch (err) {
       console.error(err);
     } finally {
