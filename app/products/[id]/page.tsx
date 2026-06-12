@@ -61,6 +61,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
         <ProductGallery
           images={product.images}
           imagesFull={product.images_full}
+          imagesMeta={product.images_meta}
           title={product.title}
         />
 
@@ -132,6 +133,13 @@ export default async function ProductPage({ params }: { params: { id: string } }
             storeWhatsapp={product.store.whatsapp}
             storeName={product.store.name}
             isAvailable={product.is_available}
+            depositType={product.deposit_type}
+            depositValue={product.deposit_value}
+            deliveryType={product.delivery_type}
+            deliveryDays={product.delivery_days}
+            sizes={product.sizes}
+            colors={product.colors}
+            categoryName={product.category?.name_ar ?? null}
           />
 
           {product.description && (

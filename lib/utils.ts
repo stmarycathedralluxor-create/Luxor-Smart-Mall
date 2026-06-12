@@ -96,6 +96,45 @@ export function discountPercent(
   return pct >= 1 ? pct : null;
 }
 
+/* ─────────── Deposit (الدفع المقدم / العربون) helpers ─────────── */
+
+/**
+ * يحسب مبلغ العربون المطلوب دفعه مقدماً.
+ * Returns null when no deposit is required.
+ */
+export function depositAmount(
+  price: number,
+  depositType?: 'none' | 'percent' | 'amount' | null,
+  depositValue?: number | null
+): number | null {
+  if (!depositType || depositType === 'none' || !depositValue || depositValue <= 0) return null;
+  if (depositType === 'percent') {
+    if (depositValue > 100) return null;
+    const amt = Math.round((price * depositValue) / 100 * 100) / 100;
+    return amt > 0 ? amt : null;
+  }
+  return depositValue;
+}
+
+/** وصف العربون بالعربية/الإنجليزية: "عربون 20% (100 ج.م)" */
+export function depositLabel(
+  price: number,
+  depositType?: 'none' | 'percent' | 'amount' | null,
+  depositValue?: number | null,
+  locale: 'ar' | 'en' = 'ar'
+): string | null {
+  const amt = depositAmount(price, depositType, depositValue);
+  if (amt === null) return null;
+  if (depositType === 'percent') {
+    return locale === 'ar'
+      ? `${depositValue}% (${formatPrice(amt, locale)} ج.م)`
+      : `${depositValue}% (${formatPrice(amt, locale)} EGP)`;
+  }
+  return locale === 'ar'
+    ? `${formatPrice(amt, locale)} ج.م`
+    : `${formatPrice(amt, locale)} EGP`;
+}
+
 /** Arabic/English label for delivery duration: "يصل خلال ٣ أيام" / "Arrives within 3 days" */
 export function deliveryDaysLabel(days: number, locale: 'ar' | 'en' = 'ar'): string {
   if (locale === 'ar') {

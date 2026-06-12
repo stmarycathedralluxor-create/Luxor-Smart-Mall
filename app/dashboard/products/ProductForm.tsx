@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import {
-  Upload, X, Save, Crop, Zap, CalendarClock, Percent, Ruler, Palette, Plus, ImageIcon,
+  Upload, X, Save, Crop, Zap, CalendarClock, Percent, Ruler, Palette, Plus, ImageIcon, HandCoins,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
+import CroppedImage from '@/components/CroppedImage';
 import { checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
-import { discountPercent } from '@/lib/utils';
-import type { Category, Product, ProductColor, ProductSize } from '@/lib/types';
+import { discountPercent, depositAmount, formatPrice } from '@/lib/utils';
+import type { Category, ImageCrop, Product, ProductColor, ProductSize } from '@/lib/types';
 
 type EditingState = {
   src: string;
@@ -18,6 +18,10 @@ type EditingState = {
   /** index to replace, or null to append. Remaining queue of files to edit after this one */
   replaceIndex: number | null;
   queue: File[];
+  /** المصدر مخزّن بالفعل على R2 — إعادة القص تحدّث الـ JSON فقط بدون رفع */
+  sourceIsRemote: boolean;
+  /** بيانات القص السابقة لاستعادة الوضع في المحرر */
+  initialCrop: ImageCrop | null;
 } | null;
 
 /** ألوان جاهزة شائعة للاختيار السريع */
@@ -63,6 +67,9 @@ export default function ProductForm({
     category_id: initialProduct?.category_id ?? null as number | null,
     images: initialProduct?.images ?? [] as string[],
     images_full: (initialProduct?.images_full ?? []) as string[],
+    images_meta: (initialProduct?.images_meta ?? []) as (ImageCrop | null)[],
+    deposit_type: (initialProduct?.deposit_type ?? 'none') as 'none' | 'percent' | 'amount',
+    deposit_value: (initialProduct?.deposit_value ?? null) as number | null,
     is_available: initialProduct?.is_available ?? true,
     delivery_type: initialProduct?.delivery_type ?? 'instant' as 'instant' | 'preorder',
     delivery_days: initialProduct?.delivery_days ?? 3,
@@ -90,75 +97,106 @@ export default function ProductForm({
     const list = Array.from(files).slice(0, 8 - form.images.length);
     if (!list.length) return;
     const [first, ...rest] = list;
-    setEditing({ src: URL.createObjectURL(first), isObjectUrl: true, replaceIndex: null, queue: rest });
+    setEditing({
+      src: URL.createObjectURL(first),
+      isObjectUrl: true,
+      replaceIndex: null,
+      queue: rest,
+      sourceIsRemote: false,
+      initialCrop: null,
+    });
   };
 
-  /** Re-edit an already uploaded image — prefer the FULL original as source */
+  /**
+   * Re-edit an already uploaded image — المصدر هو الصورة الأصلية الوحيدة
+   * المخزّنة. إعادة القص تحدّث بيانات JSON فقط — بدون رفع ملف جديد.
+   * للمنتجات القديمة (نظام images_full): نفضّل الأصل الكامل كمصدر،
+   * وبعد أول إعادة قص تتحول الصورة للنظام الجديد تلقائياً.
+   */
   const editExisting = (idx: number) => {
     const src = form.images_full[idx] || form.images[idx];
-    setEditing({ src, isObjectUrl: false, replaceIndex: idx, queue: [] });
+    setEditing({
+      src,
+      isObjectUrl: false,
+      replaceIndex: idx,
+      queue: [],
+      sourceIsRemote: true,
+      initialCrop: form.images_meta[idx] ?? null,
+    });
   };
 
   const advanceQueue = (queue: File[]) => {
     if (queue.length) {
       const [next, ...rest] = queue;
-      setEditing({ src: URL.createObjectURL(next), isObjectUrl: true, replaceIndex: null, queue: rest });
+      setEditing({
+        src: URL.createObjectURL(next),
+        isObjectUrl: true,
+        replaceIndex: null,
+        queue: rest,
+        sourceIsRemote: false,
+        initialCrop: null,
+      });
     } else {
       setEditing(null);
     }
   };
 
-  const handleEditorSave = async (blob: Blob, originalBlob?: Blob | null) => {
+  /**
+   * النظام الجديد — صورة أصلية واحدة + بيانات قص في قاعدة البيانات:
+   *  - صورة جديدة → رفع الأصل مرة واحدة + حفظ القص كـ JSON
+   *  - إعادة قص صورة موجودة → تحديث الـ JSON فقط (blob = null، صفر بايت رفع!)
+   *  - تدوير صورة موجودة → رفع نسخة مُدارة تحل محل القديمة (ملف واحد أيضاً)
+   */
+  const handleEditorSaveMeta = async ({ crop, blob }: { crop: ImageCrop; blob: Blob | null }) => {
     if (!editing) return;
     setUploading(true);
-    const totalSize = blob.size + (originalBlob?.size ?? 0);
-    // Pre-check the seller's storage quota before uploading
-    const quotaError = await checkQuotaBeforeUpload(supabase, totalSize);
-    if (quotaError) {
-      setError(quotaError);
-      if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
-      setUploading(false);
-      setEditing(null);
-      return;
-    }
     try {
-      // Upload cropped + full original to Cloudflare R2 via our server API
-      const publicUrl = await uploadImage('product-images', blob);
-      let fullUrl = '';
-      if (originalBlob) {
-        try {
-          fullUrl = await uploadImage('product-images', originalBlob);
-        } catch {
-          fullUrl = ''; // best-effort — crop is what matters
+      let publicUrl = '';
+      if (blob) {
+        // Pre-check the seller's storage quota before uploading
+        const quotaError = await checkQuotaBeforeUpload(supabase, blob.size);
+        if (quotaError) {
+          setError(quotaError);
+          if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
+          setUploading(false);
+          setEditing(null);
+          return;
         }
+        publicUrl = await uploadImage('product-images', blob);
       }
       const replaceIndex = editing.replaceIndex;
       setForm((f) => {
         if (replaceIndex !== null) {
           const images = [...f.images];
+          const imagesMeta = [...f.images_meta];
           const imagesFull = [...f.images_full];
           const old = images[replaceIndex];
           const oldFull = imagesFull[replaceIndex];
-          images[replaceIndex] = publicUrl;
-          // Keep the previous full original when re-cropping an existing
-          // image (the source was the same original) unless a new one came.
-          imagesFull[replaceIndex] = fullUrl || oldFull || '';
-          // The replaced image: if it was uploaded in THIS session (not yet
-          // saved on the product), free its storage immediately
+          // إذا رُفع ملف جديد (تدوير) → استبدل الرابط؛ وإلا احتفظ بالأصل.
+          // للمنتجات القديمة: المصدر كان images_full → نرقّيه ليصبح هو
+          // الصورة الأساسية ونحذف النسخة المقصوصة القديمة لتوفير المساحة.
+          const newBase = publicUrl || oldFull || old;
+          images[replaceIndex] = newBase;
+          imagesMeta[replaceIndex] = crop;
+          imagesFull[replaceIndex] = ''; // لم نعد نحتاج نسخة ثانية
+          // تحرير المساحة: الملفات التي رُفعت في هذه الجلسة ولم تعد مستخدمة
           const toFree: string[] = [];
-          if (old && old !== publicUrl && !isPersisted(old)) toFree.push(old);
-          if (fullUrl && oldFull && oldFull !== fullUrl && !isPersisted(oldFull)) toFree.push(oldFull);
+          if (old && old !== newBase && !isPersisted(old)) toFree.push(old);
+          if (oldFull && oldFull !== newBase && !isPersisted(oldFull)) toFree.push(oldFull);
           if (toFree.length) void removeStorageUrls(toFree);
-          // re-link any color that pointed at the old cropped image
+          // re-link any color that pointed at the old image url
           const colors = f.colors.map((c) =>
-            c.image === old ? { ...c, image: publicUrl } : c
+            c.image === old ? { ...c, image: newBase } : c
           );
-          return { ...f, images, images_full: imagesFull, colors };
+          return { ...f, images, images_meta: imagesMeta, images_full: imagesFull, colors };
         }
+        // صورة جديدة — ملف واحد فقط + بيانات قص
         const images = [...f.images, publicUrl].slice(0, 8);
+        const imagesMeta = [...f.images_meta];
         const imagesFull = [...f.images_full];
-        imagesFull[images.length - 1] = fullUrl || '';
-        return { ...f, images, images_full: imagesFull };
+        imagesMeta[images.length - 1] = crop;
+        imagesFull[images.length - 1] = '';
+        return { ...f, images, images_meta: imagesMeta, images_full: imagesFull };
       });
     } catch (err: any) {
       setError(err?.message || 'فشل رفع الصورة');
@@ -181,6 +219,7 @@ export default function ProductForm({
       ...f,
       images: f.images.filter((_, i) => i !== idx),
       images_full: f.images_full.filter((_, i) => i !== idx),
+      images_meta: f.images_meta.filter((_, i) => i !== idx),
       // unlink colors that pointed at the removed image
       colors: f.colors.map((c) => (c.image === url ? { ...c, image: null } : c)),
     }));
@@ -240,6 +279,26 @@ export default function ProductForm({
       return;
     }
 
+    // deposit validation
+    const depositValue = form.deposit_type === 'none' ? null : Number(form.deposit_value) || null;
+    if (form.deposit_type !== 'none') {
+      if (!depositValue || depositValue <= 0) {
+        setError('أدخل قيمة صحيحة للدفع المقدم');
+        setLoading(false);
+        return;
+      }
+      if (form.deposit_type === 'percent' && depositValue > 100) {
+        setError('نسبة الدفع المقدم لا يمكن أن تتجاوز 100%');
+        setLoading(false);
+        return;
+      }
+      if (form.deposit_type === 'amount' && depositValue >= Number(form.price)) {
+        setError('مبلغ الدفع المقدم يجب أن يكون أقل من سعر المنتج');
+        setLoading(false);
+        return;
+      }
+    }
+
     const payload = {
       store_id: storeId,
       title: form.title,
@@ -249,6 +308,9 @@ export default function ProductForm({
       category_id: form.category_id,
       images: form.images,
       images_full: form.images.map((_, i) => form.images_full[i] || ''),
+      images_meta: form.images.map((_, i) => form.images_meta[i] ?? null),
+      deposit_type: form.deposit_type,
+      deposit_value: depositValue,
       is_available: form.is_available,
       delivery_type: form.delivery_type,
       delivery_days: form.delivery_type === 'preorder' ? Math.max(1, Number(form.delivery_days) || 1) : null,
@@ -264,10 +326,12 @@ export default function ProductForm({
     }
 
     if (res.error) {
-      // Helpful hint if migration 0010 hasn't been run yet
-      const msg = /compare_at_price|images_full|sizes|colors/.test(res.error.message)
-        ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0010) لم يتم تشغيله بعد في Supabase`
-        : res.error.message;
+      // Helpful hint if a migration hasn't been run yet
+      const msg = /images_meta|deposit_type|deposit_value/.test(res.error.message)
+        ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0011) لم يتم تشغيله بعد في Supabase`
+        : /compare_at_price|images_full|sizes|colors/.test(res.error.message)
+          ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0010) لم يتم تشغيله بعد في Supabase`
+          : res.error.message;
       setError(msg);
       setLoading(false);
       return;
@@ -294,9 +358,11 @@ export default function ProductForm({
           aspect={1}
           title="تعديل صورة المنتج"
           outputWidth={1000}
-          captureOriginal
+          metaMode
+          sourceIsRemote={editing.sourceIsRemote}
+          initialCrop={editing.initialCrop}
           onCancel={closeEditor}
-          onSave={handleEditorSave}
+          onSaveMeta={handleEditorSaveMeta}
         />
       )}
 
@@ -308,7 +374,7 @@ export default function ProductForm({
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
           {form.images.map((img, i) => (
             <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-luxor-sand group">
-              <Image src={img} alt={`img-${i}`} fill className="object-cover" />
+              <CroppedImage src={img} crop={form.images_meta[i]} alt={`img-${i}`} sizes="120px" />
               <button
                 type="button"
                 onClick={() => removeImage(i)}
@@ -346,7 +412,7 @@ export default function ProductForm({
           )}
         </div>
         <p className="text-xs text-luxor-navy/50 mt-1.5">
-          القص يحدد ما يظهر في كارت المنتج — وعند الضغط على الصورة في صفحة المنتج تظهر الصورة الأصلية كاملة بدون قص
+          القص يحدد ما يظهر في كارت المنتج — تُحفظ الصورة الأصلية مرة واحدة فقط ويُطبّق القص تلقائياً بدون استهلاك مساحة إضافية، وعند التكبير تظهر الصورة كاملة
         </p>
       </div>
 
@@ -440,6 +506,101 @@ export default function ProductForm({
             </p>
             {hasDiscount && form.compare_at_price !== null && Number(form.compare_at_price) <= Number(form.price) && (
               <p className="text-xs text-red-600 font-semibold">⚠️ السعر قبل الخصم يجب أن يكون أكبر من السعر الحالي</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ───────── الدفع المقدم (العربون) ───────── */}
+      <div className="rounded-xl border-2 border-luxor-sand p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <label htmlFor="has_deposit" className="flex items-center gap-2 text-sm font-bold text-luxor-navy cursor-pointer">
+            <HandCoins size={16} className="text-luxor-darkgold" />
+            دفع مقدم (عربون)
+          </label>
+          <input
+            type="checkbox"
+            id="has_deposit"
+            checked={form.deposit_type !== 'none'}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                deposit_type: e.target.checked ? 'percent' : 'none',
+                deposit_value: e.target.checked ? form.deposit_value : null,
+              })
+            }
+            className="w-4 h-4 accent-luxor-gold"
+          />
+        </div>
+        {form.deposit_type !== 'none' && (
+          <div className="animate-fade-in space-y-3">
+            {/* نوع العربون: نسبة مئوية أو مبلغ ثابت */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, deposit_type: 'percent' })}
+                className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition ${
+                  form.deposit_type === 'percent'
+                    ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-navy'
+                    : 'border-luxor-sand bg-white text-luxor-navy/50 hover:border-luxor-gold/50'
+                }`}
+              >
+                <Percent size={16} className={form.deposit_type === 'percent' ? 'text-luxor-darkgold' : ''} />
+                نسبة مئوية %
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, deposit_type: 'amount' })}
+                className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition ${
+                  form.deposit_type === 'amount'
+                    ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-navy'
+                    : 'border-luxor-sand bg-white text-luxor-navy/50 hover:border-luxor-gold/50'
+                }`}
+              >
+                <HandCoins size={16} className={form.deposit_type === 'amount' ? 'text-luxor-darkgold' : ''} />
+                مبلغ ثابت (ج.م)
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-luxor-navy/70 mb-1">
+                  {form.deposit_type === 'percent' ? 'نسبة الدفع المقدم (%) *' : 'مبلغ الدفع المقدم (ج.م) *'}
+                </label>
+                <input
+                  type="number"
+                  min="0.01"
+                  max={form.deposit_type === 'percent' ? 100 : undefined}
+                  step="0.01"
+                  required
+                  value={form.deposit_value ?? ''}
+                  onChange={(e) =>
+                    setForm({ ...form, deposit_value: e.target.value ? parseFloat(e.target.value) : null })
+                  }
+                  className="input-field"
+                  placeholder={form.deposit_type === 'percent' ? 'مثال: 25' : 'مثال: 100'}
+                />
+              </div>
+              {(() => {
+                const amt = depositAmount(Number(form.price), form.deposit_type, form.deposit_value);
+                if (amt === null) return null;
+                return (
+                  <div className="shrink-0 text-center">
+                    <div className="bg-luxor-gold/15 border border-luxor-gold text-luxor-darkgold rounded-xl px-3 py-2 font-bold text-sm shadow-sm whitespace-nowrap">
+                      {formatPrice(amt)} ج.م
+                    </div>
+                    <div className="text-[10px] text-luxor-navy/50 mt-1">قيمة العربون</div>
+                  </div>
+                );
+              })()}
+            </div>
+            <p className="text-xs text-luxor-navy/50">
+              سيظهر للعميل أن المنتج يتطلب دفعاً مقدماً، وستُضاف قيمة العربون تلقائياً في رسالة الطلب على واتساب
+            </p>
+            {form.deposit_type === 'percent' && form.deposit_value !== null && Number(form.deposit_value) > 100 && (
+              <p className="text-xs text-red-600 font-semibold">⚠️ النسبة لا يمكن أن تتجاوز 100%</p>
+            )}
+            {form.deposit_type === 'amount' && form.deposit_value !== null && Number(form.deposit_value) >= Number(form.price) && form.price > 0 && (
+              <p className="text-xs text-red-600 font-semibold">⚠️ مبلغ العربون يجب أن يكون أقل من سعر المنتج</p>
             )}
           </div>
         )}
@@ -607,7 +768,7 @@ export default function ProductForm({
                           c.image === img ? 'border-luxor-gold ring-2 ring-luxor-gold/40' : 'border-luxor-sand opacity-70 hover:opacity-100'
                         }`}
                       >
-                        <Image src={img} alt={`color-img-${imgIdx}`} fill sizes="48px" className="object-cover" />
+                        <CroppedImage src={img} crop={form.images_meta[imgIdx]} alt={`color-img-${imgIdx}`} sizes="48px" />
                       </button>
                     ))}
                   </div>

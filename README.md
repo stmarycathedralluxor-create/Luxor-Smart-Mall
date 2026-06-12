@@ -40,6 +40,17 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 ---
 
+## 🆕 Recently Added (v8) — Crop-as-Metadata, Deposits & Rich WhatsApp Orders
+
+1. **Crop stored as variables (huge storage saving)** — instead of uploading a cropped copy AND a full original (2 files per image), only the original image is stored once. Crop position/zoom is saved as JSON (`products.images_meta`: fractional `x/y/w/h`) and applied via CSS at render time (`<CroppedImage/>`). Re-cropping an existing image uploads **zero bytes** — it only updates the JSON. Rotation is the only case that re-uploads (the rotated file replaces the old one, still 1 file). Old products using the legacy `images_full` two-file system keep working and are automatically migrated to the new system on their next re-crop.
+2. **Deposit / Down-payment (دفع مقدم)** — sellers can require a deposit per product, either a **percentage** (e.g. 25%) or a **fixed amount** (e.g. 100 EGP). Shown on the product page after price reveal (deposit value + remaining on delivery) and included in the WhatsApp order message.
+3. **Rich WhatsApp order message** — the order message sent to the seller now contains ALL details: product title, category, price, discount % + savings, deposit + remaining, the buyer's **selected size & color** (or the available ones if not selected yet), availability (instant / preorder + arrival days), and the product link.
+4. **Store logo cleanup** — removed the four golden corner brackets around the store logo frame.
+
+> 📌 To activate v8: **run `supabase/migrations/0011_crop_meta_deposit.sql` once in the Supabase SQL editor**. It's idempotent.
+
+---
+
 ## 🆕 Recently Added (v6) — Cache & Storage Overhaul
 
 1. **No more stale pages** — deleted stores/products no longer "come back" or keep showing:

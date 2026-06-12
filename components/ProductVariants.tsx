@@ -5,10 +5,17 @@
  * عند اختيار لون مرتبط بصورة، يُرسل حدث للمعرض لعرض تلك الصورة.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Ruler, Palette, Check } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
 import type { ProductColor, ProductSize } from '@/lib/types';
+
+/**
+ * حدث مخصص يبلّغ باقي الصفحة (زر الطلب عبر واتساب) بالمقاس/اللون
+ * المختارين حالياً حتى تتضمنهما رسالة الطلب تلقائياً.
+ */
+export const VARIANT_EVENT = 'lsm:variant-selected';
+export type VariantSelection = { size: string | null; color: string | null };
 
 export default function ProductVariants({
   sizes,
@@ -21,6 +28,15 @@ export default function ProductVariants({
   const isAr = locale === 'ar';
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+
+  // أبلغ زر الطلب بأي تغيير في الاختيار
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent<VariantSelection>(VARIANT_EVENT, {
+        detail: { size: selectedSize, color: selectedColor },
+      })
+    );
+  }, [selectedSize, selectedColor]);
 
   const hasSizes = !!sizes?.length;
   const hasColors = !!colors?.length;
