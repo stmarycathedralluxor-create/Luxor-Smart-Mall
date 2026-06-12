@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { removeStorageUrls, removeStoreOwnerFiles } from '@/lib/storage';
+import { removeStorageUrlsServer, removeStoreOwnerFilesServer } from '@/lib/storage-server';
 
 /**
  * Helper: ensure the caller is an authenticated admin.
@@ -161,11 +161,11 @@ export async function rejectStoreAction(storeId: string) {
     return { ok: false, error: 'تعذر حذف المتجر — لا تملك الصلاحية أو تم حذفه مسبقاً' };
   }
 
-  // Physically free the storage space (exact URLs + deep folder sweep so
-  // no store logo/cover stays orphaned in store-assets)
-  await removeStorageUrls(supabase, urls);
+  // Physically free the storage space on Cloudflare R2 (+ legacy Supabase):
+  // exact URLs + deep folder sweep so nothing stays orphaned
+  await removeStorageUrlsServer(supabase, urls);
   if (store?.owner_id) {
-    await removeStoreOwnerFiles(supabase, store.owner_id);
+    await removeStoreOwnerFilesServer(supabase, store.owner_id);
   }
 
   refreshAdmin();

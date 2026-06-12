@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Save, Camera, Crop, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
-import { blobExt, checkQuotaBeforeUpload, removeStorageUrls } from '@/lib/storage';
+import { blobExt, checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
 import type { Profile } from '@/lib/types';
 
 type EditingState = { src: string; isObjectUrl: boolean } | null;
@@ -42,24 +42,21 @@ export default function ProfileForm({ profile, email }: { profile: Profile | nul
       setUploading(false);
       return;
     }
-    const path = `${profile.id}/avatar-${Date.now()}.${blobExt(blob)}`;
-    const { error: upErr } = await supabase.storage
-      .from('store-assets')
-      .upload(path, blob, { upsert: true, contentType: blob.type });
-    if (upErr) {
-      setError(upErr.message);
-    } else {
-      const { data } = supabase.storage.from('store-assets').getPublicUrl(path);
+    try {
+      // Upload to Cloudflare R2 via our server API
+      const publicUrl = await uploadImage('store-assets', blob, `avatar-${Date.now()}.${blobExt(blob)}`);
       const oldAvatar = avatarUrl;
-      setAvatarUrl(data.publicUrl);
+      setAvatarUrl(publicUrl);
       // save immediately so the change is live right away
-      await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', profile.id);
+      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id);
       // Physically delete the replaced avatar file to free storage space
-      if (oldAvatar && oldAvatar !== data.publicUrl) {
-        await removeStorageUrls(supabase, [oldAvatar]);
+      if (oldAvatar && oldAvatar !== publicUrl) {
+        await removeStorageUrls([oldAvatar]);
       }
       setMsg('تم تحديث الصورة الشخصية');
       router.refresh();
+    } catch (err: any) {
+      setError(err?.message || 'فشل رفع الصورة');
     }
     if (editing?.isObjectUrl) URL.revokeObjectURL(editing.src);
     setEditing(null);

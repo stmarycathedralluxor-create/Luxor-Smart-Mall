@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Upload, X, Save, Crop, Zap, CalendarClock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
-import { blobExt, checkQuotaBeforeUpload, removeStorageUrls } from '@/lib/storage';
+import { checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
 import type { Category, Product } from '@/lib/types';
 
 type EditingState = {
@@ -82,29 +82,26 @@ export default function ProductForm({
       setEditing(null);
       return;
     }
-    const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${blobExt(blob)}`;
-    const { error: upErr } = await supabase.storage
-      .from('product-images')
-      .upload(path, blob, { contentType: blob.type });
-    if (upErr) {
-      setError(upErr.message);
-    } else {
-      const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+    try {
+      // Upload to Cloudflare R2 via our server API
+      const publicUrl = await uploadImage('product-images', blob);
       const replaceIndex = editing.replaceIndex;
       setForm((f) => {
         if (replaceIndex !== null) {
           const images = [...f.images];
           const old = images[replaceIndex];
-          images[replaceIndex] = data.publicUrl;
+          images[replaceIndex] = publicUrl;
           // The replaced image: if it was uploaded in THIS session (not yet
           // saved on the product), free its storage immediately
-          if (old && old !== data.publicUrl && !isPersisted(old)) {
-            void removeStorageUrls(supabase, [old]);
+          if (old && old !== publicUrl && !isPersisted(old)) {
+            void removeStorageUrls([old]);
           }
           return { ...f, images };
         }
-        return { ...f, images: [...f.images, data.publicUrl].slice(0, 8) };
+        return { ...f, images: [...f.images, publicUrl].slice(0, 8) };
       });
+    } catch (err: any) {
+      setError(err?.message || 'فشل رفع الصورة');
     }
     if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
     setUploading(false);
@@ -123,7 +120,7 @@ export default function ProductForm({
     // Newly uploaded (unsaved) image → delete its file right away.
     // Persisted images are deleted from storage on submit (see handleSubmit).
     if (url && !isPersisted(url)) {
-      void removeStorageUrls(supabase, [url]);
+      void removeStorageUrls([url]);
     }
   };
 
@@ -161,7 +158,7 @@ export default function ProductForm({
     // session are now orphaned → physically delete them to free space
     const removedPersisted = persistedImages.filter((u) => !form.images.includes(u));
     if (removedPersisted.length) {
-      await removeStorageUrls(supabase, removedPersisted);
+      await removeStorageUrls(removedPersisted);
     }
 
     router.push('/dashboard/products');
