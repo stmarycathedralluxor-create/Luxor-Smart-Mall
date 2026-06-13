@@ -17,27 +17,37 @@ const FILTER_LABELS: Record<string, string> = {
 export default async function AdminCatalogsPage() {
   const supabase = createClient();
 
-  // الكتالوجات العامة بانتظار الموافقة
-  const { data: pendingRaw } = await supabase
+  // نجلب كل الكتالوجات العامة دفعةً واحدة بدون ربط المتجر (الربط الداخلي
+  // قد يحذف الصفوف بصمت بسبب RLS على stores). نجلب أسماء المتاجر منفصلاً.
+  const { data: globalRaw, error: globalErr } = await supabase
     .from('catalogs')
-    .select('*, store:stores(name, slug)')
+    .select('*')
     .eq('scope', 'global')
-    .eq('is_approved', false)
     .order('created_at', { ascending: false });
 
-  // الكتالوجات العامة المعتمدة (للمراجعة)
-  const { data: approvedRaw } = await supabase
-    .from('catalogs')
-    .select('*, store:stores(name, slug)')
-    .eq('scope', 'global')
-    .eq('is_approved', true)
-    .order('created_at', { ascending: false });
+  const allGlobal = (globalRaw ?? []) as Catalog[];
 
-  const pending = (pendingRaw ?? []) as (Catalog & { store?: any })[];
-  const approved = (approvedRaw ?? []) as (Catalog & { store?: any })[];
+  // اجلب أسماء المتاجر المرتبطة (مرّة واحدة)
+  const storeIds = Array.from(new Set(allGlobal.map((c) => c.store_id).filter(Boolean))) as string[];
+  const storeMap = new Map<string, { name: string; slug: string }>();
+  if (storeIds.length) {
+    const { data: stores } = await supabase.from('stores').select('id, name, slug').in('id', storeIds);
+    (stores ?? []).forEach((s: any) => storeMap.set(s.id, { name: s.name, slug: s.slug }));
+  }
+
+  const withStore = (c: Catalog) => ({ ...c, store: c.store_id ? storeMap.get(c.store_id) ?? null : null });
+
+  const pending = allGlobal.filter((c) => !c.is_approved).map(withStore) as (Catalog & { store?: any })[];
+  const approved = allGlobal.filter((c) => c.is_approved).map(withStore) as (Catalog & { store?: any })[];
+  const loadError = globalErr?.message ?? null;
 
   return (
     <div className="space-y-8">
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+          تعذّر تحميل الكتالوجات: {loadError}
+        </div>
+      )}
       {/* بانتظار الموافقة */}
       <section>
         <div className="flex items-center gap-2 mb-4">
