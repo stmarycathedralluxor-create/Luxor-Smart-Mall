@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Store as StoreIcon, Eye, Tag, Zap, CalendarClock, Truck, MapPinned, BadgeCheck } from 'lucide-react';
+import { MapPin, Store as StoreIcon, Eye, Tag, Zap, CalendarClock, BadgeCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { isStoreOpen, deliveryDaysLabel } from '@/lib/utils';
 import ProductGallery from '@/components/ProductGallery';
@@ -130,44 +130,13 @@ export default async function ProductPage({ params }: { params: { id: string } }
             </div>
           )}
 
-          {/* خيارات الاستلام */}
-          {!!product.fulfillment_options?.length && (
-            <div className="mb-6 card p-4">
-              <div className="flex items-center gap-2 text-sm font-bold text-luxor-navy mb-3">
-                <Truck size={16} className="text-luxor-darkgold" />
-                خيارات الاستلام
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {product.fulfillment_options.includes('delivery') && (
-                  <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-full text-xs font-bold">
-                    <Truck size={13} />
-                    توصيل
-                  </span>
-                )}
-                {product.fulfillment_options.includes('store_pickup') && (
-                  <span className="inline-flex items-center gap-1.5 bg-luxor-gold/10 text-luxor-darkgold border border-luxor-gold/40 px-3 py-1.5 rounded-full text-xs font-bold">
-                    <StoreIcon size={13} />
-                    استلام من المتجر
-                  </span>
-                )}
-                {product.fulfillment_options.includes('address_pickup') && (
-                  <span className="inline-flex items-center gap-1.5 bg-sky-50 text-sky-700 border border-sky-300 px-3 py-1.5 rounded-full text-xs font-bold">
-                    <MapPinned size={13} />
-                    استلام من عنوان
-                  </span>
-                )}
-              </div>
-              {product.fulfillment_options.includes('address_pickup') && product.pickup_address && (
-                <div className="mt-3 flex items-start gap-2 text-sm text-luxor-navy/70 bg-sky-50/60 border border-sky-200 rounded-xl p-3">
-                  <MapPin size={15} className="text-sky-600 shrink-0 mt-0.5" />
-                  <span><span className="font-semibold text-luxor-navy">عنوان الاستلام:</span> {product.pickup_address}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* المقاسات والألوان المتاحة */}
-          <ProductVariants sizes={product.sizes} colors={product.colors} />
+          {/* المقاسات والألوان وطريقة الاستلام — كلها قابلة للاختيار وتُبعث في رسالة الطلب */}
+          <ProductVariants
+            sizes={product.sizes}
+            colors={product.colors}
+            fulfillmentOptions={product.fulfillment_options}
+            pickupAddress={product.pickup_address}
+          />
 
           {/* Price reveal + WhatsApp order (client component) */}
           <PriceReveal
