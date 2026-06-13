@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { LayoutDashboard, Store, Package, User, Shield } from 'lucide-react';
+import { LayoutDashboard, Store, Package, User, Shield, BookOpen } from 'lucide-react';
 
 // Dashboards must always show live data — never cache
 export const dynamic = 'force-dynamic';
@@ -45,6 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <SidebarLink href="/dashboard" icon={LayoutDashboard} label="نظرة عامة" />
           <SidebarLink href="/dashboard/store" icon={Store} label={store ? 'متجري' : 'أنشئ متجرك'} />
           {store && <SidebarLink href="/dashboard/products" icon={Package} label="المنتجات" />}
+          {store && <SidebarLink href="/dashboard/catalogs" icon={BookOpen} label="الكتالوجات" />}
           <SidebarLink href="/dashboard/profile" icon={User} label="الملف الشخصي" />
           {isAdmin && (
             <>

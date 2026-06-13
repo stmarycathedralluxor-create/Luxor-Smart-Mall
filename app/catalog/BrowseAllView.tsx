@@ -39,7 +39,7 @@ const PRESETS: {
   { key: 'premium', label: 'الفئة الفاخرة (+2000)', Icon: Sparkles, apply: (f) => ({ ...f, min: '2000', max: '', sort: 'price_desc' }) },
 ];
 
-export default function CatalogView({
+export default function BrowseAllView({
   products,
   categories,
   stores,
@@ -136,10 +136,10 @@ export default function CatalogView({
                 <div className="text-[11px] text-white/60 uppercase tracking-wider">منتج معروض</div>
               </div>
               <ShareButton
-                path="/catalog"
-                title="كتالوج الأقصر سمارت مول"
-                text="تصفّح كتالوج منتجات الأقصر سمارت مول"
-                label="مشاركة الكتالوج"
+                path="/catalog/browse"
+                title="كل منتجات الأقصر سمارت مول"
+                text="تصفّح كل منتجات الأقصر سمارت مول"
+                label="مشاركة الصفحة"
                 className="inline-flex items-center gap-2 rounded-2xl border-2 border-luxor-gold bg-white/10 backdrop-blur text-white font-bold px-4 py-3 hover:bg-luxor-gold hover:text-luxor-obsidian transition"
               />
             </div>
