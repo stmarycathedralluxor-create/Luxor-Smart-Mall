@@ -14,12 +14,14 @@ export const revalidate = 0;
 
 async function loadCatalog(slug: string) {
   const supabase = createClient();
-  const { data: catalog } = await supabase
+  const { data: catalog, error } = await supabase
     .from('catalogs')
     .select('*, store:stores(*)')
     .eq('slug', slug)
     .maybeSingle();
-  return { supabase, catalog: catalog as (Catalog & { store?: any }) | null };
+  // ميّز "الجدول غير موجود" (لم يُشغَّل المايجريشن) عن "كتالوج غير موجود"
+  const tableMissing = !!error && /relation .*catalogs.* does not exist|could not find the table/i.test(error.message || '');
+  return { supabase, catalog: catalog as (Catalog & { store?: any }) | null, tableMissing };
 }
 
 /** OG/Twitter metadata — مشاركة الكتالوج تعرض صورة غلافه أو أول منتج. */
@@ -62,7 +64,30 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function CatalogPage({ params }: { params: { slug: string } }) {
-  const { supabase, catalog } = await loadCatalog(params.slug);
+  const { supabase, catalog, tableMissing } = await loadCatalog(params.slug);
+
+  // الجدول غير موجود (لم يُشغَّل المايجريشن) — اعرض تعليمات بدل 404 غامض
+  if (tableMissing) {
+    return (
+      <div className="bg-luxor-sandlight/30 min-h-screen">
+        <div className="max-w-3xl mx-auto px-4 py-16">
+          <div className="bg-amber-50 rounded-3xl border-2 border-amber-300 p-8 text-center">
+            <h3 className="text-xl font-bold text-amber-800 mb-2">ميزة الكتالوجات تحتاج تفعيلاً لمرّة واحدة</h3>
+            <p className="text-amber-700/80 mb-4 leading-relaxed">
+              افتح <span className="font-bold">Supabase → SQL Editor</span> وشغّل ملف المايجريشن:
+              <code className="block mt-2 bg-white border border-amber-200 rounded-lg px-3 py-1.5 font-mono text-sm text-amber-900">
+                supabase/migrations/0013_catalogs.sql
+              </code>
+            </p>
+            <Link href="/catalog" className="btn-outline inline-flex">
+              <ChevronLeft size={16} className="rtl:rotate-180" /> العودة للكتالوجات
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!catalog) notFound();
 
   // الكتالوجات العامة غير المعتمدة لا تُعرَض للعامة

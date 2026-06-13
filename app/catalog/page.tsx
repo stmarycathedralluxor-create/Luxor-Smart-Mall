@@ -20,12 +20,16 @@ export default async function CatalogsPage() {
   const supabase = createClient();
 
   // الكتالوجات العامة المعتمدة فقط (كتالوجات المتاجر تظهر على صفحات متاجرها)
-  const { data: catalogsRaw } = await supabase
+  const { data: catalogsRaw, error: catalogsError } = await supabase
     .from('catalogs')
     .select('*, store:stores(*)')
     .eq('scope', 'global')
     .eq('is_approved', true)
     .order('created_at', { ascending: false });
+
+  const tableMissing =
+    !!catalogsError &&
+    /relation .*catalogs.* does not exist|could not find the table/i.test(catalogsError.message || '');
 
   const catalogs = (catalogsRaw ?? []) as (Catalog & { store?: any })[];
 
@@ -75,7 +79,21 @@ export default async function CatalogsPage() {
 
       {/* CATALOGS GRID */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {visible.length === 0 ? (
+        {tableMissing ? (
+          <div className="bg-amber-50 rounded-3xl border-2 border-amber-300 p-8 text-center">
+            <h3 className="text-xl font-bold text-amber-800 mb-2">ميزة الكتالوجات تحتاج تفعيلاً لمرّة واحدة</h3>
+            <p className="text-amber-700/80 max-w-xl mx-auto mb-4 leading-relaxed">
+              لتشغيل الكتالوجات، افتح <span className="font-bold">Supabase → SQL Editor</span> وشغّل ملف
+              المايجريشن:
+              <code className="block mt-2 bg-white border border-amber-200 rounded-lg px-3 py-1.5 font-mono text-sm text-amber-900">
+                supabase/migrations/0013_catalogs.sql
+              </code>
+            </p>
+            <Link href="/catalog/browse" className="btn-outline inline-flex">
+              <Layers size={16} /> تصفّح كل المنتجات الآن
+            </Link>
+          </div>
+        ) : visible.length === 0 ? (
           <div className="bg-white rounded-3xl border-2 border-dashed border-luxor-gold/30 p-12 text-center">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-luxor-gold/10 mb-4">
               <BookOpen className="text-luxor-gold" size={40} />

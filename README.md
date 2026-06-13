@@ -6,6 +6,20 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 ---
 
+## 🆕 Recently Added (v11) — Magazine Catalogs, Phone Fix, Bulk Deposit & Share Images
+
+1. **`+2` phone prefix (preserves the leading `0`)** — the phone inputs show a **locked `+2` prefix** and the seller types their number **starting from `0`** (e.g. `01012345678`). The stored value is `+2` + the number = `+201012345678` (the correct Egyptian international form, valid for `wa.me`). Old stored numbers no longer lose their leading `0`. (`components/PhoneInput.tsx`)
+2. **Real magazine catalogs (flip-the-pages)** — `/catalog` lists **approved public catalogs**; opening one shows a **3D page-flip magazine** (`MagazineFlipbook`). Click any product to open its page. `/catalog/browse` keeps the full product browser.
+   - A catalog has a **name** and its products are chosen by **filter**: *all store products*, *highest price*, *highest rating*, or a **manual pick**.
+   - Sellers manage catalogs at **`/dashboard/catalogs`** (create / edit / delete + manual product picker).
+   - **Store-scoped catalogs appear on that store's page instantly — no approval.** **Public** catalogs need **admin approval** at **`/admin/catalogs`**.
+3. **Bulk add — deposit + side-by-side fulfillment** — the bulk page now includes the **prepayment / deposit (الدفع المسبق)** field (per row + apply-to-all), and **"متاح فوري" / "حجز مسبق"** are shown as **side-by-side selectable buttons** (no click-to-toggle).
+4. **Correct share image (OG)** — sharing a **product** uses the **product image**, and **catalogs are shareable** too (catalog cover → first product image fallback) with proper Open Graph / Twitter tags.
+
+> 📌 **To activate v11: run `supabase/migrations/0013_catalogs.sql` once in the Supabase SQL Editor.** It's idempotent and creates the `catalogs` + `catalog_products` tables with RLS. **Until you run it, the Catalogs pages show an activation notice** (and previously could 404).
+
+---
+
 ## ✨ Features
 
 - 🛍️ **Marketplace platform** — sellers create stores, list products, buyers browse
