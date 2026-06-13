@@ -19,10 +19,13 @@ export const metadata = {
 export default async function CatalogsPage() {
   const supabase = createClient();
 
-  // الكتالوجات العامة المعتمدة فقط (كتالوجات المتاجر تظهر على صفحات متاجرها)
+  // الكتالوجات العامة المعتمدة فقط (كتالوجات المتاجر تظهر على صفحات متاجرها).
+  // مهم: لا نربط المتجر داخل الاستعلام (embedded join) لأنه يتصرّف كـ
+  // inner join ويحذف الكتالوج بصمت عندما لا يكون متجره active+approved
+  // بسبب RLS — فيختفي الكتالوج المعتمد من الصفحة. نجلب المتاجر منفصلاً.
   const { data: catalogsRaw, error: catalogsError } = await supabase
     .from('catalogs')
-    .select('*, store:stores(*)')
+    .select('*')
     .eq('scope', 'global')
     .eq('is_approved', true)
     .order('created_at', { ascending: false });
@@ -32,6 +35,16 @@ export default async function CatalogsPage() {
     /relation .*catalogs.* does not exist|could not find the table/i.test(catalogsError.message || '');
 
   const catalogs = (catalogsRaw ?? []) as (Catalog & { store?: any })[];
+
+  // اجلب المتاجر المرتبطة منفصلاً (اختياري للعرض فقط)
+  const storeIds = Array.from(new Set(catalogs.map((c) => c.store_id).filter(Boolean))) as string[];
+  if (storeIds.length) {
+    const { data: stores } = await supabase.from('stores').select('*').in('id', storeIds);
+    const storeMap = new Map<string, any>((stores ?? []).map((s: any) => [s.id, s]));
+    catalogs.forEach((c) => {
+      if (c.store_id) c.store = storeMap.get(c.store_id) ?? null;
+    });
+  }
 
   // احسب صورة الغلاف وعدد المنتجات لكل كتالوج (أول منتج كغلاف افتراضي)
   const cards = await Promise.all(
