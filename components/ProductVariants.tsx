@@ -1,46 +1,80 @@
 'use client';
 
 /**
- * ProductVariants — عرض المقاسات والألوان في صفحة المنتج.
+ * ProductVariants — عرض المقاسات والألوان وخيارات الاستلام في صفحة المنتج.
  * عند اختيار لون مرتبط بصورة، يُرسل حدث للمعرض لعرض تلك الصورة.
+ * اختيار طريقة الاستلام يُبلّغ لزر الطلب ليُضاف في رسالة الواتساب.
  */
 
 import { useEffect, useState } from 'react';
-import { Ruler, Palette, Check } from 'lucide-react';
+import { Ruler, Palette, Check, Truck, Store as StoreIcon, MapPinned, MapPin } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
-import type { ProductColor, ProductSize } from '@/lib/types';
+import type { FulfillmentOption, ProductColor, ProductSize } from '@/lib/types';
 
 /**
- * حدث مخصص يبلّغ باقي الصفحة (زر الطلب عبر واتساب) بالمقاس/اللون
- * المختارين حالياً حتى تتضمنهما رسالة الطلب تلقائياً.
+ * حدث مخصص يبلّغ باقي الصفحة (زر الطلب عبر واتساب) بالمقاس/اللون/
+ * طريقة الاستلام المختارة حالياً حتى تتضمنها رسالة الطلب تلقائياً.
  */
 export const VARIANT_EVENT = 'lsm:variant-selected';
-export type VariantSelection = { size: string | null; color: string | null };
+export type VariantSelection = {
+  size: string | null;
+  color: string | null;
+  fulfillment: FulfillmentOption | null;
+};
+
+/** تسميات وأيقونات خيارات الاستلام */
+const FULFILLMENT_META: Record<
+  FulfillmentOption,
+  { ar: string; en: string; Icon: typeof Truck }
+> = {
+  delivery: { ar: 'توصيل', en: 'Delivery', Icon: Truck },
+  store_pickup: { ar: 'استلام من المتجر', en: 'Store pickup', Icon: StoreIcon },
+  address_pickup: { ar: 'استلام من عنوان', en: 'Pickup from address', Icon: MapPinned },
+};
 
 export default function ProductVariants({
   sizes,
   colors,
+  fulfillmentOptions,
+  pickupAddress,
 }: {
   sizes?: ProductSize[] | null;
   colors?: ProductColor[] | null;
+  /** خيارات الاستلام المتاحة للمنتج — العميل يختار واحدة منها */
+  fulfillmentOptions?: FulfillmentOption[] | null;
+  /** العنوان عند توفر "استلام من عنوان" */
+  pickupAddress?: string | null;
 }) {
   const { locale } = useLocale();
   const isAr = locale === 'ar';
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedFulfillment, setSelectedFulfillment] = useState<FulfillmentOption | null>(null);
+
+  // خيارات صالحة فقط (تجاهل أي قيم غير معروفة)
+  const fulfillment = (fulfillmentOptions ?? []).filter(
+    (o): o is FulfillmentOption => o in FULFILLMENT_META
+  );
+
+  // لو في خيار واحد بس ← اختره تلقائياً
+  useEffect(() => {
+    if (fulfillment.length === 1) setSelectedFulfillment(fulfillment[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // أبلغ زر الطلب بأي تغيير في الاختيار
   useEffect(() => {
     window.dispatchEvent(
       new CustomEvent<VariantSelection>(VARIANT_EVENT, {
-        detail: { size: selectedSize, color: selectedColor },
+        detail: { size: selectedSize, color: selectedColor, fulfillment: selectedFulfillment },
       })
     );
-  }, [selectedSize, selectedColor]);
+  }, [selectedSize, selectedColor, selectedFulfillment]);
 
   const hasSizes = !!sizes?.length;
   const hasColors = !!colors?.length;
-  if (!hasSizes && !hasColors) return null;
+  const hasFulfillment = fulfillment.length > 0;
+  if (!hasSizes && !hasColors && !hasFulfillment) return null;
 
   const pickColor = (c: ProductColor) => {
     if (c.available === false) return;
@@ -110,6 +144,66 @@ export default function ProductVariants({
           {sizes!.some((s) => !s.available || (typeof s.qty === 'number' && s.qty <= 0)) && (
             <p className="text-[11px] text-luxor-navy/45 mt-2">
               {isAr ? 'المقاسات المشطوبة غير متاحة حالياً' : 'Crossed-out sizes are currently unavailable'}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ───── خيارات الاستلام ───── */}
+      {hasFulfillment && (
+        <div className="card p-4">
+          <div className="flex items-center gap-2 text-sm font-bold text-luxor-navy mb-3">
+            <Truck size={16} className="text-luxor-darkgold" />
+            {isAr ? 'طريقة الاستلام' : 'Fulfillment method'}
+            {selectedFulfillment && (
+              <span className="font-normal text-luxor-navy/60 text-xs">
+                — {isAr ? FULFILLMENT_META[selectedFulfillment].ar : FULFILLMENT_META[selectedFulfillment].en}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {fulfillment.map((opt) => {
+              const meta = FULFILLMENT_META[opt];
+              const active = selectedFulfillment === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setSelectedFulfillment(active ? null : opt)}
+                  className={`relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border-2 text-sm font-bold transition ${
+                    active
+                      ? 'border-luxor-gold bg-luxor-gold/15 text-luxor-navy shadow-sm'
+                      : 'border-luxor-sand bg-white text-luxor-navy/70 hover:border-luxor-gold/60'
+                  }`}
+                >
+                  <meta.Icon size={15} className={active ? 'text-luxor-darkgold' : ''} />
+                  {isAr ? meta.ar : meta.en}
+                  {active && (
+                    <span className="absolute -top-1.5 -end-1.5 bg-luxor-gold text-luxor-obsidian rounded-full p-0.5">
+                      <Check size={10} strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {/* عنوان الاستلام يظهر عند اختيار "استلام من عنوان" */}
+          {selectedFulfillment === 'address_pickup' && pickupAddress && (
+            <div className="mt-3 flex items-start gap-2 text-sm text-luxor-navy/70 bg-sky-50/60 border border-sky-200 rounded-xl p-3 animate-fade-in">
+              <MapPin size={15} className="text-sky-600 shrink-0 mt-0.5" />
+              <span>
+                <span className="font-semibold text-luxor-navy">
+                  {isAr ? 'عنوان الاستلام:' : 'Pickup address:'}
+                </span>{' '}
+                {pickupAddress}
+              </span>
+            </div>
+          )}
+          {fulfillment.length > 1 && !selectedFulfillment && (
+            <p className="text-[11px] text-luxor-navy/45 mt-2">
+              {isAr
+                ? 'اختر طريقة الاستلام المفضلة وستُضاف تلقائياً في رسالة الطلب'
+                : 'Pick your preferred fulfillment method — it will be added to the order message'}
             </p>
           )}
         </div>

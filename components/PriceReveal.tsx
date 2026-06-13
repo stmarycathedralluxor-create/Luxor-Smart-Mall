@@ -78,8 +78,12 @@ export default function PriceReveal({
   const [checking, setChecking] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
-  // المقاس/اللون المختاران في <ProductVariants/> — يُبلّغان عبر حدث مخصص
-  const [selection, setSelection] = useState<VariantSelection>({ size: null, color: null });
+  // المقاس/اللون/طريقة الاستلام المختارة في <ProductVariants/> — تُبلّغ عبر حدث مخصص
+  const [selection, setSelection] = useState<VariantSelection>({
+    size: null,
+    color: null,
+    fulfillment: null,
+  });
 
   useEffect(() => {
     const onVariant = (e: Event) => {
@@ -294,17 +298,19 @@ export default function PriceReveal({
       lines.push('⚡ التوفر: متاح فوراً');
     }
 
-    // خيارات الاستلام المتاحة
-    if (fulfillmentOptions?.length) {
+    // طريقة الاستلام: المختارة من العميل (أو المتاح منها لو لم يختر بعد)
+    const withAddress = (o: FulfillmentOption) =>
+      o === 'address_pickup' && pickupAddress
+        ? `${FULFILLMENT_LABELS[o]} (${pickupAddress})`
+        : FULFILLMENT_LABELS[o];
+    if (selection.fulfillment && selection.fulfillment in FULFILLMENT_LABELS) {
+      lines.push(`📦 طريقة الاستلام المطلوبة: ${withAddress(selection.fulfillment)}`);
+    } else if (fulfillmentOptions?.length) {
       const labels = fulfillmentOptions
         .filter((o): o is FulfillmentOption => o in FULFILLMENT_LABELS)
-        .map((o) =>
-          o === 'address_pickup' && pickupAddress
-            ? `${FULFILLMENT_LABELS[o]} (${pickupAddress})`
-            : FULFILLMENT_LABELS[o]
-        );
+        .map(withAddress);
       if (labels.length) {
-        lines.push(`📦 خيارات الاستلام: ${labels.join(' / ')}`);
+        lines.push(`📦 خيارات الاستلام المتاحة: ${labels.join(' / ')} (لم أحدد بعد)`);
       }
     }
 
