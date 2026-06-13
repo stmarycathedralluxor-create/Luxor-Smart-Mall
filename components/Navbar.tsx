@@ -62,6 +62,9 @@ export default function Navbar() {
             <Link href="/categories" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
               {t.nav.categories}
             </Link>
+            <Link href="/catalog" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
+              {t.nav.catalog}
+            </Link>
             <Link href="/search" className="p-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian transition">
               <Search size={20} />
             </Link>
@@ -115,6 +118,7 @@ export default function Navbar() {
             <Link href="/" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.home}</Link>
             <Link href="/stores" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.stores}</Link>
             <Link href="/categories" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.categories}</Link>
+            <Link href="/catalog" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.catalog}</Link>
             <Link href="/search" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.common.search}</Link>
             <div className="border-t border-luxor-gold/30 my-2" />
             {user ? (

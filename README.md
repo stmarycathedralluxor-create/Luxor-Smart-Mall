@@ -40,6 +40,19 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 ---
 
+## 🆕 Recently Added (v10) — UX Polish, Sharing, Bulk Add & Catalog
+
+1. **Empty number fields (no more confusing `0`)** — the product price, the "days to arrive" field, discount price and deposit no longer pre-fill with `0`. They start **empty** so the seller just clicks and types the real value. A clear validation message appears if the price is left empty.
+2. **Fixed `+2` phone prefix** — the WhatsApp/phone inputs (signup, store, profile) now show a **locked `+2` prefix**; the seller types the rest starting from `0` (e.g. `01012345678`). The stored value is always normalized to `+201012345678`. Old numbers in any format are auto-normalized on display. (`components/PhoneInput.tsx`)
+3. **Share system + correct preview image** — a **Share button** on the home page (site), every **store** page, every **product** page and the **catalog**. It uses the native mobile share sheet and falls back to a desktop menu (copy link / WhatsApp / Facebook / Telegram). Each page now has proper **Open Graph / Twitter** metadata via `generateMetadata`, so sharing a **product** shows the **product image** and sharing a **store** shows the **store profile (logo)**.
+4. **Canonical links — no more random `www.`** — a new `siteUrl()` / `absoluteUrl()` helper always strips a leading `www.` and forces `https`, and `metadataBase` is set, so every share/canonical/OG link is consistent. (`lib/utils.ts`)
+5. **Bulk product add (جدول)** — a new **/dashboard/products/bulk** page lets sellers add many products at once, one row per product, with **all** the normal product details (images, title, brand, price, discount, category, description, sizes, colors, fulfillment, availability, instant/preorder). An **"apply to all"** panel pushes a single value (color, fulfillment, category, brand, availability, delivery type, sizes) onto **every** row in one click. Rows can be duplicated or removed; all rows insert in a single batch.
+6. **Modern magazine-style Catalog** — a new **/catalog** page presents all products in an **editorial, magazine-like** layout (a large feature tile + side tiles + an editorial grid). It has **preset filter chips** (All / Newest / Most-viewed / Deals / Under 500 / Premium) plus advanced filters: **search, category, brand, store, price range and sort**. Admins/sellers/buyers can land on a filtered view via query params (e.g. `/catalog?store=<id>`, `/catalog?category=<slug>`, `/catalog?preset=deals`). Each store page links to **"عرض ككتالوج"** for its own products. Clicking any product opens its product page.
+
+> 📌 v10 needs **no new migration** — it builds entirely on the existing schema. Make sure `NEXT_PUBLIC_SITE_URL` is set to your real domain (without `www.`) so share/OG links and the preview image resolve correctly.
+
+---
+
 ## 🆕 Recently Added (v9) — Store Crop-as-Metadata, Brands & Fulfillment Options
 
 1. **Store logo & cover crop-as-metadata** — the same storage-saving system used for product images (v8) now applies to the store logo and cover. The original image is uploaded **once**; crop/zoom position is stored as JSON (`stores.logo_meta` / `stores.cover_meta`) and applied via CSS at render time. Re-cropping/zooming an existing logo or cover uploads **zero bytes** — only the JSON is updated. Rotation is the only case that re-uploads.
@@ -265,7 +278,9 @@ luxor-smart-mall/
 | `/dashboard/store`            | protected | Create/edit store                        |
 | `/dashboard/products`         | protected | List of own products                     |
 | `/dashboard/products/new`     | protected | Add product                              |
+| `/dashboard/products/bulk`    | protected | Bulk add products (table + apply-to-all) |
 | `/dashboard/products/[id]`    | protected | Edit product                             |
+| `/catalog`                    | public    | Magazine-style catalog with filters      |
 | `/dashboard/profile`          | protected | Edit profile                             |
 | `/admin`                      | admin     | Admin overview (stats + recent activity) |
 | `/admin/users`                | admin     | Manage users + change roles              |

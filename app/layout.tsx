@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import { LocaleProvider } from '@/components/LocaleProvider';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import FreshnessGuard from '@/components/FreshnessGuard';
+import { siteUrl } from '@/lib/utils';
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -14,6 +15,9 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
+  // Canonical base for every relative OG/Twitter image & canonical link.
+  // Normalized (no www.) so share links are always consistent.
+  metadataBase: new URL(siteUrl()),
   title: 'الأقصر سمارت مول | Luxor Smart Mall',
   description: 'سوق الأقصر الذكي - منصة تجمع بائعي ومشتري الأقصر | The Smart Marketplace of Luxor',
   manifest: '/manifest.json',

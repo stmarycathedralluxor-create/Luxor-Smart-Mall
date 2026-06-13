@@ -1,17 +1,61 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Store as StoreIcon, Eye, Tag, Zap, CalendarClock, BadgeCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { isStoreOpen, deliveryDaysLabel } from '@/lib/utils';
+import { isStoreOpen, deliveryDaysLabel, absoluteUrl } from '@/lib/utils';
 import ProductGallery from '@/components/ProductGallery';
 import ProductVariants from '@/components/ProductVariants';
 import PriceReveal from '@/components/PriceReveal';
 import CroppedImage from '@/components/CroppedImage';
+import ShareButton from '@/components/ShareButton';
 import Reviews from '@/components/Reviews';
 import StarRating from '@/components/StarRating';
 import { ProductViewTracker } from '@/components/ViewTrackers';
 
 export const dynamic = 'force-dynamic';
+
+/** OG/Twitter metadata so sharing a product shows its image + title. */
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const supabase = createClient();
+  const { data: product } = await supabase
+    .from('products')
+    .select('title, description, images, store:stores(name)')
+    .eq('id', params.id)
+    .maybeSingle();
+
+  if (!product) {
+    return { title: 'منتج غير موجود | الأقصر سمارت مول' };
+  }
+
+  const storeName = (product.store as any)?.name as string | undefined;
+  const title = `${product.title}${storeName ? ` — ${storeName}` : ''} | الأقصر سمارت مول`;
+  const description =
+    product.description?.slice(0, 160) ||
+    `${product.title} على الأقصر سمارت مول${storeName ? ` من متجر ${storeName}` : ''}`;
+  // The first product image (R2/Supabase absolute URL) is the share image.
+  const image = product.images?.[0];
+  const url = absoluteUrl(`/products/${params.id}`);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: 'website',
+      images: image ? [{ url: image, width: 1000, height: 1000, alt: product.title }] : undefined,
+    },
+    twitter: {
+      card: image ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
+}
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -85,7 +129,16 @@ export default async function ProductPage({ params }: { params: { id: string } }
             </div>
           )}
 
-          <h1 className="text-3xl md:text-4xl font-bold text-luxor-navy mb-3">{product.title}</h1>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <h1 className="text-3xl md:text-4xl font-bold text-luxor-navy flex-1">{product.title}</h1>
+            <ShareButton
+              variant="icon"
+              path={`/products/${product.id}`}
+              title={product.title}
+              text={`${product.title} على الأقصر سمارت مول`}
+              label="مشاركة المنتج"
+            />
+          </div>
 
           <div className="flex items-center gap-4 text-sm text-luxor-navy/60 mb-6 flex-wrap">
             <span className="flex items-center gap-1">

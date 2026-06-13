@@ -74,7 +74,8 @@ export default function ProductForm({
     title: initialProduct?.title ?? '',
     brand: initialProduct?.brand ?? '',
     description: initialProduct?.description ?? '',
-    price: initialProduct?.price ?? 0,
+    // فارغ افتراضياً (وليس 0) حتى لا يلتبس على البائع — يكتب القيمة مباشرة
+    price: (initialProduct?.price ?? '') as number | '',
     compare_at_price: initialProduct?.compare_at_price ?? null as number | null,
     category_id: initialProduct?.category_id ?? null as number | null,
     images: initialProduct?.images ?? [] as string[],
@@ -84,7 +85,8 @@ export default function ProductForm({
     deposit_value: (initialProduct?.deposit_value ?? null) as number | null,
     is_available: initialProduct?.is_available ?? true,
     delivery_type: initialProduct?.delivery_type ?? 'instant' as 'instant' | 'preorder',
-    delivery_days: initialProduct?.delivery_days ?? 3,
+    // فارغ افتراضياً (وليس 3) — البائع يكتب عدد الأيام مباشرة
+    delivery_days: (initialProduct?.delivery_days ?? '') as number | '',
     sizes: (initialProduct?.sizes ?? []) as ProductSize[],
     colors: (initialProduct?.colors ?? []) as ProductColor[],
     fulfillment_options: (initialProduct?.fulfillment_options ?? []) as FulfillmentOption[],
@@ -300,6 +302,13 @@ export default function ProductForm({
     setLoading(true);
     setError('');
 
+    // price required (empty field guard)
+    if (form.price === '' || isNaN(Number(form.price)) || Number(form.price) < 0) {
+      setError('أدخل سعراً صحيحاً للمنتج');
+      setLoading(false);
+      return;
+    }
+
     // discount validation
     const compareAt = hasDiscount ? Number(form.compare_at_price) || null : null;
     if (hasDiscount && (!compareAt || compareAt <= Number(form.price))) {
@@ -355,7 +364,10 @@ export default function ProductForm({
       deposit_value: depositValue,
       is_available: form.is_available,
       delivery_type: form.delivery_type,
-      delivery_days: form.delivery_type === 'preorder' ? Math.max(1, Number(form.delivery_days) || 1) : null,
+      delivery_days:
+        form.delivery_type === 'preorder'
+          ? Math.max(1, Number(form.delivery_days) || 1)
+          : null,
       sizes: form.sizes,
       colors: form.colors,
       fulfillment_options: form.fulfillment_options,
@@ -559,8 +571,11 @@ export default function ProductForm({
             step="0.01"
             required
             value={form.price}
-            onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) || 0 })}
+            onChange={(e) =>
+              setForm({ ...form, price: e.target.value === '' ? '' : parseFloat(e.target.value) })
+            }
             className="input-field"
+            placeholder="أدخل السعر"
           />
         </div>
 
@@ -625,7 +640,7 @@ export default function ProductForm({
               )}
             </div>
             <p className="text-xs text-luxor-navy/50">
-              السعر الحالي ({form.price} ج.م) هو السعر بعد الخصم — أدخل السعر الأصلي قبل الخصم وستظهر علامة الخصم تلقائياً على كارت المنتج
+              السعر الحالي ({form.price || 0} ج.م) هو السعر بعد الخصم — أدخل السعر الأصلي قبل الخصم وستظهر علامة الخصم تلقائياً على كارت المنتج
             </p>
             {hasDiscount && form.compare_at_price !== null && Number(form.compare_at_price) <= Number(form.price) && (
               <p className="text-xs text-red-600 font-semibold">⚠️ السعر قبل الخصم يجب أن يكون أكبر من السعر الحالي</p>
@@ -722,7 +737,7 @@ export default function ProductForm({
             {form.deposit_type === 'percent' && form.deposit_value !== null && Number(form.deposit_value) > 100 && (
               <p className="text-xs text-red-600 font-semibold">⚠️ النسبة لا يمكن أن تتجاوز 100%</p>
             )}
-            {form.deposit_type === 'amount' && form.deposit_value !== null && Number(form.deposit_value) >= Number(form.price) && form.price > 0 && (
+            {form.deposit_type === 'amount' && form.deposit_value !== null && Number(form.deposit_value) >= Number(form.price) && Number(form.price) > 0 && (
               <p className="text-xs text-red-600 font-semibold">⚠️ مبلغ العربون يجب أن يكون أقل من سعر المنتج</p>
             )}
           </div>
@@ -1030,8 +1045,11 @@ export default function ProductForm({
               max="365"
               required
               value={form.delivery_days}
-              onChange={(e) => setForm({ ...form, delivery_days: parseInt(e.target.value) || 1 })}
+              onChange={(e) =>
+                setForm({ ...form, delivery_days: e.target.value === '' ? '' : parseInt(e.target.value) })
+              }
               className="input-field !w-24 text-center"
+              placeholder="عدد"
             />
             <span className="text-sm font-medium text-luxor-navy">{Number(form.delivery_days) === 1 ? 'يوم' : Number(form.delivery_days) === 2 ? 'يومان' : Number(form.delivery_days) <= 10 ? 'أيام' : 'يوماً'}</span>
           </div>

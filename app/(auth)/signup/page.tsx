@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, Lock, User, Phone, MapPin, UserPlus, CheckCircle2, Store as StoreIcon, ShoppingBag } from 'lucide-react';
+import { Mail, Lock, User, MapPin, UserPlus, CheckCircle2, Store as StoreIcon, ShoppingBag } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useLocale } from '@/components/LocaleProvider';
+import PhoneInput, { localDigits } from '@/components/PhoneInput';
 
 export default function SignupPage() {
   const { t } = useLocale();
@@ -75,8 +76,8 @@ export default function SignupPage() {
 
     try {
       // Basic client-side validation to avoid noisy server errors.
-      if (form.phone && !/^[+\d][\d\s-]{6,}$/.test(form.phone.trim())) {
-        setError('رقم الهاتف غير صحيح. مثال: +201xxxxxxxxx');
+      if (form.phone && localDigits(form.phone).length < 7) {
+        setError('رقم الهاتف غير صحيح. ابدأ بـ 0 بعد المقدّمة +2');
         setLoading(false);
         return;
       }
@@ -274,17 +275,12 @@ export default function SignupPage() {
 
             <div>
               <label className="block text-sm font-medium text-luxor-navy mb-1">{t.auth.phone}</label>
-              <div className="relative">
-                <Phone className="absolute top-3.5 start-3 text-luxor-navy/40" size={18} />
-                <input
-                  type="tel"
-                  required
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="input-field ps-10"
-                  placeholder="+201xxxxxxxxx"
-                />
-              </div>
+              <PhoneInput
+                required
+                withIcon
+                value={form.phone}
+                onChange={(full) => setForm({ ...form, phone: full })}
+              />
             </div>
 
             <div>
