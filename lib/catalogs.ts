@@ -18,6 +18,30 @@ export async function resolveCatalogProducts(
 ): Promise<ProductWithStore[]> {
   const limit = Math.max(1, Math.min(catalog.product_limit || 24, 100));
 
+  // يربط المتجر والفئة بكل منتج عبر استعلامات منفصلة (لا embedded join)
+  // لأن الربط الداخلي يتصرّف كـ inner join فيحذف المنتجات بصمت عندما
+  // تمنع RLS قراءة المتجر — فيظهر الكتالوج فارغاً رغم وجود منتجاته.
+  async function attachStoresAndCategories(rows: any[]): Promise<ProductWithStore[]> {
+    if (!rows.length) return [];
+    const sIds = Array.from(new Set(rows.map((p) => p.store_id).filter(Boolean)));
+    const cIds = Array.from(new Set(rows.map((p) => p.category_id).filter(Boolean)));
+    const [storesRes, catsRes] = await Promise.all([
+      sIds.length
+        ? supabase.from('stores').select('*').in('id', sIds)
+        : Promise.resolve({ data: [] as any[] }),
+      cIds.length
+        ? supabase.from('categories').select('*').in('id', cIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const sMap = new Map<any, any>(((storesRes as any).data ?? []).map((s: any) => [s.id, s]));
+    const cMap = new Map<any, any>(((catsRes as any).data ?? []).map((c: any) => [c.id, c]));
+    return rows.map((p) => ({
+      ...p,
+      store: p.store_id ? sMap.get(p.store_id) ?? null : null,
+      category: p.category_id ? cMap.get(p.category_id) ?? null : null,
+    })) as ProductWithStore[];
+  }
+
   if (catalog.filter_type === 'manual') {
     const { data: links } = await supabase
       .from('catalog_products')
@@ -30,12 +54,13 @@ export async function resolveCatalogProducts(
 
     const { data: productsRaw } = await supabase
       .from('products')
-      .select('*, store:stores(*), category:categories(*)')
+      .select('*')
       .in('id', ids)
       .eq('is_available', true);
 
+    const withRel = await attachStoresAndCategories((productsRaw ?? []) as any[]);
     const byId = new Map<string, ProductWithStore>();
-    ((productsRaw ?? []) as ProductWithStore[]).forEach((p: any) => {
+    withRel.forEach((p: any) => {
       if (p.store && isStoreOpen(p.store)) byId.set(p.id, p);
     });
     // احترم ترتيب الاختيار اليدوي
@@ -46,7 +71,7 @@ export async function resolveCatalogProducts(
   const sourceStore = catalog.filter_store_id || catalog.store_id;
   let query = supabase
     .from('products')
-    .select('*, store:stores(*), category:categories(*)')
+    .select('*')
     .eq('is_available', true);
 
   if (sourceStore) query = query.eq('store_id', sourceStore);
@@ -60,9 +85,8 @@ export async function resolveCatalogProducts(
 
   const { data: productsRaw } = await query.limit(catalog.filter_type === 'rating_high' ? 200 : limit);
 
-  let list = ((productsRaw ?? []) as ProductWithStore[]).filter(
-    (p: any) => p.store && isStoreOpen(p.store)
-  );
+  const withRel = await attachStoresAndCategories((productsRaw ?? []) as any[]);
+  let list = withRel.filter((p: any) => p.store && isStoreOpen(p.store));
 
   if (catalog.filter_type === 'rating_high') {
     // اجلب تقييمات المنتجات وافرزها تنازلياً (يتراجع للأحدث عند غياب الدالة)
