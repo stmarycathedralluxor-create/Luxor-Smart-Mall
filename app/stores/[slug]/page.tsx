@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   MapPin,
@@ -15,6 +14,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getExpiryInfo } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
 import StoreLogoFrame from '@/components/StoreLogoFrame';
+import CroppedImage from '@/components/CroppedImage';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import Reviews from '@/components/Reviews';
 import StarRating from '@/components/StarRating';
@@ -105,11 +105,11 @@ export default async function StorePage({ params }: { params: { slug: string } }
       <div className="relative">
         <div className="relative aspect-[16/6] md:aspect-[16/5] lg:aspect-[16/4] bg-gradient-to-br from-luxor-obsidian via-luxor-charcoal to-luxor-darkgold overflow-hidden">
           {store.cover_url ? (
-            <Image
+            <CroppedImage
               src={store.cover_url}
+              crop={store.cover_meta}
               alt={store.name}
-              fill
-              className="object-cover"
+              sizes="100vw"
               priority
             />
           ) : (
@@ -147,6 +147,7 @@ export default async function StorePage({ params }: { params: { slug: string } }
               <div className="absolute -inset-3 bg-gradient-to-br from-luxor-goldlight/40 via-luxor-gold/20 to-transparent rounded-3xl blur-xl" aria-hidden />
               <StoreLogoFrame
                 logoUrl={store.logo_url}
+                logoCrop={store.logo_meta}
                 name={store.name}
                 isVerified={isVerified}
                 sizeClass="w-28 h-28 md:w-36 md:h-36"

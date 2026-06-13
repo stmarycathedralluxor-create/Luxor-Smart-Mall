@@ -12,10 +12,23 @@ export default async function NewProductPage() {
 
   const { data: categories } = await supabase.from('categories').select('*').order('id');
 
+  // براندات المتجر المسجّلة (إن وجدت — تتجاهل بأمان لو الترحيل 0012 لم يُشغّل بعد)
+  let brands: any[] = [];
+  try {
+    const { data } = await supabase
+      .from('brands')
+      .select('*')
+      .eq('store_id', store.id)
+      .order('name');
+    brands = data ?? [];
+  } catch {
+    /* brands table not installed yet */
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-luxor-navy mb-6">إضافة منتج جديد</h1>
-      <ProductForm storeId={store.id} userId={user.id} categories={categories ?? []} />
+      <ProductForm storeId={store.id} userId={user.id} categories={categories ?? []} brands={brands} />
     </div>
   );
 }

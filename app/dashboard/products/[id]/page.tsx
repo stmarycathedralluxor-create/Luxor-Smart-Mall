@@ -21,6 +21,19 @@ export default async function EditProductPage({ params }: { params: { id: string
 
   const { data: categories } = await supabase.from('categories').select('*').order('id');
 
+  // براندات المتجر المسجّلة (إن وجدت — تتجاهل بأمان لو الترحيل 0012 لم يُشغّل بعد)
+  let brands: any[] = [];
+  try {
+    const { data } = await supabase
+      .from('brands')
+      .select('*')
+      .eq('store_id', store.id)
+      .order('name');
+    brands = data ?? [];
+  } catch {
+    /* brands table not installed yet */
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-luxor-navy mb-6">تعديل المنتج</h1>
@@ -28,6 +41,7 @@ export default async function EditProductPage({ params }: { params: { id: string
         storeId={store.id}
         userId={user.id}
         categories={categories ?? []}
+        brands={brands}
         initialProduct={product}
       />
     </div>

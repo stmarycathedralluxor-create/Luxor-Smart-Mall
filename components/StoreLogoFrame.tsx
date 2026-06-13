@@ -1,14 +1,17 @@
-import Image from 'next/image';
 import { BadgeCheck } from 'lucide-react';
+import CroppedImage from './CroppedImage';
+import type { ImageCrop } from '@/lib/types';
 
 /**
  * Store profile picture with:
  *  – a thin 2px white inner frame
  *  – a golden "metal" outer frame
  *  – an optional admin-granted verified badge
+ *  – بيانات القص (crop) تُطبّق بـ CSS — لا صورة مقصوصة منفصلة مخزّنة
  */
 export default function StoreLogoFrame({
   logoUrl,
+  logoCrop = null,
   name,
   isVerified = false,
   sizeClass = 'w-20 h-20',
@@ -18,6 +21,7 @@ export default function StoreLogoFrame({
   priority = false,
 }: {
   logoUrl: string | null;
+  logoCrop?: ImageCrop | null;
   name: string;
   isVerified?: boolean;
   sizeClass?: string;
@@ -34,12 +38,11 @@ export default function StoreLogoFrame({
         <div className="bg-white p-[2px] rounded-[9px]">
           <div className={`relative ${sizeClass} rounded-lg overflow-hidden bg-white`}>
             {logoUrl ? (
-              <Image
+              <CroppedImage
                 src={logoUrl}
+                crop={logoCrop}
                 alt={name}
-                fill
                 sizes={sizes}
-                className="object-cover"
                 priority={priority}
               />
             ) : (
