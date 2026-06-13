@@ -181,9 +181,14 @@ export default function CatalogForm({
         return;
       }
     } else {
-      // أنشئ slug فريداً
-      const base = slugify(title) || 'catalog';
-      payload.slug = `${base}-${Math.random().toString(36).slice(2, 7)}`;
+      // أنشئ slug فريداً بأحرف ASCII فقط (نتفادى الأحرف العربية في الروابط
+      // لأنها تُرمَّز percent-encoding وقد تتسبّب في عدم تطابق وفتح 404).
+      const asciiBase = slugify(title)
+        .replace(/[^a-z0-9-]/gi, '') // أبقِ الإنجليزية والأرقام والشرطة فقط
+        .replace(/--+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      const base = asciiBase || 'catalog';
+      payload.slug = `${base}-${Math.random().toString(36).slice(2, 8)}`;
       const { data: inserted, error: insErr } = await supabase
         .from('catalogs')
         .insert(payload)
