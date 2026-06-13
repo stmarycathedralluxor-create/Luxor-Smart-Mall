@@ -40,6 +40,16 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 ---
 
+## 🆕 Recently Added (v9) — Store Crop-as-Metadata, Brands & Fulfillment Options
+
+1. **Store logo & cover crop-as-metadata** — the same storage-saving system used for product images (v8) now applies to the store logo and cover. The original image is uploaded **once**; crop/zoom position is stored as JSON (`stores.logo_meta` / `stores.cover_meta`) and applied via CSS at render time. Re-cropping/zooming an existing logo or cover uploads **zero bytes** — only the JSON is updated. Rotation is the only case that re-uploads.
+2. **Brands (البراندات)** — a new "Brand" field appears **before the product name** in the product form. Every brand a seller uses is registered once per store in the new `brands` table (RLS-protected, `unique(store_id, name)`), and shows up as a ready-made dropdown choice the next time they add a product. Sellers can also type a brand-new brand which auto-registers on save. The brand is displayed as a chip on the product card, on the product page, and in the WhatsApp order message.
+3. **Fulfillment options (خيارات الاستلام)** — sellers can mark each product with one or more pickup/delivery options: **توصيل (delivery)**, **استلام من المتجر (store pickup)**, **استلام من عنوان (pickup from an address)** — with a required address field for the last one. Options are shown on the product page and included in the WhatsApp order message.
+
+> 📌 To activate v9: **run `supabase/migrations/0012_store_crop_brands_fulfillment.sql` once in the Supabase SQL editor**. It's idempotent. Existing store logos/covers keep working (no crop meta = default display) and migrate to the new system on their next re-crop.
+
+---
+
 ## 🆕 Recently Added (v8) — Crop-as-Metadata, Deposits & Rich WhatsApp Orders
 
 1. **Crop stored as variables (huge storage saving)** — instead of uploading a cropped copy AND a full original (2 files per image), only the original image is stored once. Crop position/zoom is saved as JSON (`products.images_meta`: fractional `x/y/w/h`) and applied via CSS at render time (`<CroppedImage/>`). Re-cropping an existing image uploads **zero bytes** — it only updates the JSON. Rotation is the only case that re-uploads (the rotated file replaces the old one, still 1 file). Old products using the legacy `images_full` two-file system keep working and are automatically migrated to the new system on their next re-crop.

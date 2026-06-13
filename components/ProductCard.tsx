@@ -74,6 +74,11 @@ export default function ProductCard({ product }: { product: ProductWithStore }) 
                   : t.product.preorder
                 : t.product.instantDelivery}
             </span>
+            {product.brand && (
+              <span className="bg-luxor-obsidian text-luxor-goldlight border border-luxor-gold/40 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                {product.brand}
+              </span>
+            )}
             {product.category && (
               <span className="bg-luxor-sandlight border border-luxor-sand px-2 py-0.5 rounded-full text-[10px] font-semibold text-luxor-navy/70">
                 <span className="me-0.5">{product.category.icon}</span>

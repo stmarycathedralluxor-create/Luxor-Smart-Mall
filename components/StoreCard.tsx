@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   MapPin,
   Store as StoreIcon,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
 import StoreLogoFrame from './StoreLogoFrame';
+import CroppedImage from './CroppedImage';
 import type { Store } from '@/lib/types';
 
 export default function StoreCard({
@@ -37,13 +37,14 @@ export default function StoreCard({
           {/* Cover — black pharaonic header */}
           <div className="relative aspect-[16/9] rounded-t-[22px] overflow-hidden bg-gradient-to-br from-luxor-obsidian via-luxor-charcoal to-black">
             {store.cover_url ? (
-              <Image
-                src={store.cover_url}
-                alt={store.name}
-                fill
-                sizes="(max-width: 768px) 100vw, 33vw"
-                className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-              />
+              <span className="absolute inset-0 block group-hover:scale-110 transition-transform duration-700 ease-out">
+                <CroppedImage
+                  src={store.cover_url}
+                  crop={store.cover_meta}
+                  alt={store.name}
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                />
+              </span>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-luxor-gold/30">
                 <StoreIcon size={72} />
@@ -77,6 +78,7 @@ export default function StoreCard({
             <div className="absolute -top-10 start-5 z-10">
               <StoreLogoFrame
                 logoUrl={store.logo_url}
+                logoCrop={store.logo_meta}
                 name={store.name}
                 isVerified={isVerified}
                 sizeClass="w-[72px] h-[72px]"

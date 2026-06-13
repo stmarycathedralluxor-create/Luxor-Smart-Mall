@@ -2,18 +2,22 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Save, Upload, Store as StoreIcon, Crop } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
 import ImageEditor from '@/components/ImageEditor';
+import CroppedImage from '@/components/CroppedImage';
 import { blobExt, checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
-import type { Store } from '@/lib/types';
+import type { ImageCrop, Store } from '@/lib/types';
 
 type EditingState = {
   kind: 'logo' | 'cover';
   src: string;
   isObjectUrl: boolean;
+  /** المصدر مخزَّن بالفعل على الخادم — إعادة القص تحدّث الـ JSON فقط بدون رفع */
+  sourceIsRemote: boolean;
+  /** بيانات القص السابقة لاستعادة الوضع في المحرر */
+  initialCrop: ImageCrop | null;
 } | null;
 
 export default function StoreForm({
@@ -35,6 +39,8 @@ export default function StoreForm({
     city: initialStore?.city ?? 'الأقصر',
     logo_url: initialStore?.logo_url ?? '',
     cover_url: initialStore?.cover_url ?? '',
+    logo_meta: (initialStore?.logo_meta ?? null) as ImageCrop | null,
+    cover_meta: (initialStore?.cover_meta ?? null) as ImageCrop | null,
     is_active: initialStore?.is_active ?? true,
   });
   const [loading, setLoading] = useState(false);
@@ -48,42 +54,64 @@ export default function StoreForm({
   /** Open the real-time editor for a freshly picked file */
   const pickFile = (file: File, kind: 'logo' | 'cover') => {
     const url = URL.createObjectURL(file);
-    setEditing({ kind, src: url, isObjectUrl: true });
+    setEditing({ kind, src: url, isObjectUrl: true, sourceIsRemote: false, initialCrop: null });
   };
 
-  /** Re-open the editor for an already-uploaded image */
+  /**
+   * Re-open the editor for an already-uploaded image — المصدر هو الصورة
+   * الأصلية الوحيدة المخزَّنة. إعادة القص/الزووم تحدّث بيانات JSON فقط
+   * — بدون رفع أي ملف جديد (نفس نظام صور المنتجات).
+   */
   const editExisting = (kind: 'logo' | 'cover') => {
     const url = kind === 'logo' ? form.logo_url : form.cover_url;
-    if (url) setEditing({ kind, src: url, isObjectUrl: false });
+    if (!url) return;
+    setEditing({
+      kind,
+      src: url,
+      isObjectUrl: false,
+      sourceIsRemote: true,
+      initialCrop: kind === 'logo' ? form.logo_meta : form.cover_meta,
+    });
   };
 
-  /** Upload the cropped blob and update the form URL */
-  const handleEditorSave = async (blob: Blob) => {
+  /**
+   * النظام الجديد — صورة أصلية واحدة + بيانات قص في قاعدة البيانات:
+   *  - صورة جديدة ← رفع الأصل مرة واحدة + حفظ القص كـ JSON
+   *  - إعادة قص صورة موجودة ← تحديث الـ JSON فقط (blob = null، صفر بايت رفع!)
+   *  - تدوير صورة موجودة ← رفع نسخة مُدارة تحل محل القديمة (ملف واحد أيضاً)
+   */
+  const handleEditorSaveMeta = async ({ crop, blob }: { crop: ImageCrop; blob: Blob | null }) => {
     if (!editing) return;
     const kind = editing.kind;
     setUploading(kind);
-    // Pre-check the storage quota before uploading
-    const quotaError = await checkQuotaBeforeUpload(supabase, blob.size);
-    if (quotaError) {
-      setError(quotaError);
-      if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
-      setEditing(null);
-      setUploading(null);
-      return;
-    }
     try {
-      // Upload to Cloudflare R2 via our server API
-      const publicUrl = await uploadImage('store-assets', blob, `${kind}-${Date.now()}.${blobExt(blob)}`);
+      let publicUrl = '';
+      if (blob) {
+        // Pre-check the storage quota before uploading
+        const quotaError = await checkQuotaBeforeUpload(supabase, blob.size);
+        if (quotaError) {
+          setError(quotaError);
+          if (editing.isObjectUrl) URL.revokeObjectURL(editing.src);
+          setEditing(null);
+          setUploading(null);
+          return;
+        }
+        // Upload to Cloudflare R2 via our server API
+        publicUrl = await uploadImage('store-assets', blob, `${kind}-${Date.now()}.${blobExt(blob)}`);
+      }
       setForm((f) => {
-        const key = kind === 'logo' ? 'logo_url' : 'cover_url';
-        const old = f[key];
-        // If the replaced file was uploaded in THIS session (not the saved
-        // one), free its storage immediately
+        const urlKey = kind === 'logo' ? 'logo_url' : 'cover_url';
+        const metaKey = kind === 'logo' ? 'logo_meta' : 'cover_meta';
+        const old = f[urlKey];
+        // إذا رُفع ملف جديد (صورة جديدة أو تدوير) ← استبدل الرابط؛
+        // وإلا احتفظ بالأصل وحدّث بيانات القص فقط
+        const newUrl = publicUrl || old;
+        // تحرير المساحة: الملفات التي رُفعت في هذه الجلسة ولم تعد مستخدمة
         const persisted = kind === 'logo' ? persistedLogo : persistedCover;
-        if (old && old !== publicUrl && old !== persisted) {
+        if (old && old !== newUrl && old !== persisted) {
           void removeStorageUrls([old]);
         }
-        return { ...f, [key]: publicUrl };
+        return { ...f, [urlKey]: newUrl, [metaKey]: crop };
       });
     } catch (err: any) {
       setError(err?.message || 'فشل رفع الصورة');
@@ -114,6 +142,8 @@ export default function StoreForm({
       city: form.city || null,
       logo_url: form.logo_url || null,
       cover_url: form.cover_url || null,
+      logo_meta: form.logo_url ? form.logo_meta : null,
+      cover_meta: form.cover_url ? form.cover_meta : null,
       is_active: form.is_active,
     };
 
@@ -136,7 +166,11 @@ export default function StoreForm({
     }
 
     if (res.error) {
-      setError(res.error.message);
+      // Helpful hint if the 0012 migration hasn't been run yet
+      const msg = /logo_meta|cover_meta/.test(res.error.message)
+        ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0012) لم يتم تشغيله بعد في Supabase`
+        : res.error.message;
+      setError(msg);
       setLoading(false);
       return;
     }
@@ -164,8 +198,11 @@ export default function StoreForm({
           title={editing.kind === 'cover' ? 'تعديل صورة الغلاف' : 'تعديل شعار المتجر'}
           outputWidth={editing.kind === 'cover' ? 1600 : 600}
           round={editing.kind === 'logo'}
+          metaMode
+          sourceIsRemote={editing.sourceIsRemote}
+          initialCrop={editing.initialCrop}
           onCancel={closeEditor}
-          onSave={handleEditorSave}
+          onSaveMeta={handleEditorSaveMeta}
         />
       )}
 
@@ -174,7 +211,7 @@ export default function StoreForm({
         <label className="block text-sm font-medium text-luxor-navy mb-2">صورة الغلاف</label>
         <div className="relative aspect-[16/6] rounded-xl overflow-hidden bg-luxor-sandlight border-2 border-dashed border-luxor-sand group">
           {form.cover_url ? (
-            <Image src={form.cover_url} alt="cover" fill className="object-cover" />
+            <CroppedImage src={form.cover_url} crop={form.cover_meta} alt="cover" sizes="600px" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-luxor-navy/40">
               <Upload size={32} />
@@ -207,7 +244,7 @@ export default function StoreForm({
             </div>
           )}
         </div>
-        <p className="text-xs text-luxor-navy/50 mt-1.5">اضغط على الصورة لرفع غلاف جديد — سيفتح محرر مباشر للتكبير وتغيير الموضع</p>
+        <p className="text-xs text-luxor-navy/50 mt-1.5">اضغط على الصورة لرفع غلاف جديد — تُحفظ الصورة الأصلية مرة واحدة فقط ويُطبّق القص/الزووم كبيانات بدون استهلاك مساحة إضافية</p>
       </div>
 
       {/* Logo */}
@@ -216,7 +253,7 @@ export default function StoreForm({
         <div className="flex items-center gap-4 flex-wrap">
           <div className="w-24 h-24 rounded-2xl overflow-hidden bg-luxor-sandlight border-2 border-dashed border-luxor-sand relative">
             {form.logo_url ? (
-              <Image src={form.logo_url} alt="logo" fill className="object-cover" />
+              <CroppedImage src={form.logo_url} crop={form.logo_meta} alt="logo" sizes="96px" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-luxor-navy/40">
                 <StoreIcon size={28} />

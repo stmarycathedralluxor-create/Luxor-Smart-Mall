@@ -13,7 +13,14 @@ import {
   deliveryDaysLabel,
 } from '@/lib/utils';
 import { VARIANT_EVENT, type VariantSelection } from './ProductVariants';
-import type { ProductColor, ProductSize } from '@/lib/types';
+import type { FulfillmentOption, ProductColor, ProductSize } from '@/lib/types';
+
+/** تسميات خيارات الاستلام لرسالة الواتساب */
+const FULFILLMENT_LABELS: Record<FulfillmentOption, string> = {
+  delivery: 'توصيل',
+  store_pickup: 'استلام من المتجر',
+  address_pickup: 'استلام من عنوان',
+};
 
 // sessionStorage key used to remember a one-shot auto-reveal request that
 // survives the login redirect. We deliberately do NOT use the URL for this so
@@ -36,6 +43,9 @@ export default function PriceReveal({
   sizes,
   colors,
   categoryName,
+  brand,
+  fulfillmentOptions,
+  pickupAddress,
 }: {
   productId: string;
   productTitle: string;
@@ -53,6 +63,12 @@ export default function PriceReveal({
   sizes?: ProductSize[] | null;
   colors?: ProductColor[] | null;
   categoryName?: string | null;
+  /** اسم البراند (اختياري) */
+  brand?: string | null;
+  /** خيارات الاستلام المتاحة للمنتج */
+  fulfillmentOptions?: FulfillmentOption[] | null;
+  /** العنوان عند توفر "استلام من عنوان" */
+  pickupAddress?: string | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -231,6 +247,7 @@ export default function PriceReveal({
     lines.push(`مرحباً، أرغب في طلب المنتج التالي من متجر "${storeName}":`);
     lines.push('');
     lines.push(`🛍️ *${productTitle}*`);
+    if (brand) lines.push(`🏷️ البراند: ${brand}`);
     if (categoryName) lines.push(`📂 القسم: ${categoryName}`);
     lines.push('');
 
@@ -275,6 +292,20 @@ export default function PriceReveal({
       );
     } else {
       lines.push('⚡ التوفر: متاح فوراً');
+    }
+
+    // خيارات الاستلام المتاحة
+    if (fulfillmentOptions?.length) {
+      const labels = fulfillmentOptions
+        .filter((o): o is FulfillmentOption => o in FULFILLMENT_LABELS)
+        .map((o) =>
+          o === 'address_pickup' && pickupAddress
+            ? `${FULFILLMENT_LABELS[o]} (${pickupAddress})`
+            : FULFILLMENT_LABELS[o]
+        );
+      if (labels.length) {
+        lines.push(`📦 خيارات الاستلام: ${labels.join(' / ')}`);
+      }
     }
 
     lines.push('');

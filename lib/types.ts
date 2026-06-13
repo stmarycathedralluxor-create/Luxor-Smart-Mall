@@ -21,6 +21,10 @@ export type Store = {
   whatsapp: string;
   logo_url: string | null;
   cover_url: string | null;
+  /** بيانات قص الشعار — الصورة الأصلية تُخزَّن مرة واحدة والقص يُطبَّق بـ CSS */
+  logo_meta?: ImageCrop | null;
+  /** بيانات قص الغلاف — نفس نظام المنتجات (بدون رفع ملفات إضافية) */
+  cover_meta?: ImageCrop | null;
   city: string | null;
   is_active: boolean;
   is_approved?: boolean;
@@ -37,6 +41,17 @@ export type Category = {
   name_en: string;
   icon: string | null;
 };
+
+/** براند مسجَّل على متجر — يظهر كاختيار جاهز عند إضافة منتج جديد */
+export type Brand = {
+  id: string;
+  store_id: string;
+  name: string;
+  created_at: string;
+};
+
+/** خيارات الاستلام المتاحة للمنتج */
+export type FulfillmentOption = 'delivery' | 'store_pickup' | 'address_pickup';
 
 /**
  * بيانات قص الصورة المحفوظة كمتغيرات (بدلاً من تخزين صورة مقصوصة منفصلة).
@@ -104,6 +119,12 @@ export type Product = {
   deposit_type?: 'none' | 'percent' | 'amount';
   /** قيمة العربون: النسبة (1-100) أو المبلغ بالجنيه */
   deposit_value?: number | null;
+  /** اسم البراند (اختياري) */
+  brand?: string | null;
+  /** خيارات الاستلام: توصيل / استلام من المتجر / استلام من عنوان */
+  fulfillment_options?: FulfillmentOption[];
+  /** العنوان عند اختيار "استلام من عنوان" */
+  pickup_address?: string | null;
   created_at: string;
 };
 

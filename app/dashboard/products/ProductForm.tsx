@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Upload, X, Save, Crop, Zap, CalendarClock, Percent, Ruler, Palette, Plus, ImageIcon, HandCoins,
+  Truck, Store as StoreIcon2, MapPinned, BadgeCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
 import CroppedImage from '@/components/CroppedImage';
 import { checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
 import { discountPercent, depositAmount, formatPrice } from '@/lib/utils';
-import type { Category, ImageCrop, Product, ProductColor, ProductSize } from '@/lib/types';
+import type { Brand, Category, FulfillmentOption, ImageCrop, Product, ProductColor, ProductSize } from '@/lib/types';
 
 type EditingState = {
   src: string;
@@ -46,21 +47,32 @@ const PRESET_COLORS: { name: string; hex: string }[] = [
 /** مقاسات جاهزة شائعة */
 const PRESET_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '38', '40', '42', '44'];
 
+/** خيارات الاستلام المتاحة للعرض في النموذج */
+const FULFILLMENT_CHOICES: { value: FulfillmentOption; label: string; Icon: typeof Truck }[] = [
+  { value: 'delivery', label: 'توصيل', Icon: Truck },
+  { value: 'store_pickup', label: 'استلام من المتجر', Icon: StoreIcon2 },
+  { value: 'address_pickup', label: 'استلام من عنوان', Icon: MapPinned },
+];
+
 export default function ProductForm({
   storeId,
   userId,
   categories,
+  brands = [],
   initialProduct,
 }: {
   storeId: string;
   userId: string;
   categories: Category[];
+  /** براندات المتجر المسجّلة سابقاً — تظهر كاختيارات جاهزة */
+  brands?: Brand[];
   initialProduct?: Product;
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [form, setForm] = useState({
     title: initialProduct?.title ?? '',
+    brand: initialProduct?.brand ?? '',
     description: initialProduct?.description ?? '',
     price: initialProduct?.price ?? 0,
     compare_at_price: initialProduct?.compare_at_price ?? null as number | null,
@@ -75,7 +87,15 @@ export default function ProductForm({
     delivery_days: initialProduct?.delivery_days ?? 3,
     sizes: (initialProduct?.sizes ?? []) as ProductSize[],
     colors: (initialProduct?.colors ?? []) as ProductColor[],
+    fulfillment_options: (initialProduct?.fulfillment_options ?? []) as FulfillmentOption[],
+    pickup_address: initialProduct?.pickup_address ?? '',
   });
+  // وضع البراند: اختيار من المسجّل أو إضافة براند جديد
+  const initialBrandIsKnown =
+    !initialProduct?.brand || brands.some((b) => b.name === initialProduct.brand);
+  const [brandMode, setBrandMode] = useState<'select' | 'new'>(
+    initialBrandIsKnown ? 'select' : 'new'
+  );
   const [hasDiscount, setHasDiscount] = useState(
     !!initialProduct?.compare_at_price && initialProduct.compare_at_price > (initialProduct.price ?? 0)
   );
@@ -228,6 +248,15 @@ export default function ProductForm({
     if (toFree.length) void removeStorageUrls(toFree);
   };
 
+  /* ───────────── Fulfillment ───────────── */
+  const toggleFulfillment = (opt: FulfillmentOption) =>
+    setForm((f) => ({
+      ...f,
+      fulfillment_options: f.fulfillment_options.includes(opt)
+        ? f.fulfillment_options.filter((o) => o !== opt)
+        : [...f.fulfillment_options, opt],
+    }));
+
   /* ───────────── Sizes ───────────── */
   const addSize = (name: string) => {
     const n = name.trim();
@@ -279,6 +308,16 @@ export default function ProductForm({
       return;
     }
 
+    // fulfillment validation
+    if (
+      form.fulfillment_options.includes('address_pickup') &&
+      !form.pickup_address.trim()
+    ) {
+      setError('أدخل عنوان الاستلام عند اختيار "استلام من عنوان"');
+      setLoading(false);
+      return;
+    }
+
     // deposit validation
     const depositValue = form.deposit_type === 'none' ? null : Number(form.deposit_value) || null;
     if (form.deposit_type !== 'none') {
@@ -299,9 +338,12 @@ export default function ProductForm({
       }
     }
 
+    const brandName = form.brand.trim();
+
     const payload = {
       store_id: storeId,
       title: form.title,
+      brand: brandName || null,
       description: form.description || null,
       price: Number(form.price),
       compare_at_price: compareAt,
@@ -316,6 +358,10 @@ export default function ProductForm({
       delivery_days: form.delivery_type === 'preorder' ? Math.max(1, Number(form.delivery_days) || 1) : null,
       sizes: form.sizes,
       colors: form.colors,
+      fulfillment_options: form.fulfillment_options,
+      pickup_address: form.fulfillment_options.includes('address_pickup')
+        ? form.pickup_address.trim() || null
+        : null,
     };
 
     let res;
@@ -327,14 +373,28 @@ export default function ProductForm({
 
     if (res.error) {
       // Helpful hint if a migration hasn't been run yet
-      const msg = /images_meta|deposit_type|deposit_value/.test(res.error.message)
-        ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0011) لم يتم تشغيله بعد في Supabase`
-        : /compare_at_price|images_full|sizes|colors/.test(res.error.message)
-          ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0010) لم يتم تشغيله بعد في Supabase`
-          : res.error.message;
+      const msg = /brand|fulfillment_options|pickup_address/.test(res.error.message)
+        ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0012) لم يتم تشغيله بعد في Supabase`
+        : /images_meta|deposit_type|deposit_value/.test(res.error.message)
+          ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0011) لم يتم تشغيله بعد في Supabase`
+          : /compare_at_price|images_full|sizes|colors/.test(res.error.message)
+            ? `${res.error.message} — يبدو أن تحديث قاعدة البيانات (0010) لم يتم تشغيله بعد في Supabase`
+            : res.error.message;
       setError(msg);
       setLoading(false);
       return;
+    }
+
+    // تسجيل البراند الجديد في سجل براندات المتجر — يظهر كاختيار
+    // جاهز في المرات القادمة (لا تكرار بفضل unique(store_id, name))
+    if (brandName && !brands.some((b) => b.name === brandName)) {
+      try {
+        await supabase
+          .from('brands')
+          .upsert({ store_id: storeId, name: brandName }, { onConflict: 'store_id,name', ignoreDuplicates: true });
+      } catch {
+        /* جدول البراندات غير مثبت بعد (0012) — المنتج محفوظ بالفعل، لا نعطل */
+      }
     }
 
     // Storage cleanup: persisted images the user removed in this edit
@@ -413,6 +473,69 @@ export default function ProductForm({
         </div>
         <p className="text-xs text-luxor-navy/50 mt-1.5">
           القص يحدد ما يظهر في كارت المنتج — تُحفظ الصورة الأصلية مرة واحدة فقط ويُطبّق القص تلقائياً بدون استهلاك مساحة إضافية، وعند التكبير تظهر الصورة كاملة
+        </p>
+      </div>
+
+      {/* ───────── البراند ───────── */}
+      <div>
+        <label className="flex items-center gap-1.5 text-sm font-medium text-luxor-navy mb-1">
+          <BadgeCheck size={15} className="text-luxor-darkgold" />
+          البراند <span className="font-normal text-luxor-navy/50">(اختياري)</span>
+        </label>
+        {brandMode === 'select' ? (
+          <div className="flex items-center gap-2">
+            <select
+              value={form.brand}
+              onChange={(e) => setForm({ ...form, brand: e.target.value })}
+              className="input-field"
+            >
+              <option value="">-- بدون براند --</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.name}>{b.name}</option>
+              ))}
+              {/* براند محفوظ على المنتج لكنه غير موجود في السجل (حُذف مثلاً) */}
+              {form.brand && !brands.some((b) => b.name === form.brand) && (
+                <option value={form.brand}>{form.brand}</option>
+              )}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setBrandMode('new');
+                setForm({ ...form, brand: '' });
+              }}
+              className="shrink-0 inline-flex items-center gap-1 bg-luxor-gold/15 hover:bg-luxor-gold/30 text-luxor-darkgold font-bold text-sm rounded-xl px-3 py-2.5 transition whitespace-nowrap"
+            >
+              <Plus size={14} /> براند جديد
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={form.brand}
+              onChange={(e) => setForm({ ...form, brand: e.target.value })}
+              className="input-field"
+              placeholder="اكتب اسم البراند الجديد (مثال: Nike)"
+            />
+            {brands.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBrandMode('select');
+                  setForm({ ...form, brand: '' });
+                }}
+                className="shrink-0 text-sm font-semibold text-luxor-navy/60 hover:text-luxor-darkgold border border-luxor-sand hover:border-luxor-gold rounded-xl px-3 py-2.5 transition whitespace-nowrap"
+              >
+                اختر من المسجّل
+              </button>
+            )}
+          </div>
+        )}
+        <p className="text-xs text-luxor-navy/50 mt-1">
+          {brandMode === 'new'
+            ? 'البراند الجديد سيُسجّل تلقائياً على متجرك وسيظهر كاختيار جاهز في المرات القادمة'
+            : 'اختر برانداً مسجّلاً على متجرك أو أضف برانداً جديداً'}
         </p>
       </div>
 
@@ -820,6 +943,50 @@ export default function ProductForm({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ───────── خيارات الاستلام ───────── */}
+      <div className="rounded-xl border-2 border-luxor-sand p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-bold text-luxor-navy">
+          <Truck size={16} className="text-luxor-darkgold" />
+          خيارات الاستلام <span className="font-normal text-luxor-navy/50">(اختر واحداً أو أكثر)</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {FULFILLMENT_CHOICES.map(({ value, label, Icon }) => {
+            const active = form.fulfillment_options.includes(value);
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => toggleFulfillment(value)}
+                className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-bold transition ${
+                  active
+                    ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-navy'
+                    : 'border-luxor-sand bg-white text-luxor-navy/50 hover:border-luxor-gold/50'
+                }`}
+              >
+                <Icon size={18} className={active ? 'text-luxor-darkgold' : ''} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        {form.fulfillment_options.includes('address_pickup') && (
+          <div className="animate-fade-in">
+            <label className="block text-xs font-medium text-luxor-navy/70 mb-1">عنوان الاستلام *</label>
+            <input
+              type="text"
+              required
+              value={form.pickup_address}
+              onChange={(e) => setForm({ ...form, pickup_address: e.target.value })}
+              className="input-field"
+              placeholder="مثال: شارع المحطة — بجوار مسجد النور — الأقصر"
+            />
+          </div>
+        )}
+        <p className="text-xs text-luxor-navy/50">
+          ستظهر خيارات الاستلام للعميل على صفحة المنتج وستُضاف في رسالة الطلب على واتساب
+        </p>
       </div>
 
       {/* نوع التوفر: فوري أو حجز مسبق */}
