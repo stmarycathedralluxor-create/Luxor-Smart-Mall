@@ -108,6 +108,11 @@ export default async function AdminCatalogsPage() {
             </div>
           )}
         </div>
+        <p className="mt-2 text-[11px] text-luxor-navy/50">
+          ملاحظة: إذا لم يثبت الاعتماد، شغّل المايجريشن{' '}
+          <code className="bg-luxor-sandlight px-1 rounded">supabase/migrations/0014_catalogs_admin_update.sql</code>{' '}
+          في Supabase مرة واحدة.
+        </p>
       </section>
 
       {/* المعتمدة */}
@@ -149,7 +154,7 @@ export default async function AdminCatalogsPage() {
                         </Link>
                       </td>
                       <td className="p-3">
-                        <ApproveCatalogButton catalogId={c.id} />
+                        <ApproveCatalogButton catalogId={c.id} approved />
                       </td>
                     </tr>
                   ))}

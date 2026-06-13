@@ -55,14 +55,25 @@ export async function approveCatalogAction(catalogId: string) {
   if (readErr) return { ok: false, error: readErr.message };
   if (!cat) return { ok: false, error: 'الكتالوج غير موجود' };
 
-  const { error } = await supabase
+  // نُحدِّث ونتحقّق فعلياً عبر .select() — سياسات RLS قد تطابق 0 صفوف بصمت
+  // (بدون خطأ) فيبدو الاعتماد ناجحاً بينما لم يتغيّر شيء.
+  const { data: updated, error } = await supabase
     .from('catalogs')
-    .update({ is_approved: true })
-    .eq('id', catalogId);
+    .update({ is_approved: true, scope: 'global' })
+    .eq('id', catalogId)
+    .select('id, is_approved');
   if (error) return { ok: false, error: error.message };
+  if (!updated || updated.length === 0 || !updated[0].is_approved) {
+    return {
+      ok: false,
+      error:
+        'تعذّر حفظ الاعتماد — تحقّق من تشغيل المايجريشن 0014 (صلاحية الأدمن لتعديل الكتالوجات).',
+    };
+  }
 
   refreshAdmin();
   revalidatePath('/catalog');
+  revalidatePath('/admin/catalogs');
   if (cat.slug) revalidatePath(`/catalog/${cat.slug}`);
   return { ok: true };
 }
@@ -71,14 +82,23 @@ export async function approveCatalogAction(catalogId: string) {
 export async function rejectCatalogAction(catalogId: string) {
   const { supabase } = await requireAdmin();
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('catalogs')
     .update({ is_approved: false, scope: 'store' })
-    .eq('id', catalogId);
+    .eq('id', catalogId)
+    .select('id, scope');
   if (error) return { ok: false, error: error.message };
+  if (!updated || updated.length === 0) {
+    return {
+      ok: false,
+      error:
+        'تعذّر حفظ التغيير — تحقّق من تشغيل المايجريشن 0014 (صلاحية الأدمن لتعديل الكتالوجات).',
+    };
+  }
 
   refreshAdmin();
   revalidatePath('/catalog');
+  revalidatePath('/admin/catalogs');
   return { ok: true };
 }
 

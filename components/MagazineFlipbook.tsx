@@ -3,24 +3,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ChevronLeft, ChevronRight, Store as StoreIcon, Tag, Zap, CalendarClock,
   Eye, Maximize2, Minimize2, X,
 } from 'lucide-react';
-import CroppedImage from '@/components/CroppedImage';
-import { discountPercent, deliveryDaysLabel } from '@/lib/utils';
+import { discountPercent, deliveryDaysLabel, formatPrice } from '@/lib/utils';
 import type { ProductWithStore } from '@/lib/types';
 
 /**
  * MagazineFlipbook — كاروسيل عصري وأنيق لعرض منتجات الكتالوج.
  *
- * - شريحة لكل منتج تنزلق بسلاسة (slide transition) بدل قلب صفحات المجلة.
- * - أسهم تنقّل مهيّأة لاتجاه RTL بشكل صحيح:
- *     • السهم على اليسار (chevron يشير لليسار) = التالي
- *     • السهم على اليمين (chevron يشير لليمين) = السابق
- * - وضع ملء الشاشة عبر React Portal إلى document.body فيغطّي الشاشة بالكامل
- *   ولا يبقى محصوراً داخل صندوق الصفحة.
- * - نقاط ترقيم (dots) + شريط تقدّم + لمس/سحب + أسهم الكيبورد.
+ * - شريحة لكل منتج تنزلق بسلاسة، مع لمحة من الشرائح المجاورة (peek).
+ * - الصور تُعرض بـ object-contain على خلفية متدرّجة فلا تُشدّ ولا تُشوَّه
+ *   مهما كانت نسبة أبعادها الأصلية.
+ * - أسهم RTL صحيحة: اليمين (►) = السابق، اليسار (◄) = التالي.
+ * - ملء الشاشة عبر React Portal إلى document.body فيغطّي الشاشة بالكامل.
  */
 
 export default function MagazineFlipbook({
@@ -34,6 +32,7 @@ export default function MagazineFlipbook({
   storeName?: string | null;
   coverImage?: string | null;
 }) {
+  void coverImage;
   const [current, setCurrent] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -44,19 +43,11 @@ export default function MagazineFlipbook({
 
   useEffect(() => setMounted(true), []);
 
-  const goNext = useCallback(() => {
-    setCurrent((c) => Math.min(maxIndex, c + 1));
-  }, [maxIndex]);
+  const goNext = useCallback(() => setCurrent((c) => Math.min(maxIndex, c + 1)), [maxIndex]);
+  const goPrev = useCallback(() => setCurrent((c) => Math.max(0, c - 1)), []);
+  const goTo = useCallback((i: number) => setCurrent(() => Math.max(0, Math.min(maxIndex, i))), [maxIndex]);
 
-  const goPrev = useCallback(() => {
-    setCurrent((c) => Math.max(0, c - 1));
-  }, []);
-
-  const goTo = useCallback((i: number) => {
-    setCurrent(() => Math.max(0, Math.min(maxIndex, i)));
-  }, [maxIndex]);
-
-  // أسهم الكيبورد — في RTL: السهم الأيسر = التالي، الأيمن = السابق
+  // أسهم الكيبورد — RTL: الأيسر = التالي، الأيمن = السابق
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') goNext();
@@ -84,8 +75,7 @@ export default function MagazineFlipbook({
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     if (Math.abs(dx) > 50) {
-      // RTL: السحب لليمين = السابق، لليسار = التالي
-      if (dx > 0) goPrev();
+      if (dx > 0) goPrev(); // RTL: سحب لليمين = السابق
       else goNext();
     }
     touchStartX.current = null;
@@ -93,11 +83,10 @@ export default function MagazineFlipbook({
 
   const progress = total ? Math.round(((current + 1) / total) * 100) : 0;
 
-  // ---------- محتوى الكاروسيل (مشترك بين الوضع العادي وملء الشاشة) ----------
   const carousel = (
     <div className={`flex flex-col ${fullscreen ? 'h-full' : ''}`}>
       {/* شريط أدوات */}
-      <div className={`flex items-center justify-between gap-3 mb-3 ${fullscreen ? 'text-white px-1' : ''}`}>
+      <div className={`flex items-center justify-between gap-3 mb-4 ${fullscreen ? 'text-white px-1' : ''}`}>
         <div className="flex items-center gap-2 min-w-0">
           <Tag size={18} className={fullscreen ? 'text-luxor-goldlight' : 'text-luxor-darkgold'} />
           <span className="font-bold truncate">{title}</span>
@@ -123,40 +112,40 @@ export default function MagazineFlipbook({
 
       {/* مسار الكاروسيل */}
       <div
-        className="relative flex-1 flex items-center justify-center"
+        className="relative flex-1 flex items-center justify-center min-h-0"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {/* السهم على اليمين في RTL = السابق */}
         <NavArrow dir="prev" onClick={goPrev} disabled={current <= 0} fullscreen={fullscreen} />
 
-        {/* الإطار الذي يعرض شريحة واحدة وينزلق */}
-        <div className={`w-full ${fullscreen ? 'max-w-3xl' : 'max-w-xl'} mx-auto overflow-hidden`}>
+        <div className={`w-full mx-auto overflow-hidden ${fullscreen ? 'max-w-2xl' : 'max-w-lg'}`}>
           {/*
-            الحاوية RTL، لذا عناصر الـflex العادية تُرتَّب من اليمين لليسار
-            وتبدأ الشريحة 0 على أقصى اليمين. لإظهار الشريحة الحالية ننزلق
-            المسار: translateX موجب يحرّك المحتوى لليمين فتظهر الشرائح التالية
-            (الموجودة يساراً). نستخدم نسبة موجبة تساوي رقم الشريحة الحالية.
+            الحاوية RTL → عناصر flex العادية تبدأ من اليمين. translateX موجب
+            يحرّك المسار يميناً فتظهر الشرائح التالية (يساراً).
           */}
           <div
             className="flex transition-transform duration-500 ease-out"
             style={{ transform: `translateX(${current * 100}%)` }}
           >
             {products.map((product, index) => (
-              <div key={product.id} className="w-full shrink-0 px-1.5 md:px-3">
-                <ProductSlide product={product} index={index} fullscreen={fullscreen} />
+              <div key={product.id} className="w-full shrink-0 px-1 sm:px-2">
+                <ProductSlide
+                  product={product}
+                  index={index}
+                  active={index === current}
+                  fullscreen={fullscreen}
+                />
               </div>
             ))}
           </div>
         </div>
 
-        {/* السهم على اليسار في RTL = التالي */}
         <NavArrow dir="next" onClick={goNext} disabled={current >= maxIndex} fullscreen={fullscreen} />
       </div>
 
       {/* نقاط الترقيم */}
       {total > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap max-w-full px-2">
+        <div className="mt-5 flex items-center justify-center gap-1.5 flex-wrap max-w-full px-2">
           {products.map((p, i) => (
             <button
               key={p.id}
@@ -165,7 +154,7 @@ export default function MagazineFlipbook({
               onClick={() => goTo(i)}
               className={`rounded-full transition-all ${
                 i === current
-                  ? 'w-6 h-2 bg-gold-gradient'
+                  ? 'w-7 h-2 bg-gold-gradient'
                   : `w-2 h-2 ${fullscreen ? 'bg-white/30 hover:bg-white/60' : 'bg-luxor-gold/30 hover:bg-luxor-gold/60'}`
               }`}
             />
@@ -179,19 +168,15 @@ export default function MagazineFlipbook({
           {current + 1} / {total}
         </span>
         <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${fullscreen ? 'bg-white/15' : 'bg-luxor-gold/15'}`}>
-          <div
-            className="h-full bg-gold-gradient transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-gold-gradient transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
       </div>
     </div>
   );
 
-  // ---------- وضع ملء الشاشة عبر Portal ----------
   if (fullscreen && mounted) {
     return createPortal(
-      <div className="fixed inset-0 z-[100] bg-luxor-obsidian/97 backdrop-blur-sm flex flex-col p-3 md:p-6">
+      <div className="fixed inset-0 z-[100] bg-luxor-obsidian/97 backdrop-blur-md flex flex-col p-3 md:p-6">
         <button
           type="button"
           onClick={() => setFullscreen(false)}
@@ -220,7 +205,7 @@ function NavArrow({
   disabled: boolean;
   fullscreen: boolean;
 }) {
-  // في RTL: السابق على اليمين (chevron يشير لليمين)، التالي على اليسار (chevron يشير لليسار)
+  // RTL: السابق على اليمين (►)، التالي على اليسار (◄)
   const pos = dir === 'prev' ? 'end-0 md:-end-5' : 'start-0 md:-start-5';
   const Icon = dir === 'prev' ? ChevronRight : ChevronLeft;
   return (
@@ -243,46 +228,75 @@ function NavArrow({
 function ProductSlide({
   product,
   index,
+  active,
   fullscreen,
 }: {
   product: ProductWithStore;
   index: number;
+  active: boolean;
   fullscreen: boolean;
 }) {
   const img = product.images?.[0];
-  const crop = product.images_meta?.[0] ?? null;
   const pct = discountPercent(product.price, product.compare_at_price);
   const isPreorder = product.delivery_type === 'preorder';
 
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group block w-full overflow-hidden rounded-3xl border border-luxor-gold/25 bg-white shadow-luxor-lg"
+      className={`group block w-full overflow-hidden rounded-3xl border bg-white transition-all duration-500 ${
+        active
+          ? 'border-luxor-gold/40 shadow-luxor-lg scale-100 opacity-100'
+          : 'border-luxor-gold/15 shadow-sm scale-[0.94] opacity-60'
+      }`}
     >
-      {/* الصورة */}
-      <div className={`relative ${fullscreen ? 'aspect-[4/3] md:aspect-[16/10]' : 'aspect-[4/3]'} overflow-hidden bg-luxor-obsidian`}>
+      {/*
+        الصورة: object-contain على خلفية متدرّجة داكنة ناعمة، فلا تُشدّ
+        الصورة ولا تُقَص — تظهر كاملةً بنسبتها الصحيحة.
+      */}
+      <div
+        className={`relative w-full overflow-hidden bg-gradient-to-br from-luxor-obsidian via-luxor-charcoal to-luxor-obsidian ${
+          fullscreen ? 'aspect-[16/11]' : 'aspect-[4/3]'
+        }`}
+      >
+        {/* خلفية ضبابية تملأ الفراغ بأناقة */}
+        {img && (
+          <Image
+            src={img}
+            alt=""
+            fill
+            sizes="700px"
+            aria-hidden
+            className="object-cover scale-110 blur-2xl opacity-30"
+          />
+        )}
         {img ? (
-          <span className="absolute inset-0 block group-hover:scale-105 transition-transform duration-700">
-            <CroppedImage src={img} crop={crop} alt={product.title} sizes="(max-width:768px) 100vw, 768px" />
-          </span>
+          <Image
+            src={img}
+            alt={product.title}
+            fill
+            sizes="(max-width:768px) 100vw, 700px"
+            className="object-contain p-2 group-hover:scale-[1.03] transition-transform duration-700"
+          />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-luxor-gold/30">
+          <div className="absolute inset-0 flex items-center justify-center text-luxor-gold/30">
             <StoreIcon size={56} />
           </div>
         )}
-        <div className="absolute top-2.5 start-2.5 flex flex-col gap-1.5 items-start">
+
+        {/* الشارات */}
+        <div className="absolute top-3 start-3 flex flex-col gap-1.5 items-start">
           {pct !== null && (
             <span className="bg-red-500 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow" dir="ltr">
               -{pct}%
             </span>
           )}
           {product.category && (
-            <span className="bg-luxor-gold/90 text-luxor-obsidian px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+            <span className="bg-luxor-gold/90 text-luxor-obsidian px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow">
               {product.category.icon} {product.category.name_ar}
             </span>
           )}
         </div>
-        <span className="absolute bottom-2.5 end-2.5 bg-luxor-obsidian/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full" dir="ltr">
+        <span className="absolute top-3 end-3 bg-luxor-obsidian/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur" dir="ltr">
           {index + 1}
         </span>
       </div>
@@ -297,6 +311,19 @@ function ProductSlide({
         <h3 className="font-black text-luxor-obsidian leading-tight text-lg md:text-xl line-clamp-2 group-hover:text-luxor-darkgold transition">
           {product.title}
         </h3>
+
+        {/* السعر */}
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xl md:text-2xl font-black text-luxor-darkgold">
+            {formatPrice(product.price)}
+          </span>
+          {pct !== null && product.compare_at_price && (
+            <span className="text-sm text-luxor-navy/40 line-through">
+              {formatPrice(product.compare_at_price)}
+            </span>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 mt-2 text-luxor-navy/55 text-[11px] md:text-xs flex-wrap">
           {product.store && (
             <span className="inline-flex items-center gap-1">
@@ -315,6 +342,7 @@ function ProductSlide({
             <Eye size={12} /> {product.views ?? 0}
           </span>
         </div>
+
         <span className="mt-4 inline-flex w-full items-center justify-center gap-1.5 text-sm font-bold text-luxor-goldlight bg-luxor-obsidian border border-luxor-gold/50 px-3 py-2.5 rounded-xl group-hover:bg-gold-gradient group-hover:text-luxor-obsidian transition">
           <Tag size={14} /> افتح صفحة المنتج
         </span>

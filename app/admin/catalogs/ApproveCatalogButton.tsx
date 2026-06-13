@@ -2,13 +2,19 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, X, Loader2 } from 'lucide-react';
+import { Check, X, Loader2, Undo2 } from 'lucide-react';
 import { approveCatalogAction, rejectCatalogAction } from '../approvals/actions';
 
-export default function ApproveCatalogButton({ catalogId }: { catalogId: string }) {
+export default function ApproveCatalogButton({
+  catalogId,
+  approved = false,
+}: {
+  catalogId: string;
+  /** عندما يكون الكتالوج معتمداً نعرض زر "إلغاء الاعتماد" بدل "اعتماد" */
+  approved?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [done, setDone] = useState<null | 'approved' | 'rejected'>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const run = (action: 'approve' | 'reject') =>
@@ -23,7 +29,7 @@ export default function ApproveCatalogButton({ catalogId }: { catalogId: string 
           setErr(res?.error || 'حدث خطأ');
           return;
         }
-        setDone(action === 'approve' ? 'approved' : 'rejected');
+        // نُحدِّث بيانات الصفحة من الخادم حتى ينتقل الصف بين القائمتين
         router.refresh();
       } catch (e: any) {
         setErr(e?.message || 'حدث خطأ');
@@ -32,25 +38,28 @@ export default function ApproveCatalogButton({ catalogId }: { catalogId: string 
 
   const approve = () => run('approve');
   const reject = () => {
-    if (!confirm('رفض النشر العام؟ سيبقى الكتالوج على صفحة المتجر فقط.')) return;
+    if (!confirm('إلغاء النشر العام؟ سيبقى الكتالوج على صفحة المتجر فقط.')) return;
     run('reject');
   };
 
-  if (done === 'approved') {
+  // الكتالوج معتمد بالفعل → نعرض حالة + زر إلغاء الاعتماد فقط
+  if (approved) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-1 rounded-full font-semibold">
-        <Check size={12} /> تم الاعتماد
-      </span>
-    );
-  }
-  if (done === 'rejected') {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded-full font-semibold">
-        <X size={12} /> أُعيد للمتجر
-      </span>
+      <div className="flex flex-col gap-1">
+        <button
+          onClick={reject}
+          disabled={pending}
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-semibold disabled:opacity-50"
+        >
+          {pending ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} />}
+          إلغاء الاعتماد
+        </button>
+        {err && <span className="text-[11px] text-red-600">{err}</span>}
+      </div>
     );
   }
 
+  // بانتظار الموافقة → اعتماد / رفض
   return (
     <div className="flex flex-col gap-1">
       <div className="flex gap-1">
@@ -65,7 +74,7 @@ export default function ApproveCatalogButton({ catalogId }: { catalogId: string 
         <button
           onClick={reject}
           disabled={pending}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-semibold disabled:opacity-50"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold disabled:opacity-50"
         >
           <X size={14} /> رفض
         </button>
