@@ -12,16 +12,40 @@ import type { Catalog } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-async function loadCatalog(slug: string) {
+async function loadCatalog(rawSlug: string) {
   const supabase = createClient();
-  const { data: catalog, error } = await supabase
+  // الروابط العربية تصل مرمّزة (percent-encoded). نفكّ الترميز حتى يطابق
+  // الـ slug المخزَّن في القاعدة. نبحث بالصيغتين (المفكوكة والمرمّزة) احتياطاً.
+  let decoded = rawSlug;
+  try {
+    decoded = decodeURIComponent(rawSlug);
+  } catch {
+    /* slug غير صالح للفكّ — استخدمه كما هو */
+  }
+  // نطابق الصيغتين (المفكوكة والمرمّزة) لتفادي اختلاف ترميز الروابط العربية
+  const candidates = Array.from(new Set([decoded, rawSlug]));
+
+  // نجلب الكتالوج بدون ربط المتجر أولاً (حتى لا يُفشِل join المتجر النتيجة)
+  const { data: catalogRow, error } = await supabase
     .from('catalogs')
-    .select('*, store:stores(*)')
-    .eq('slug', slug)
+    .select('*')
+    .in('slug', candidates)
     .maybeSingle();
   // ميّز "الجدول غير موجود" (لم يُشغَّل المايجريشن) عن "كتالوج غير موجود"
   const tableMissing = !!error && /relation .*catalogs.* does not exist|could not find the table/i.test(error.message || '');
-  return { supabase, catalog: catalog as (Catalog & { store?: any }) | null, tableMissing };
+
+  let catalog: (Catalog & { store?: any }) | null = (catalogRow as any) ?? null;
+  // اجلب المتجر منفصلاً (إن وُجد) — اختياري ولا يؤثّر على ظهور الكتالوج
+  if (catalog && catalog.store_id) {
+    const { data: store } = await supabase
+      .from('stores')
+      .select('*')
+      .eq('id', catalog.store_id)
+      .maybeSingle();
+    catalog = { ...catalog, store: store ?? null };
+  }
+
+  return { supabase, catalog, tableMissing };
 }
 
 /** OG/Twitter metadata — مشاركة الكتالوج تعرض صورة غلافه أو أول منتج. */
