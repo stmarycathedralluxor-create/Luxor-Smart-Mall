@@ -23,6 +23,50 @@ export function buildWhatsAppLink(phone: string, message: string): string {
   return `https://wa.me/${cleaned}?text=${encoded}`;
 }
 
+/* ─────────── Canonical site URL helpers ─────────── */
+
+/**
+ * The canonical base URL of the site, normalized.
+ *
+ * Problem this fixes: some generated/share links inconsistently started
+ * with `www.` (or omitted it), producing mismatched links. We pick ONE
+ * canonical form from NEXT_PUBLIC_SITE_URL and ALWAYS strip a leading
+ * `www.` so every share/OG/canonical link is consistent.
+ *
+ * Works on both server (env) and client (window.location fallback).
+ * Returns a value WITHOUT a trailing slash, e.g. "https://example.com".
+ */
+export function siteUrl(): string {
+  let raw =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '') ||
+    'http://localhost:3000';
+  raw = raw.trim().replace(/\/+$/, '');
+  try {
+    const u = new URL(raw);
+    // Force https for any non-localhost host and drop the www. prefix so
+    // links never randomly start with www.
+    if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') {
+      u.protocol = 'https:';
+    }
+    u.hostname = u.hostname.replace(/^www\./i, '');
+    return u.origin;
+  } catch {
+    return raw.replace(/^(https?:\/\/)www\./i, '$1');
+  }
+}
+
+/** Build an absolute URL for a site-relative path (always canonical, no www). */
+export function absoluteUrl(path = '/'): string {
+  const base = siteUrl();
+  if (!path) return base;
+  if (/^https?:\/\//i.test(path)) {
+    // Already absolute (e.g. an R2/Supabase image URL) — keep as-is.
+    return path;
+  }
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
 export function timeAgo(date: string, locale: 'ar' | 'en' = 'ar'): string {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   const intervals: [number, string, string][] = [

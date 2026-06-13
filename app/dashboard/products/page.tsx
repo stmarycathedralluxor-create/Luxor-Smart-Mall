@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Edit, Eye, Package } from 'lucide-react';
+import { Plus, Edit, Eye, Package, Rows3 } from 'lucide-react';
 import CroppedImage from '@/components/CroppedImage';
 import { createClient } from '@/lib/supabase/server';
 import { formatPrice, discountPercent } from '@/lib/utils';
@@ -24,18 +24,28 @@ export default async function ProductsPage() {
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-luxor-navy">منتجاتي</h1>
-        <Link href="/dashboard/products/new" className="btn-primary !py-2 !px-4 !text-sm">
-          <Plus size={16} /> أضف منتج جديد
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/dashboard/products/bulk" className="btn-outline !py-2 !px-4 !text-sm">
+            <Rows3 size={16} /> إضافة بالجملة
+          </Link>
+          <Link href="/dashboard/products/new" className="btn-primary !py-2 !px-4 !text-sm">
+            <Plus size={16} /> أضف منتج جديد
+          </Link>
+        </div>
       </div>
 
       {!products?.length ? (
         <div className="card p-10 text-center">
           <Package className="mx-auto text-luxor-gold mb-4" size={48} />
           <p className="text-luxor-navy/70 mb-4">لا توجد منتجات بعد</p>
-          <Link href="/dashboard/products/new" className="btn-primary inline-flex">
-            <Plus size={18} /> أضف أول منتج
-          </Link>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <Link href="/dashboard/products/new" className="btn-primary inline-flex">
+              <Plus size={18} /> أضف أول منتج
+            </Link>
+            <Link href="/dashboard/products/bulk" className="btn-outline inline-flex">
+              <Rows3 size={18} /> إضافة بالجملة
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

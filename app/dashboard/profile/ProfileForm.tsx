@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Save, Camera, Crop, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
+import PhoneInput from '@/components/PhoneInput';
 import { blobExt, checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
 import type { Profile } from '@/lib/types';
 
@@ -163,11 +164,9 @@ export default function ProfileForm({ profile, email }: { profile: Profile | nul
 
       <div>
         <label className="block text-sm font-medium text-luxor-navy mb-1">رقم الهاتف</label>
-        <input
-          type="tel"
+        <PhoneInput
           value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          className="input-field"
+          onChange={(full) => setForm({ ...form, phone: full })}
         />
       </div>
 

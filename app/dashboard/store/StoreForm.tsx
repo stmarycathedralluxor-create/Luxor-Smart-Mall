@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
 import ImageEditor from '@/components/ImageEditor';
 import CroppedImage from '@/components/CroppedImage';
+import PhoneInput from '@/components/PhoneInput';
 import { blobExt, checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
 import type { ImageCrop, Store } from '@/lib/types';
 
@@ -322,15 +323,12 @@ export default function StoreForm({
 
       <div>
         <label className="block text-sm font-medium text-luxor-navy mb-1">رقم الواتساب *</label>
-        <input
-          type="tel"
+        <PhoneInput
           required
           value={form.whatsapp}
-          onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-          className="input-field"
-          placeholder="+201xxxxxxxxx"
+          onChange={(full) => setForm({ ...form, whatsapp: full })}
         />
-        <p className="text-xs text-luxor-navy/60 mt-1">سيتواصل العملاء معك مباشرة عبر هذا الرقم</p>
+        <p className="text-xs text-luxor-navy/60 mt-1">ابدأ بـ 0 بعد المقدّمة الثابتة +2 — سيتواصل العملاء معك مباشرة عبر هذا الرقم</p>
       </div>
 
       <div>

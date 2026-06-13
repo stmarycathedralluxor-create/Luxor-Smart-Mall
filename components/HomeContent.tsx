@@ -6,6 +6,7 @@ import { ArrowLeft, ShoppingBag, Store, Sparkles, Globe, Eye } from 'lucide-reac
 import { useLocale } from './LocaleProvider';
 import ProductCard from './ProductCard';
 import StoreCard from './StoreCard';
+import ShareButton from './ShareButton';
 import type { ProductWithStore, Store as StoreType, Category } from '@/lib/types';
 
 type SiteStats = { site_visits: number; store_visits: number; product_views: number };
@@ -83,6 +84,17 @@ export default function HomeContent({
                 <Store size={20} />
                 {t.home.openStore}
               </Link>
+              <ShareButton
+                path="/"
+                title={locale === 'ar' ? 'الأقصر سمارت مول' : 'Luxor Smart Mall'}
+                text={
+                  locale === 'ar'
+                    ? 'تسوّق من متاجر الأقصر على الأقصر سمارت مول'
+                    : 'Shop Luxor stores on Luxor Smart Mall'
+                }
+                label={locale === 'ar' ? 'شارك الموقع' : 'Share'}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-luxor-gold bg-white/10 backdrop-blur text-white font-bold px-5 py-3 hover:bg-luxor-gold hover:text-luxor-obsidian transition !text-base"
+              />
             </div>
 
             {/* Stats */}

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -11,11 +12,12 @@ import {
   Eye,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { getExpiryInfo } from '@/lib/utils';
+import { getExpiryInfo, absoluteUrl } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
 import StoreLogoFrame from '@/components/StoreLogoFrame';
 import CroppedImage from '@/components/CroppedImage';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import ShareButton from '@/components/ShareButton';
 import Reviews from '@/components/Reviews';
 import StarRating from '@/components/StarRating';
 import { StoreVisitTracker } from '@/components/ViewTrackers';
@@ -23,6 +25,46 @@ import { StoreVisitTracker } from '@/components/ViewTrackers';
 // Always render fresh data — ISR caching made deletes/updates appear with a delay
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+/** OG/Twitter metadata so sharing a store shows its profile image + name. */
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const supabase = createClient();
+  const { data: store } = await supabase
+    .from('stores')
+    .select('name, description, logo_url, cover_url')
+    .eq('slug', params.slug)
+    .maybeSingle();
+
+  if (!store) {
+    return { title: 'متجر غير موجود | الأقصر سمارت مول' };
+  }
+
+  const title = `${store.name} | الأقصر سمارت مول`;
+  const description =
+    store.description?.slice(0, 160) || `تسوّق من متجر ${store.name} على الأقصر سمارت مول`;
+  // Prefer the store profile (logo); fall back to the cover.
+  const image = store.logo_url || store.cover_url;
+  const url = absoluteUrl(`/stores/${params.slug}`);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: 'website',
+      images: image ? [{ url: image, alt: store.name }] : undefined,
+    },
+    twitter: {
+      card: image ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
+}
 
 function formatJoinDate(iso?: string) {
   if (!iso) return null;
@@ -205,6 +247,13 @@ export default async function StorePage({ params }: { params: { slug: string } }
                     message={`مرحباً، أتواصل معكم من الأقصر سمارت مول بخصوص متجركم ${store.name}`}
                     label="تواصل عبر واتساب"
                   />
+                  <ShareButton
+                    path={`/stores/${store.slug}`}
+                    title={store.name}
+                    text={`تسوّق من متجر ${store.name} على الأقصر سمارت مول`}
+                    label="مشاركة المتجر"
+                    className="inline-flex items-center gap-2 rounded-xl border-2 border-luxor-gold/50 bg-white text-luxor-darkgold font-bold px-4 py-2.5 hover:bg-luxor-gold/10 transition shadow-sm w-full md:w-auto justify-center"
+                  />
                 </div>
               </div>
             </div>
@@ -279,11 +328,21 @@ export default async function StorePage({ params }: { params: { slug: string } }
                 منتجات المتجر
               </h2>
             </div>
-            {productCount > 0 && (
-              <div className="text-sm text-luxor-obsidian/60 font-semibold pb-2">
-                {productCount} منتج متاح
-              </div>
-            )}
+            <div className="flex items-center gap-3 pb-2">
+              {productCount > 0 && (
+                <Link
+                  href={`/catalog?store=${store.id}`}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-luxor-darkgold border border-luxor-gold/40 hover:bg-luxor-gold/10 rounded-full px-3 py-1.5 transition"
+                >
+                  <Sparkles size={13} /> عرض ككتالوج
+                </Link>
+              )}
+              {productCount > 0 && (
+                <div className="text-sm text-luxor-obsidian/60 font-semibold">
+                  {productCount} منتج متاح
+                </div>
+              )}
+            </div>
           </div>
 
           {!products?.length ? (
