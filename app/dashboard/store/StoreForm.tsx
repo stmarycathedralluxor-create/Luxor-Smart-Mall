@@ -328,7 +328,7 @@ export default function StoreForm({
           value={form.whatsapp}
           onChange={(full) => setForm({ ...form, whatsapp: full })}
         />
-        <p className="text-xs text-luxor-navy/60 mt-1">ابدأ بـ 0 بعد المقدّمة الثابتة +2 — سيتواصل العملاء معك مباشرة عبر هذا الرقم</p>
+        <p className="text-xs text-luxor-navy/60 mt-1">اكتب رقمك المصري بصيغته الطبيعية المبدوءة بـ 0 (مثال: 01012345678) — المقدّمة +20 ثابتة وسيتواصل العملاء معك مباشرة عبر هذا الرقم</p>
       </div>
 
       <div>

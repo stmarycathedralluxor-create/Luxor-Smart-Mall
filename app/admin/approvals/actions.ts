@@ -41,6 +41,47 @@ function refreshAdmin() {
   revalidatePath('/stores');
 }
 
+// ---------- CATALOGS (الكتالوجات العامة) ----------
+
+/** اعتماد كتالوج عام ليظهر في صفحة /catalog */
+export async function approveCatalogAction(catalogId: string) {
+  const { supabase } = await requireAdmin();
+
+  const { data: cat, error: readErr } = await supabase
+    .from('catalogs')
+    .select('id, slug')
+    .eq('id', catalogId)
+    .maybeSingle();
+  if (readErr) return { ok: false, error: readErr.message };
+  if (!cat) return { ok: false, error: 'الكتالوج غير موجود' };
+
+  const { error } = await supabase
+    .from('catalogs')
+    .update({ is_approved: true })
+    .eq('id', catalogId);
+  if (error) return { ok: false, error: error.message };
+
+  refreshAdmin();
+  revalidatePath('/catalog');
+  if (cat.slug) revalidatePath(`/catalog/${cat.slug}`);
+  return { ok: true };
+}
+
+/** رفض كتالوج عام: نُبقيه كـ "خاص بالمتجر" بدل حذفه (يبقى على صفحة متجره) */
+export async function rejectCatalogAction(catalogId: string) {
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase
+    .from('catalogs')
+    .update({ is_approved: false, scope: 'store' })
+    .eq('id', catalogId);
+  if (error) return { ok: false, error: error.message };
+
+  refreshAdmin();
+  revalidatePath('/catalog');
+  return { ok: true };
+}
+
 // ---------- SELLERS ----------
 
 export async function approveSellerAction(userId: string) {

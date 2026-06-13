@@ -4,13 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, X, Save, Copy, Trash2, Upload, Zap, CalendarClock, Palette, Truck,
-  Store as StoreIcon2, MapPinned, Wand2, CheckCircle2,
+  Store as StoreIcon2, MapPinned, Wand2, CheckCircle2, HandCoins, Percent,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ImageEditor from '@/components/ImageEditor';
 import CroppedImage from '@/components/CroppedImage';
 import { checkQuotaBeforeUpload, removeStorageUrls, uploadImage } from '@/lib/storage';
-import { discountPercent } from '@/lib/utils';
+import { discountPercent, depositAmount, formatPrice } from '@/lib/utils';
 import type { Brand, Category, FulfillmentOption, ImageCrop, ProductColor, ProductSize } from '@/lib/types';
 
 /** ألوان جاهزة شائعة */
@@ -41,6 +41,9 @@ type Row = {
   is_available: boolean;
   delivery_type: 'instant' | 'preorder';
   delivery_days: number | '';
+  /** الدفع المقدم (العربون) */
+  deposit_type: 'none' | 'percent' | 'amount';
+  deposit_value: number | '';
   sizes: ProductSize[];
   colors: ProductColor[];
   fulfillment_options: FulfillmentOption[];
@@ -52,7 +55,9 @@ const newRow = (): Row => ({
   rid: `r${++_rid}-${Date.now()}`,
   title: '', brand: '', description: '', price: '', compare_at_price: '',
   category_id: null, images: [], images_meta: [], is_available: true,
-  delivery_type: 'instant', delivery_days: '', sizes: [], colors: [],
+  delivery_type: 'instant', delivery_days: '',
+  deposit_type: 'none', deposit_value: '',
+  sizes: [], colors: [],
   fulfillment_options: [], pickup_address: '',
 });
 
@@ -227,6 +232,8 @@ export default function BulkProductForm({
   const [bulkBrand, setBulkBrand] = useState('');
   const [bulkDelivery, setBulkDelivery] = useState<'' | 'instant' | 'preorder'>('');
   const [bulkDays, setBulkDays] = useState<number | ''>('');
+  const [bulkDepositType, setBulkDepositType] = useState<'none' | 'percent' | 'amount'>('none');
+  const [bulkDepositValue, setBulkDepositValue] = useState<number | ''>('');
   const [bulkColors, setBulkColors] = useState<ProductColor[]>([]);
   const [bulkSizes, setBulkSizes] = useState<ProductSize[]>([]);
   const [bulkFulfillment, setBulkFulfillment] = useState<FulfillmentOption[]>([]);
@@ -270,6 +277,22 @@ export default function BulkProductForm({
         setError(`المنتج "${r.title}": أدخل عنوان الاستلام`);
         return;
       }
+      // deposit validation
+      if (r.deposit_type !== 'none') {
+        const dv = Number(r.deposit_value);
+        if (!dv || dv <= 0) {
+          setError(`المنتج "${r.title}": أدخل قيمة صحيحة للدفع المقدم`);
+          return;
+        }
+        if (r.deposit_type === 'percent' && dv > 100) {
+          setError(`المنتج "${r.title}": نسبة الدفع المقدم لا يمكن أن تتجاوز 100%`);
+          return;
+        }
+        if (r.deposit_type === 'amount' && dv >= Number(r.price)) {
+          setError(`المنتج "${r.title}": مبلغ الدفع المقدم يجب أن يكون أقل من سعر المنتج`);
+          return;
+        }
+      }
     }
 
     setLoading(true);
@@ -285,8 +308,8 @@ export default function BulkProductForm({
       images: r.images,
       images_full: r.images.map(() => ''),
       images_meta: r.images.map((_, i) => r.images_meta[i] ?? null),
-      deposit_type: 'none' as const,
-      deposit_value: null,
+      deposit_type: r.deposit_type,
+      deposit_value: r.deposit_type === 'none' ? null : Number(r.deposit_value) || null,
       is_available: r.is_available,
       delivery_type: r.delivery_type,
       delivery_days:
@@ -409,20 +432,35 @@ export default function BulkProductForm({
             </button>
           </div>
 
-          {/* Delivery type */}
+          {/* Delivery type — كلا الخيارين ظاهران جنباً إلى جنب */}
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-luxor-navy/70 mb-1">طريقة التوفر</label>
               <div className="flex gap-2">
-                <select
-                  value={bulkDelivery}
-                  onChange={(e) => setBulkDelivery(e.target.value as any)}
-                  className="input-field !py-2 text-sm flex-1"
-                >
-                  <option value="">-- اختر --</option>
-                  <option value="instant">متاح فوراً</option>
-                  <option value="preorder">حجز مسبق</option>
-                </select>
+                <div className="grid grid-cols-2 gap-1.5 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => setBulkDelivery('instant')}
+                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-2 text-xs font-bold transition ${
+                      bulkDelivery === 'instant'
+                        ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                        : 'border-luxor-sand bg-white text-luxor-navy/60 hover:border-emerald-300'
+                    }`}
+                  >
+                    <Zap size={13} /> متاح فوراً
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkDelivery('preorder')}
+                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-2 text-xs font-bold transition ${
+                      bulkDelivery === 'preorder'
+                        ? 'border-amber-400 bg-amber-50 text-amber-700'
+                        : 'border-luxor-sand bg-white text-luxor-navy/60 hover:border-amber-300'
+                    }`}
+                  >
+                    <CalendarClock size={13} /> حجز مسبق
+                  </button>
+                </div>
                 {bulkDelivery === 'preorder' && (
                   <input
                     type="number"
@@ -576,6 +614,69 @@ export default function BulkProductForm({
             تطبيق طرق الاستلام على الكل
           </button>
         </div>
+
+        {/* Deposit (الدفع المقدم) apply-to-all */}
+        <div className="mt-4">
+          <label className="flex items-center gap-1.5 text-xs font-medium text-luxor-navy/70 mb-1.5">
+            <HandCoins size={14} className="text-luxor-darkgold" /> الدفع المقدم (العربون)
+          </label>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => setBulkDepositType('none')}
+                className={`text-xs rounded-xl px-3 py-2 border-2 font-bold transition ${
+                  bulkDepositType === 'none' ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-darkgold' : 'border-luxor-sand bg-white text-luxor-navy/60'
+                }`}
+              >
+                بدون
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkDepositType('percent')}
+                className={`inline-flex items-center justify-center gap-1 text-xs rounded-xl px-3 py-2 border-2 font-bold transition ${
+                  bulkDepositType === 'percent' ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-darkgold' : 'border-luxor-sand bg-white text-luxor-navy/60'
+                }`}
+              >
+                <Percent size={12} /> نسبة %
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkDepositType('amount')}
+                className={`inline-flex items-center justify-center gap-1 text-xs rounded-xl px-3 py-2 border-2 font-bold transition ${
+                  bulkDepositType === 'amount' ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-darkgold' : 'border-luxor-sand bg-white text-luxor-navy/60'
+                }`}
+              >
+                <HandCoins size={12} /> مبلغ
+              </button>
+            </div>
+            {bulkDepositType !== 'none' && (
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                max={bulkDepositType === 'percent' ? 100 : undefined}
+                value={bulkDepositValue}
+                onChange={(e) => setBulkDepositValue(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                className="input-field !py-2 !w-32 text-sm"
+                placeholder={bulkDepositType === 'percent' ? 'النسبة %' : 'المبلغ ج.م'}
+              />
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={bulkDepositType !== 'none' && (!bulkDepositValue || Number(bulkDepositValue) <= 0)}
+            onClick={() =>
+              applyAll({
+                deposit_type: bulkDepositType,
+                deposit_value: bulkDepositType === 'none' ? '' : bulkDepositValue,
+              })
+            }
+            className="bg-luxor-gold/15 hover:bg-luxor-gold/30 disabled:opacity-40 text-luxor-darkgold font-bold text-xs rounded-xl px-3 py-2 transition"
+          >
+            تطبيق الدفع المقدم على الكل
+          </button>
+        </div>
       </div>
 
       {/* ───────── Rows (one card per product) ───────── */}
@@ -709,20 +810,32 @@ export default function BulkProductForm({
                     />
                   </div>
 
-                  {/* delivery + availability */}
+                  {/* delivery — كلا الخيارين ظاهران جنباً إلى جنب (لا حاجة للضغط لتبديلهما) */}
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => patchRow(r.rid, { delivery_type: r.delivery_type === 'instant' ? 'preorder' : 'instant' })}
-                      className={`inline-flex items-center gap-1.5 rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${
-                        r.delivery_type === 'preorder'
-                          ? 'border-amber-300 bg-amber-50 text-amber-700'
-                          : 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                      }`}
-                    >
-                      {r.delivery_type === 'preorder' ? <CalendarClock size={13} /> : <Zap size={13} />}
-                      {r.delivery_type === 'preorder' ? 'حجز مسبق' : 'متاح فوراً'}
-                    </button>
+                    <div className="grid grid-cols-2 gap-1.5 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => patchRow(r.rid, { delivery_type: 'instant' })}
+                        className={`inline-flex items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-2 text-xs font-bold transition ${
+                          r.delivery_type === 'instant'
+                            ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                            : 'border-luxor-sand bg-white text-luxor-navy/55 hover:border-emerald-300'
+                        }`}
+                      >
+                        <Zap size={13} /> متاح فوراً
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => patchRow(r.rid, { delivery_type: 'preorder' })}
+                        className={`inline-flex items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-2 text-xs font-bold transition ${
+                          r.delivery_type === 'preorder'
+                            ? 'border-amber-400 bg-amber-50 text-amber-700'
+                            : 'border-luxor-sand bg-white text-luxor-navy/55 hover:border-amber-300'
+                        }`}
+                      >
+                        <CalendarClock size={13} /> حجز مسبق
+                      </button>
+                    </div>
                     {r.delivery_type === 'preorder' && (
                       <input
                         type="number"
@@ -743,6 +856,64 @@ export default function BulkProductForm({
                     />
                     متاح للبيع
                   </label>
+
+                  {/* الدفع المقدم (العربون) لكل منتج */}
+                  <div className="sm:col-span-2">
+                    <div className="flex items-center gap-1.5 text-[11px] text-luxor-navy/60 mb-1">
+                      <HandCoins size={12} className="text-luxor-darkgold" /> الدفع المقدم (العربون)
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => patchRow(r.rid, { deposit_type: 'none', deposit_value: '' })}
+                        className={`text-[11px] rounded-full px-2.5 py-1 border transition ${
+                          r.deposit_type === 'none' ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-darkgold font-bold' : 'border-luxor-sand bg-white text-luxor-navy/60'
+                        }`}
+                      >
+                        بدون
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => patchRow(r.rid, { deposit_type: 'percent' })}
+                        className={`inline-flex items-center gap-1 text-[11px] rounded-full px-2.5 py-1 border transition ${
+                          r.deposit_type === 'percent' ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-darkgold font-bold' : 'border-luxor-sand bg-white text-luxor-navy/60'
+                        }`}
+                      >
+                        <Percent size={11} /> نسبة %
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => patchRow(r.rid, { deposit_type: 'amount' })}
+                        className={`inline-flex items-center gap-1 text-[11px] rounded-full px-2.5 py-1 border transition ${
+                          r.deposit_type === 'amount' ? 'border-luxor-gold bg-luxor-gold/10 text-luxor-darkgold font-bold' : 'border-luxor-sand bg-white text-luxor-navy/60'
+                        }`}
+                      >
+                        <HandCoins size={11} /> مبلغ
+                      </button>
+                      {r.deposit_type !== 'none' && (
+                        <>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            max={r.deposit_type === 'percent' ? 100 : undefined}
+                            value={r.deposit_value}
+                            onChange={(e) => patchRow(r.rid, { deposit_value: e.target.value === '' ? '' : parseFloat(e.target.value) })}
+                            className="input-field !py-1.5 !w-28 text-sm"
+                            placeholder={r.deposit_type === 'percent' ? 'النسبة %' : 'المبلغ ج.م'}
+                          />
+                          {(() => {
+                            const amt = depositAmount(Number(r.price), r.deposit_type, Number(r.deposit_value) || null);
+                            return amt !== null ? (
+                              <span className="text-[11px] bg-luxor-gold/15 border border-luxor-gold text-luxor-darkgold rounded-full px-2 py-0.5 font-bold">
+                                {formatPrice(amt)} ج.م
+                              </span>
+                            ) : null;
+                          })()}
+                        </>
+                      )}
+                    </div>
+                  </div>
 
                   {/* sizes chips */}
                   <div className="sm:col-span-2">

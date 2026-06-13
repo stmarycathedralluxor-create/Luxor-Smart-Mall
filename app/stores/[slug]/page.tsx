@@ -10,9 +10,12 @@ import {
   Calendar,
   ChevronLeft,
   Eye,
+  BookOpen,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getExpiryInfo, absoluteUrl } from '@/lib/utils';
+import { resolveCatalogProducts } from '@/lib/catalogs';
+import type { Catalog } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
 import StoreLogoFrame from '@/components/StoreLogoFrame';
 import CroppedImage from '@/components/CroppedImage';
@@ -112,6 +115,38 @@ export default async function StorePage({ params }: { params: { slug: string } }
 
   const productCount = products?.length ?? 0;
   const joinDate = formatJoinDate(store.created_at);
+
+  // كتالوجات هذا المتجر — تظهر فوراً بدون موافقة (scope='store' أو عامة معتمدة)
+  // نعتمد على resolveCatalogProducts لاحقاً للعرض، وهنا نجلب أغلفة مبسّطة فقط
+  let storeCatalogs: Array<{
+    catalog: Catalog;
+    cover: string | null;
+    count: number;
+  }> = [];
+  try {
+    const { data: catalogsRaw } = await supabase
+      .from('catalogs')
+      .select('*')
+      .eq('store_id', store.id)
+      .order('created_at', { ascending: false });
+    const cats = ((catalogsRaw ?? []) as Catalog[]).filter(
+      (c) => c.scope === 'store' || c.is_approved
+    );
+    const resolved = await Promise.all(
+      cats.map(async (c) => {
+        const prods = await resolveCatalogProducts(supabase, c);
+        return {
+          catalog: c,
+          cover: c.cover_image || prods[0]?.images?.[0] || null,
+          count: prods.length,
+        };
+      })
+    );
+    // أخفِ الكتالوجات الفارغة (لا منتجات متاحة)
+    storeCatalogs = resolved.filter((r) => r.count > 0);
+  } catch {
+    /* جدول الكتالوجات غير مثبَّت بعد (migration 0013) */
+  }
 
   // Rating summary (gracefully degrades if migration 0004 hasn't run yet)
   let avgRating = 0;
@@ -316,6 +351,62 @@ export default async function StorePage({ params }: { params: { slug: string } }
           </div>
         )}
 
+        {/* ─────────── STORE CATALOGS (المجلات) ─────────── */}
+        {storeCatalogs.length > 0 && (
+          <div className="mt-12">
+            <div className="flex items-end justify-between gap-4 mb-6">
+              <div>
+                <div className="flex items-center gap-2 text-luxor-darkgold text-xs font-bold uppercase tracking-widest mb-1">
+                  <BookOpen size={14} />
+                  <span>اقلب الصفحات</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-luxor-obsidian">كتالوجات المتجر</h2>
+              </div>
+              <div className="text-sm text-luxor-obsidian/60 font-semibold pb-2">
+                {storeCatalogs.length} كتالوج
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {storeCatalogs.map(({ catalog: c, cover, count }) => (
+                <div key={c.id} className="group relative">
+                  <Link href={`/catalog/${c.slug}`} className="block">
+                    <div className="relative aspect-[3/4] rounded-2xl overflow-hidden border-2 border-luxor-gold/20 shadow-lg group-hover:shadow-xl group-hover:border-luxor-gold/50 transition-all bg-gradient-to-br from-luxor-navy to-luxor-obsidian">
+                      {cover && (
+                        <CroppedImage
+                          src={cover}
+                          crop={c.cover_meta ?? null}
+                          alt={c.title}
+                          imgClassName="object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                          sizes="(max-width: 768px) 50vw, 25vw"
+                        />
+                      )}
+                      {/* تأثير حافة المجلة */}
+                      <div className="absolute inset-y-0 right-0 w-2 bg-gradient-to-l from-black/30 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                      <div className="absolute bottom-0 inset-x-0 p-3">
+                        <div className="flex items-center gap-1.5 text-luxor-gold text-[10px] font-bold uppercase tracking-widest mb-1">
+                          <BookOpen size={11} /> كتالوج
+                        </div>
+                        <h3 className="text-white font-black text-base leading-tight line-clamp-2">{c.title}</h3>
+                        <p className="text-white/70 text-[11px] mt-1">{count} منتج</p>
+                      </div>
+                    </div>
+                  </Link>
+                  <div className="absolute top-2 left-2 z-10">
+                    <ShareButton
+                      path={`/catalog/${c.slug}`}
+                      title={`${c.title} — ${store.name}`}
+                      text={`تصفّح كتالوج "${c.title}" من ${store.name} على الأقصر سمارت مول`}
+                      variant="icon"
+                      className="!bg-white/90 hover:!bg-white shadow"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ─────────── PRODUCTS ─────────── */}
         <div className="mt-12">
           <div className="flex items-end justify-between gap-4 mb-6">
@@ -331,10 +422,10 @@ export default async function StorePage({ params }: { params: { slug: string } }
             <div className="flex items-center gap-3 pb-2">
               {productCount > 0 && (
                 <Link
-                  href={`/catalog?store=${store.id}`}
+                  href={`/catalog/browse?store=${store.id}`}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-luxor-darkgold border border-luxor-gold/40 hover:bg-luxor-gold/10 rounded-full px-3 py-1.5 transition"
                 >
-                  <Sparkles size={13} /> عرض ككتالوج
+                  <Sparkles size={13} /> تصفّح كل المنتجات
                 </Link>
               )}
               {productCount > 0 && (

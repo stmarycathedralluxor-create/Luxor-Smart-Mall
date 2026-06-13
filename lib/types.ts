@@ -133,6 +133,37 @@ export type ProductWithStore = Product & {
   category: Category | null;
 };
 
+/** طريقة اختيار منتجات الكتالوج */
+export type CatalogFilterType = 'all' | 'price_high' | 'rating_high' | 'manual';
+
+/** نطاق الكتالوج: خاص بمتجر (بدون موافقة) أو عام (يحتاج موافقة) */
+export type CatalogScope = 'store' | 'global';
+
+/** كتالوج على هيئة مجلة — مجموعة منتجات بعنوان */
+export type Catalog = {
+  id: string;
+  owner_id: string;
+  store_id: string | null;
+  title: string;
+  description: string | null;
+  cover_image: string | null;
+  cover_meta?: ImageCrop | null;
+  slug: string;
+  scope: CatalogScope;
+  is_approved: boolean;
+  filter_type: CatalogFilterType;
+  filter_store_id: string | null;
+  product_limit: number;
+  created_at: string;
+  updated_at?: string;
+};
+
+/** كتالوج مع المتجر والمنتجات المحسوبة (للعرض) */
+export type CatalogWithProducts = Catalog & {
+  store?: Store | null;
+  products: ProductWithStore[];
+};
+
 export type AdminCounters = {
   site_visits: number;
   store_visits: number;
