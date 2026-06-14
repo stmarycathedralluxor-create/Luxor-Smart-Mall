@@ -1,26 +1,29 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { X, ChevronLeft, ChevronRight, Maximize2, Store as StoreIcon } from 'lucide-react';
-// Swiper — تأثير "Expo" (UI Initiative) بنافذة تتمدّد بأناقة دون تشويه الصورة.
+// Swiper — عارض بسيط أنيق: صور المنتجات فقط على خلفية رمادية داكنة،
+// بانتقال راقٍ ومركّب (Creative: عمق + تحجيم + دوران + تلاشٍ + ظلال).
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Keyboard, A11y } from 'swiper/modules';
-import type { Swiper as SwiperClass } from 'swiper/types';
+import {
+  Navigation, Pagination, Keyboard, A11y, EffectCreative, Autoplay,
+} from 'swiper/modules';
 import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import 'swiper/css/effect-creative';
 
 import type { ProductWithStore } from '@/lib/types';
 
 /**
- * MagazineFlipbook — عارض كتالوج أنيق بتأثير "Expo":
+ * MagazineFlipbook — عارض كتالوج بسيط وأنيق:
  *
- *  • صور المنتجات فقط على خلفية رمادية داكنة (بدون إطارات أو بيانات).
- *  • انتقال "نافذة تتّسع" راقٍ مستوحى من expo-slider.uiinitiative.com:
- *    الإطار ينزلق بينما تتحرّك الصورة عكسياً فتبقى ثابتة بصرياً دون تمطيط.
- *  • الصور تُحتوى بالكامل (object-contain) — لا تمطيط ولا قصّ.
- *  • الضغط على الكتالوج يفتحه بملء الشاشة (Portal).
+ *  • صور المنتجات فقط (بدون إطارات أو شارات أو بيانات) على خلفية رمادية داكنة.
+ *  • الصور لا تُمدَّد إطلاقاً (object-contain).
+ *  • الضغط على الكتالوج يفتحه بملء الشاشة.
  *  • متوافق تماماً مع الهواتف (سحب + استجابة كاملة).
  */
 export default function MagazineFlipbook({
@@ -36,7 +39,6 @@ export default function MagazineFlipbook({
 }) {
   void coverImage;
   void storeName;
-  void title;
 
   const total = products.length;
   const [mounted, setMounted] = useState(false);
@@ -68,10 +70,16 @@ export default function MagazineFlipbook({
       type="button"
       onClick={() => setFullscreen(true)}
       aria-label="افتح الكتالوج بملء الشاشة"
-      className="group relative block w-full overflow-hidden rounded-[16px] md:rounded-[32px] bg-[#0f0f11]"
+      className="group relative block w-full overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 to-black"
     >
-      <ExpoCarousel products={products} onIndexChange={setActiveIndex} interactive={false} />
-      <span className="pointer-events-none absolute top-3 end-3 z-30 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition group-hover:bg-black/75">
+      <CarouselImages
+        products={products}
+        onIndexChange={setActiveIndex}
+        // داخل الصفحة: تنقّل بسيط، الضغط يفتح ملء الشاشة (لا روابط).
+        interactive={false}
+      />
+      {/* تلميح ملء الشاشة */}
+      <span className="pointer-events-none absolute top-3 end-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition group-hover:bg-black/75">
         <Maximize2 size={14} /> ملء الشاشة
       </span>
     </button>
@@ -79,23 +87,29 @@ export default function MagazineFlipbook({
 
   /* ─────────── وضع ملء الشاشة (Portal) ─────────── */
   const overlay = (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[#0f0f11]">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-neutral-950">
       <button
         type="button"
         onClick={() => setFullscreen(false)}
         aria-label="إغلاق"
-        className="absolute top-[max(0.75rem,env(safe-area-inset-top))] end-3 z-[120] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
+        className="absolute top-[max(0.75rem,env(safe-area-inset-top))] end-3 z-[110] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
       >
         <X size={20} />
       </button>
 
-      <div className="flex flex-1 min-h-0 items-center justify-center px-3 sm:px-6">
-        <ExpoCarousel products={products} fullscreen onIndexChange={setActiveIndex} interactive />
+      <div className="flex-1 min-h-0">
+        <CarouselImages
+          products={products}
+          fullscreen
+          onIndexChange={setActiveIndex}
+          interactive
+        />
       </div>
 
+      {/* الترقيم الكسري */}
       {total > 1 && (
         <div
-          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] start-1/2 z-[120] -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
+          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] start-1/2 z-[110] -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
           dir="ltr"
         >
           {activeIndex + 1} / {total}
@@ -112,17 +126,8 @@ export default function MagazineFlipbook({
   );
 }
 
-/* ───────────────────────── Expo carousel ─────────────────────────
-   يحاكي تأثير Expo: نُعطّل تحريك الـ wrapper (virtualTranslate) ونطبّق
-   التحويلات يدوياً لكل شريحة عبر أحداث setTranslate / setTransition:
-     • الإطار (container) ينزلق بمقدار progress * 100%.
-     • الصورة داخله تتحرّك عكسياً بمقدار progress * imageOffset * 100%
-       فتبدو ثابتة بصرياً بينما "تتّسع النافذة" — دون أي تمطيط للصورة. */
-// مقدار حركة الـ parallax للصورة عكس اتجاه النافذة. قيمة معتدلة (0.3)
-// تمنح إحساس Expo نفسه (نافذة تتّسع) مع إبقاء الصورة محتواة بالكامل دون قصّ.
-const IMAGE_OFFSET = 0.3;
-
-function ExpoCarousel({
+/* ───────────────────────── Swiper carousel (الصور فقط) ───────────────────────── */
+function CarouselImages({
   products,
   fullscreen = false,
   interactive,
@@ -130,110 +135,89 @@ function ExpoCarousel({
 }: {
   products: ProductWithStore[];
   fullscreen?: boolean;
-  /** الضغط على الصورة يفتح صفحة المنتج. */
+  /** في ملء الشاشة: الضغط على الصورة يفتح صفحة المنتج. */
   interactive: boolean;
   onIndexChange?: (i: number) => void;
 }) {
   const total = products.length;
-  const router = useRouter();
-  const swiperRef = useRef<SwiperClass | null>(null);
-  // يميّز السحب عن النقر حتى لا يفتح الرابط أثناء التمرير.
-  const dragged = useRef(false);
-
-  const applyExpo = (sw: SwiperClass) => {
-    const isHorizontal = sw.isHorizontal();
-    // RTL: Swiper يضبط rtlTranslate، نراعيه في اتجاه التحويل.
-    const rtl = sw.rtlTranslate ? -1 : 1;
-    for (let i = 0; i < sw.slides.length; i += 1) {
-      const slide = sw.slides[i] as HTMLElement;
-      const progress = Math.max(Math.min((slide as any).progress as number, 1), -1);
-      const container = slide.querySelector<HTMLElement>('.expo-container');
-      const image = slide.querySelector<HTMLElement>('.expo-image');
-      const axis = isHorizontal ? 'X' : 'Y';
-      const p = progress * rtl;
-      if (container) {
-        container.style.transform = `translate${axis}(${p * 100}%)`;
-      }
-      if (image) {
-        image.style.transform = `translate${axis}(${-p * IMAGE_OFFSET * 100}%)`;
-      }
-    }
-  };
-
-  const setExpoTransition = (sw: SwiperClass, duration: number) => {
-    for (let i = 0; i < sw.slides.length; i += 1) {
-      const slide = sw.slides[i] as HTMLElement;
-      slide.querySelectorAll<HTMLElement>('.expo-container, .expo-image').forEach((el) => {
-        el.style.transitionDuration = `${duration}ms`;
-      });
-    }
-  };
 
   return (
-    <div
-      className={`lsm-expo relative w-full ${
-        fullscreen
-          ? 'h-full max-h-full mx-auto aspect-[9/16] sm:aspect-video sm:h-full'
-          : 'aspect-square sm:aspect-video'
-      }`}
-    >
+    <div className={`lsm-cat relative ${fullscreen ? 'h-full' : ''}`}>
       <Swiper
-        modules={[Navigation, Keyboard, A11y]}
-        onSwiper={(sw) => {
-          swiperRef.current = sw;
-          applyExpo(sw);
-        }}
+        modules={[Navigation, Pagination, Keyboard, A11y, EffectCreative, Autoplay]}
         dir="rtl"
         slidesPerView={1}
         spaceBetween={0}
-        speed={650}
+        speed={750}
         grabCursor
         loop={total > 1}
-        virtualTranslate
-        watchSlidesProgress
+        // انتقال مركّب وأنيق: الشريحة الخارجة تتراجع للعمق وتصغر وتدور قليلاً
+        // وتتلاشى، بينما الداخلة تنزلق من الجانب مع ظلّ ناعم — دون تمطيط الصورة.
+        effect="creative"
+        creativeEffect={{
+          limitProgress: 2,
+          prev: {
+            shadow: true,
+            translate: ['-18%', 0, -220],
+            rotate: [0, 0, -4],
+            scale: 0.86,
+            opacity: 0.45,
+          },
+          next: {
+            shadow: true,
+            translate: ['100%', 0, 0],
+            scale: 1,
+            opacity: 1,
+          },
+        }}
+        autoplay={
+          fullscreen && total > 1
+            ? { delay: 4500, disableOnInteraction: true, pauseOnMouseEnter: true }
+            : false
+        }
         keyboard={{ enabled: true }}
-        navigation={total > 1 ? { nextEl: '.lsm-expo-next', prevEl: '.lsm-expo-prev' } : false}
-        onSetTranslate={(sw) => applyExpo(sw)}
-        onSetTransition={(sw, duration) => setExpoTransition(sw, duration)}
-        onTouchStart={() => {
-          dragged.current = false;
-        }}
-        onTouchMove={() => {
-          dragged.current = true;
-        }}
+        navigation={total > 1 ? { nextEl: '.lsm-cat-next', prevEl: '.lsm-cat-prev' } : false}
+        pagination={!fullscreen && total > 1 ? { clickable: true, dynamicBullets: true } : false}
         onSlideChange={(sw) => onIndexChange?.(sw.realIndex)}
-        className="h-full w-full"
+        className={`lsm-cat-swiper ${fullscreen ? 'h-full' : ''}`}
       >
         {products.map((product, i) => {
           const img = product.images?.[0];
+          const inner = img ? (
+            <Image
+              src={img}
+              alt={product.title}
+              fill
+              sizes={fullscreen ? '100vw' : '(max-width:768px) 100vw, 800px'}
+              // الصور لا تُمدَّد أبداً — تُحتوى بالكامل داخل الإطار.
+              className="object-contain"
+              priority={i === 0}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-white/15">
+              <StoreIcon size={72} />
+            </div>
+          );
+
           return (
             <SwiperSlide key={product.id}>
               <div
-                className="expo-container h-full w-full"
-                onClick={() => {
-                  if (interactive && img && !dragged.current) {
-                    router.push(`/products/${product.id}`);
-                  }
-                }}
-                role={interactive ? 'link' : undefined}
-                aria-label={interactive ? product.title : undefined}
+                className={`relative w-full ${
+                  fullscreen
+                    ? 'h-[100svh] sm:h-full'
+                    : 'aspect-square sm:aspect-[4/3]'
+                }`}
               >
-                {img ? (
-                  <div className="expo-image">
-                    <Image
-                      src={img}
-                      alt={product.title}
-                      fill
-                      sizes={fullscreen ? '100vw' : '(max-width:768px) 100vw, 900px'}
-                      // الصور لا تُمطّط ولا تُقصّ — تُحتوى بالكامل داخل النافذة.
-                      className="object-contain"
-                      priority={i === 0}
-                    />
-                  </div>
+                {interactive && img ? (
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="absolute inset-0 block"
+                    aria-label={product.title}
+                  >
+                    {inner}
+                  </Link>
                 ) : (
-                  <div className="expo-image flex items-center justify-center text-white/15">
-                    <StoreIcon size={72} />
-                  </div>
+                  inner
                 )}
               </div>
             </SwiperSlide>
@@ -241,20 +225,22 @@ function ExpoCarousel({
         })}
       </Swiper>
 
-      {/* أسهم التنقّل — تظهر على الشاشات الأكبر، والسحب يكفي على الهاتف */}
+      {/* أسهم التنقّل — مخفية على الشاشات الصغيرة جداً، السحب يكفي على الهاتف */}
       {total > 1 && (
         <>
           <button
             type="button"
             aria-label="السابق"
-            className="lsm-expo-prev absolute end-2 md:end-4 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/70 sm:inline-flex"
+            onClick={(e) => e.stopPropagation()}
+            className="lsm-cat-prev absolute end-2 md:end-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/70 sm:inline-flex"
           >
             <ChevronRight size={24} />
           </button>
           <button
             type="button"
             aria-label="التالي"
-            className="lsm-expo-next absolute start-2 md:start-4 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/70 sm:inline-flex"
+            onClick={(e) => e.stopPropagation()}
+            className="lsm-cat-next absolute start-2 md:start-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/70 sm:inline-flex"
           >
             <ChevronLeft size={24} />
           </button>
