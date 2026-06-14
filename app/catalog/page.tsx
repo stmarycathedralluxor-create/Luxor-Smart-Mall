@@ -1,10 +1,8 @@
 import Link from 'next/link';
-import { BookOpen, Layers, Sparkles, Store as StoreIcon, ArrowLeft } from 'lucide-react';
+import { BookOpen, Layers } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { isStoreOpen } from '@/lib/utils';
 import { resolveCatalogProducts } from '@/lib/catalogs';
-import CroppedImage from '@/components/CroppedImage';
-import ShareButton from '@/components/ShareButton';
+import CatalogCard from '@/components/CatalogCard';
 import type { Catalog } from '@/lib/types';
 
 // Always render fresh data — ISR caching made deletes/updates appear with a delay
@@ -46,14 +44,11 @@ export default async function CatalogsPage() {
     });
   }
 
-  // احسب صورة الغلاف وعدد المنتجات لكل كتالوج (أول منتج كغلاف افتراضي)
+  // اجلب منتجات كل كتالوج (لعرض الكارت المتحرّك بصورة واحدة لكل منتج)
   const cards = await Promise.all(
     catalogs.map(async (c) => {
       const products = await resolveCatalogProducts(supabase, c);
-      const cover =
-        c.cover_image || products[0]?.images?.[0] || c.store?.cover_url || c.store?.logo_url || null;
-      const coverCrop = c.cover_image ? c.cover_meta ?? null : products[0]?.images_meta?.[0] ?? null;
-      return { catalog: c, count: products.length, cover, coverCrop };
+      return { catalog: c, products, count: products.length };
     })
   );
 
@@ -121,57 +116,23 @@ export default async function CatalogsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {visible.map(({ catalog, count, cover, coverCrop }) => (
-              <div
+            {visible.map(({ catalog, products, count }) => (
+              <CatalogCard
                 key={catalog.id}
-                className="group relative bg-white rounded-3xl overflow-hidden border border-luxor-gold/20 shadow-sm hover:shadow-luxor-lg hover:border-luxor-gold/50 transition-all"
-              >
-                <Link href={`/catalog/${catalog.slug}`} className="block">
-                  <div className="relative aspect-[4/5] overflow-hidden bg-luxor-obsidian">
-                    {cover ? (
-                      <span className="absolute inset-0 block group-hover:scale-105 transition-transform duration-700">
-                        <CroppedImage src={cover} crop={coverCrop} alt={catalog.title} sizes="(max-width:768px) 100vw, 33vw" />
-                      </span>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-luxor-gold/30">
-                        <BookOpen size={64} />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-luxor-obsidian/95 via-luxor-obsidian/20 to-transparent" />
-                    <span className="absolute top-3 start-3 inline-flex items-center gap-1 bg-luxor-gold/90 text-luxor-obsidian px-2.5 py-0.5 rounded-full text-[11px] font-bold">
-                      <BookOpen size={12} /> كتالوج
-                    </span>
-                    <div className="absolute inset-x-0 bottom-0 p-4">
-                      <h3 className="font-black text-white text-xl leading-tight line-clamp-2">{catalog.title}</h3>
-                      <div className="flex items-center gap-3 mt-2 text-white/70 text-xs flex-wrap">
-                        {catalog.store?.name && (
-                          <span className="inline-flex items-center gap-1">
-                            <StoreIcon size={12} className="text-luxor-goldlight" /> {catalog.store.name}
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1">
-                          <Sparkles size={12} className="text-luxor-goldlight" /> {count} منتج
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-                <div className="p-3 flex items-center justify-between gap-2">
-                  <Link
-                    href={`/catalog/${catalog.slug}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-luxor-darkgold hover:text-luxor-obsidian transition"
-                  >
-                    افتح الكتالوج <ArrowLeft size={15} />
-                  </Link>
-                  <ShareButton
-                    variant="icon"
-                    path={`/catalog/${catalog.slug}`}
-                    title={catalog.title}
-                    text={`تصفّح كتالوج «${catalog.title}» على الأقصر سمارت مول`}
-                    label="مشاركة الكتالوج"
-                  />
-                </div>
-              </div>
+                title={catalog.title}
+                slug={catalog.slug}
+                products={products}
+                count={count}
+                store={
+                  catalog.store
+                    ? {
+                        name: catalog.store.name,
+                        slug: catalog.store.slug,
+                        logo_url: catalog.store.logo_url ?? null,
+                      }
+                    : null
+                }
+              />
             ))}
           </div>
         )}

@@ -198,6 +198,14 @@ body {
   border-radius: inherit;
 }
 
+/* كارت الكتالوج المتحرّك في الصفحة الرئيسية — يملأ ارتفاع الإطار بالكامل */
+.lsm-cat-card,
+.lsm-cat-card .lsm-cat-swiper,
+.lsm-cat-card .swiper-slide {
+  height: 100%;
+}
+.lsm-cat-card .swiper-slide { border-radius: 0; }
+
 /* ترقيم ذهبي ديناميكي */
 .lsm-cat .swiper-pagination-bullet {
   background: rgba(255, 255, 255, 0.45);

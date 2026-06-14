@@ -165,6 +165,7 @@ export default async function CatalogPage({ params }: { params: { slug: string }
           <MagazineFlipbook
             title={catalog.title}
             products={products}
+            autoPlayPreview
             store={
               catalog.store
                 ? {
