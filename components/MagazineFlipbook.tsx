@@ -18,7 +18,7 @@ import 'swiper/css/effect-creative';
 
 import type { ProductWithStore, Store } from '@/lib/types';
 
-/** شريحة واحدة = صورة + المنتج التابع لها (منتج واحد قد يملك عدّة صور). */
+/** شريحة واحدة = صورة واحدة لكل منتج (صورة المنتج الأولى). */
 type Slide = {
   key: string;
   img: string | null;
@@ -26,13 +26,25 @@ type Slide = {
 };
 
 /**
+ * يبني شرائح الكتالوج: صورة واحدة فقط لكل منتج (الصورة الأولى).
+ * عدد المنتجات غير محدود، لكن لكل منتج صورة واحدة في العرض.
+ */
+export function buildCatalogSlides(products: ProductWithStore[]): Slide[] {
+  return products.map((product) => ({
+    key: String(product.id),
+    img: product.images?.[0] ?? null,
+    product,
+  }));
+}
+
+/**
  * MagazineFlipbook — عارض كتالوج بسيط وأنيق:
  *
- *  • صور المنتجات فقط (بدون إطارات أو بيانات) على خلفية رمادية داكنة.
- *  • الصور لا تُمدَّد إطلاقاً (object-contain). عدد الصور غير محدود.
+ *  • صورة واحدة لكل منتج (بدون إطارات أو بيانات) على خلفية رمادية داكنة.
+ *  • الصور لا تُمدَّد إطلاقاً (object-contain). عدد المنتجات غير محدود.
  *  • اتجاه السحب طبيعي وثابت (لا يتأثّر بتغيير اللغة).
- *  • الضغط على الكتالوج يفتحه بملء الشاشة، مع لوجو صغير أسفل اليسار
- *    ينقلك لمتجر المنتج المعروض حالياً.
+ *  • الضغط على الكتالوج يفتحه بملء الشاشة بدءاً من نفس الصورة المعروضة.
+ *  • عدّاد الصور أسفل المنتصف، ولوجو متجر المنتج الحالي أسفل اليمين.
  *  • متوافق تماماً مع الهواتف (سحب + استجابة كاملة).
  */
 export default function MagazineFlipbook({
@@ -40,32 +52,29 @@ export default function MagazineFlipbook({
   products,
   store,
   coverImage,
+  /** تشغيل تلقائي للمعاينة داخل الصفحة (الكارت يتحرّك لوحده). */
+  autoPlayPreview = false,
 }: {
   title: string;
   products: ProductWithStore[];
   /** متجر الكتالوج (احتياطي إن لم يكن للمنتج متجر خاص). */
   store?: Pick<Store, 'name' | 'slug' | 'logo_url'> | null;
   coverImage?: string | null;
+  autoPlayPreview?: boolean;
 }) {
   void coverImage;
   void title;
 
-  // نبني الشرائح من كل صور كل المنتجات (غير محدودة) — وليس أول صورة فقط.
-  const slides = useMemo<Slide[]>(() => {
-    const out: Slide[] = [];
-    products.forEach((product) => {
-      const imgs = product.images?.length ? product.images : [null];
-      imgs.forEach((img, idx) => {
-        out.push({ key: `${product.id}-${idx}`, img, product });
-      });
-    });
-    return out;
-  }, [products]);
+  // صورة واحدة لكل منتج (الصورة الأولى) — عدد المنتجات غير محدود.
+  const slides = useMemo<Slide[]>(() => buildCatalogSlides(products), [products]);
 
   const total = slides.length;
   const [mounted, setMounted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  // الشريحة المعروضة في المعاينة — نفتح ملء الشاشة منها مباشرةً.
   const [activeIndex, setActiveIndex] = useState(0);
+  // الفهرس الذي يبدأ منه عرض ملء الشاشة (نفس الصورة المعروضة في المعاينة).
+  const [fsStartIndex, setFsStartIndex] = useState(0);
 
   useEffect(() => setMounted(true), []);
 
@@ -86,6 +95,12 @@ export default function MagazineFlipbook({
 
   if (!total) return null;
 
+  const openFullscreen = () => {
+    // ابدأ ملء الشاشة من الصورة المعروضة حالياً في المعاينة.
+    setFsStartIndex(activeIndex);
+    setFullscreen(true);
+  };
+
   // متجر المنتج المعروض حالياً (للّوجو الصغير في ملء الشاشة).
   const activeStore = slides[activeIndex]?.product?.store ?? store ?? null;
 
@@ -93,11 +108,16 @@ export default function MagazineFlipbook({
   const preview = (
     <button
       type="button"
-      onClick={() => setFullscreen(true)}
+      onClick={openFullscreen}
       aria-label="افتح الكتالوج بملء الشاشة"
       className="group relative block w-full overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 to-black"
     >
-      <CarouselImages slides={slides} onIndexChange={setActiveIndex} interactive={false} />
+      <CarouselImages
+        slides={slides}
+        onIndexChange={setActiveIndex}
+        interactive={false}
+        autoPlay={autoPlayPreview}
+      />
       {/* تلميح ملء الشاشة */}
       <span className="pointer-events-none absolute top-3 end-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition group-hover:bg-black/75">
         <Maximize2 size={14} /> ملء الشاشة
@@ -118,16 +138,22 @@ export default function MagazineFlipbook({
       </button>
 
       <div className="flex-1 min-h-0">
-        <CarouselImages slides={slides} fullscreen onIndexChange={setActiveIndex} interactive />
+        <CarouselImages
+          slides={slides}
+          fullscreen
+          initialIndex={fsStartIndex}
+          onIndexChange={setActiveIndex}
+          interactive
+        />
       </div>
 
-      {/* لوجو متجر المنتج الحالي — أسفل اليسار، ينقل لصفحة المتجر */}
+      {/* لوجو متجر المنتج الحالي — أسفل اليمين (الجهة المقابلة)، ينقل لصفحة المتجر */}
       {activeStore?.slug && (
         <Link
           href={`/stores/${activeStore.slug}`}
           onClick={() => setFullscreen(false)}
           aria-label={`متجر ${activeStore.name ?? ''}`}
-          className="group absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] start-3 z-[110] inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 py-1.5 pe-3 ps-1.5 text-white backdrop-blur transition hover:bg-white/20"
+          className="group absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] end-3 z-[110] inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 py-1.5 pe-3 ps-1.5 text-white backdrop-blur transition hover:bg-white/20"
         >
           <span className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15">
             {activeStore.logo_url ? (
@@ -142,10 +168,10 @@ export default function MagazineFlipbook({
         </Link>
       )}
 
-      {/* الترقيم الكسري */}
+      {/* عدّاد الصور — أسفل المنتصف */}
       {total > 1 && (
         <div
-          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] end-3 z-[110] rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
+          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[110] rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
           dir="ltr"
         >
           {activeIndex + 1} / {total}
@@ -168,12 +194,18 @@ function CarouselImages({
   fullscreen = false,
   interactive,
   onIndexChange,
+  initialIndex = 0,
+  autoPlay = false,
 }: {
   slides: Slide[];
   fullscreen?: boolean;
   /** في ملء الشاشة: الضغط على الصورة يفتح صفحة المنتج. */
   interactive: boolean;
   onIndexChange?: (i: number) => void;
+  /** الشريحة التي يبدأ منها العرض. */
+  initialIndex?: number;
+  /** تشغيل تلقائي حتى خارج ملء الشاشة (لتحريك كارت المعاينة لوحده). */
+  autoPlay?: boolean;
 }) {
   const total = slides.length;
 
@@ -188,6 +220,7 @@ function CarouselImages({
         spaceBetween={0}
         speed={750}
         grabCursor
+        initialSlide={initialIndex}
         loop={total > 1}
         // انتقال مركّب وأنيق: الشريحة الخارجة تتراجع للعمق وتصغر وتدور قليلاً
         // وتتلاشى، بينما الداخلة تنزلق من الجانب مع ظلّ ناعم — دون تمطيط الصورة.
@@ -209,12 +242,16 @@ function CarouselImages({
           },
         }}
         autoplay={
-          fullscreen && total > 1
-            ? { delay: 4500, disableOnInteraction: true, pauseOnMouseEnter: true }
+          (fullscreen || autoPlay) && total > 1
+            ? {
+                delay: autoPlay && !fullscreen ? 3000 : 4500,
+                disableOnInteraction: fullscreen,
+                pauseOnMouseEnter: fullscreen,
+              }
             : false
         }
         keyboard={{ enabled: true }}
-        navigation={total > 1 ? { nextEl: '.lsm-cat-next', prevEl: '.lsm-cat-prev' } : false}
+        navigation={fullscreen && total > 1 ? { nextEl: '.lsm-cat-next', prevEl: '.lsm-cat-prev' } : false}
         pagination={!fullscreen && total > 1 ? { clickable: true, dynamicBullets: true } : false}
         onSlideChange={(sw) => onIndexChange?.(sw.realIndex)}
         className={`lsm-cat-swiper ${fullscreen ? 'h-full' : ''}`}
@@ -256,8 +293,8 @@ function CarouselImages({
         })}
       </Swiper>
 
-      {/* أسهم التنقّل — ثابتة الاتجاه: السابق على اليسار، التالي على اليمين */}
-      {total > 1 && (
+      {/* أسهم التنقّل (في ملء الشاشة فقط) — ثابتة الاتجاه: السابق يسار، التالي يمين */}
+      {fullscreen && total > 1 && (
         <>
           <button
             type="button"
