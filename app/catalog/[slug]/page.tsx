@@ -165,7 +165,15 @@ export default async function CatalogPage({ params }: { params: { slug: string }
           <MagazineFlipbook
             title={catalog.title}
             products={products}
-            storeName={catalog.store?.name ?? null}
+            store={
+              catalog.store
+                ? {
+                    name: catalog.store.name,
+                    slug: catalog.store.slug,
+                    logo_url: catalog.store.logo_url ?? null,
+                  }
+                : null
+            }
             coverImage={catalog.cover_image}
           />
         )}
