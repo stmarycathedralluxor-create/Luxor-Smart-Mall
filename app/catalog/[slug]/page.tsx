@@ -162,14 +162,12 @@ export default async function CatalogPage({ params }: { params: { slug: string }
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl border border-luxor-gold/20 shadow-sm p-4 md:p-8">
-            <MagazineFlipbook
-              title={catalog.title}
-              products={products}
-              storeName={catalog.store?.name ?? null}
-              coverImage={catalog.cover_image}
-            />
-          </div>
+          <MagazineFlipbook
+            title={catalog.title}
+            products={products}
+            storeName={catalog.store?.name ?? null}
+            coverImage={catalog.cover_image}
+          />
         )}
       </div>
     </div>
