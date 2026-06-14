@@ -1,8 +1,17 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Package, ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react';
+// Swiper — main gallery + synced thumbnails + pinch/double-tap zoom lightbox.
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Keyboard, Thumbs, Zoom, FreeMode, A11y } from 'swiper/modules';
+import type { Swiper as SwiperClass } from 'swiper/types';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import 'swiper/css/thumbs';
+import 'swiper/css/zoom';
 import { useLocale } from './LocaleProvider';
 import CroppedImage from './CroppedImage';
 import type { ImageCrop } from '@/lib/types';
@@ -22,17 +31,40 @@ export default function ProductGallery({
 }) {
   const { locale } = useLocale();
   const isRtl = locale === 'ar';
-  // Multiplier so positive translateX moves "next" in the visual reading order.
-  // In LTR: next = move left (negative). In RTL: next = move right (positive).
-  const dir = isRtl ? 1 : -1;
 
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
-  const dragStartX = useRef(0);
-  const dragDeltaX = useRef(0);
+  const [thumbsSwiper, setThumbsSwiper] = useState<SwiperClass | null>(null);
+  const mainRef = useRef<SwiperClass | null>(null);
   const didDrag = useRef(false);
+
+  // React to color swatch clicks on the product page: jump to the image
+  // linked to the selected color (fired by <ProductVariants/>).
+  useEffect(() => {
+    const onShowImage = (e: Event) => {
+      const url = (e as CustomEvent<{ url?: string }>).detail?.url;
+      if (!url) return;
+      const idx = images.indexOf(url);
+      if (idx >= 0) mainRef.current?.slideTo(idx);
+    };
+    window.addEventListener('lsm:show-product-image', onShowImage);
+    return () => window.removeEventListener('lsm:show-product-image', onShowImage);
+  }, [images]);
+
+  // Lock body scroll + Esc-to-close while lightbox is open.
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [lightboxOpen]);
 
   if (!images?.length) {
     return (
@@ -43,90 +75,9 @@ export default function ProductGallery({
   }
 
   const total = images.length;
-  const goTo = (i: number) => setActive((i + total) % total);
-  // "next" advances forward in the user's reading order; "prev" goes back.
-  const next = useCallback(() => setActive((a) => (a + 1) % total), [total]);
-  const prev = useCallback(() => setActive((a) => (a - 1 + total) % total), [total]);
-
-  // Pointer events for mouse + touch swipe (single unified handler)
-  const onPointerDown = (e: React.PointerEvent) => {
-    isDragging.current = true;
-    didDrag.current = false;
-    dragStartX.current = e.clientX;
-    dragDeltaX.current = 0;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!isDragging.current) return;
-    dragDeltaX.current = e.clientX - dragStartX.current;
-    if (Math.abs(dragDeltaX.current) > 5) didDrag.current = true;
-    if (trackRef.current) {
-      // base offset uses `dir` so the active slide is correctly positioned in RTL/LTR.
-      trackRef.current.style.transform = `translateX(calc(${dir * active * 100}% + ${dragDeltaX.current}px))`;
-    }
-  };
-
-  const onPointerEnd = () => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    const delta = dragDeltaX.current;
-    dragDeltaX.current = 0;
-    if (trackRef.current) {
-      trackRef.current.style.transform = '';
-    }
-    const THRESHOLD = 60;
-    // Dragging finger to the right (positive delta):
-    //   LTR -> reveals the previous slide (prev)
-    //   RTL -> reveals the next slide (next)
-    if (delta > THRESHOLD) {
-      isRtl ? next() : prev();
-    } else if (delta < -THRESHOLD) {
-      isRtl ? prev() : next();
-    }
-  };
-
-  // Keyboard arrow navigation: ArrowRight/ArrowLeft map to the user's reading order.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') {
-        isRtl ? prev() : next();
-      } else if (e.key === 'ArrowLeft') {
-        isRtl ? next() : prev();
-      } else if (e.key === 'Escape') {
-        setLightboxOpen(false);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isRtl, next, prev]);
-
-  // React to color swatch clicks on the product page: jump to the image
-  // linked to the selected color (fired by <ProductVariants/>).
-  useEffect(() => {
-    const onShowImage = (e: Event) => {
-      const url = (e as CustomEvent<{ url?: string }>).detail?.url;
-      if (!url) return;
-      const idx = images.indexOf(url);
-      if (idx >= 0) setActive(idx);
-    };
-    window.addEventListener('lsm:show-product-image', onShowImage);
-    return () => window.removeEventListener('lsm:show-product-image', onShowImage);
-  }, [images]);
-
-  // Lock body scroll while lightbox is open
-  useEffect(() => {
-    if (lightboxOpen) {
-      const prevOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prevOverflow;
-      };
-    }
-  }, [lightboxOpen]);
 
   const openLightbox = () => {
-    // suppress click after a swipe so dragging doesn't open the modal
+    // Suppress the click that follows a swipe so dragging doesn't open the modal.
     if (didDrag.current) {
       didDrag.current = false;
       return;
@@ -135,38 +86,53 @@ export default function ProductGallery({
   };
 
   return (
-    <div>
-      <div
-        className="aspect-square relative rounded-2xl overflow-hidden bg-luxor-sandlight mb-3 touch-pan-y select-none cursor-zoom-in group"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerEnd}
-        onPointerCancel={onPointerEnd}
-        onClick={openLightbox}
-        role="button"
-        tabIndex={0}
-        aria-label={isRtl ? 'اضغط لعرض الصورة بحجمها الكامل' : 'Tap to view full size'}
-      >
-        {/* Sliding track */}
-        <div
-          ref={trackRef}
-          className="absolute inset-0 flex transition-transform duration-300 ease-out"
-          style={{ transform: `translateX(${dir * active * 100}%)` }}
+    <div className="lsm-gallery">
+      {/* Main image carousel */}
+      <div className="relative rounded-2xl overflow-hidden bg-luxor-sandlight mb-3 group">
+        <Swiper
+          onSwiper={(sw) => {
+            mainRef.current = sw;
+          }}
+          modules={[Navigation, Pagination, Keyboard, Thumbs, A11y]}
+          dir={isRtl ? 'rtl' : 'ltr'}
+          slidesPerView={1}
+          spaceBetween={0}
+          speed={400}
+          grabCursor
+          keyboard={{ enabled: true }}
+          navigation={{ nextEl: '.lsm-g-next', prevEl: '.lsm-g-prev' }}
+          pagination={{ el: '.lsm-g-pagination', clickable: true, dynamicBullets: true }}
+          thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : undefined }}
+          onSlideChange={(sw) => setActive(sw.activeIndex)}
+          onTouchStart={() => {
+            didDrag.current = false;
+          }}
+          onTouchMove={() => {
+            didDrag.current = true;
+          }}
         >
           {images.map((img, i) => (
-            <div key={i} className="relative w-full h-full flex-shrink-0 overflow-hidden">
-              <CroppedImage
-                src={img}
-                crop={imagesMeta?.[i]}
-                alt={`${title}-${i}`}
-                sizes="(max-width: 768px) 100vw, 50vw"
-                imgClassName="pointer-events-none"
-                priority={i === 0}
-                draggable={false}
-              />
-            </div>
+            <SwiperSlide key={i}>
+              <div
+                className="aspect-square relative cursor-zoom-in select-none"
+                onClick={openLightbox}
+                role="button"
+                tabIndex={0}
+                aria-label={isRtl ? 'اضغط لعرض الصورة بحجمها الكامل' : 'Tap to view full size'}
+              >
+                <CroppedImage
+                  src={img}
+                  crop={imagesMeta?.[i]}
+                  alt={`${title}-${i}`}
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  imgClassName="pointer-events-none"
+                  priority={i === 0}
+                  draggable={false}
+                />
+              </div>
+            </SwiperSlide>
           ))}
-        </div>
+        </Swiper>
 
         {/* Zoom hint */}
         <div className="absolute bottom-3 end-3 bg-black/55 text-white text-xs font-medium px-2 py-1.5 rounded-full z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition pointer-events-none">
@@ -174,54 +140,27 @@ export default function ProductGallery({
           {isRtl ? 'تكبير' : 'Zoom'}
         </div>
 
-        {/* Prev / Next buttons */}
         {total > 1 && (
           <>
-            {/* Button on the "start" side = visual previous in user's reading order */}
+            {/* Prev (start side) */}
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                prev();
-              }}
               aria-label={isRtl ? 'السابق' : 'Previous'}
-              className="absolute top-1/2 -translate-y-1/2 start-2 w-10 h-10 rounded-full bg-white/85 hover:bg-white shadow-md text-luxor-navy flex items-center justify-center z-10"
+              className="lsm-g-prev absolute top-1/2 -translate-y-1/2 start-2 w-10 h-10 rounded-full bg-white/85 hover:bg-white shadow-md text-luxor-navy flex items-center justify-center z-10 disabled:opacity-0 transition"
             >
-              {/* Chevron always points toward the "start" of the reading direction */}
               {isRtl ? <ChevronRight size={22} /> : <ChevronLeft size={22} />}
             </button>
-            {/* Button on the "end" side = visual next */}
+            {/* Next (end side) */}
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                next();
-              }}
               aria-label={isRtl ? 'التالي' : 'Next'}
-              className="absolute top-1/2 -translate-y-1/2 end-2 w-10 h-10 rounded-full bg-white/85 hover:bg-white shadow-md text-luxor-navy flex items-center justify-center z-10"
+              className="lsm-g-next absolute top-1/2 -translate-y-1/2 end-2 w-10 h-10 rounded-full bg-white/85 hover:bg-white shadow-md text-luxor-navy flex items-center justify-center z-10 disabled:opacity-0 transition"
             >
               {isRtl ? <ChevronLeft size={22} /> : <ChevronRight size={22} />}
             </button>
 
-            {/* Indicator dots */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-              {images.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goTo(i);
-                  }}
-                  aria-label={`${isRtl ? 'صورة' : 'image'} ${i + 1}`}
-                  className={`h-2 rounded-full transition-all ${
-                    active === i ? 'w-6 bg-luxor-gold' : 'w-2 bg-white/70'
-                  }`}
-                />
-              ))}
-            </div>
-
-            {/* Counter pill */}
+            {/* Pagination + counter */}
+            <div className="lsm-g-pagination absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center justify-center" />
             <div className="absolute top-3 end-3 bg-black/55 text-white text-xs font-medium px-2 py-1 rounded-full z-10" dir="ltr">
               {active + 1} / {total}
             </div>
@@ -229,57 +168,48 @@ export default function ProductGallery({
         )}
       </div>
 
-      {/* Thumbnails */}
+      {/* Thumbnails (synced via Swiper Thumbs) */}
       {total > 1 && (
-        <div className="grid grid-cols-5 gap-2">
+        <Swiper
+          onSwiper={setThumbsSwiper}
+          modules={[Thumbs, FreeMode, A11y]}
+          dir={isRtl ? 'rtl' : 'ltr'}
+          watchSlidesProgress
+          slidesPerView={5}
+          spaceBetween={8}
+          freeMode
+          className="lsm-gallery-thumbs"
+        >
           {images.map((img, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => goTo(i)}
-              className={`aspect-square relative rounded-lg overflow-hidden border-2 transition ${
-                active === i ? 'border-luxor-gold' : 'border-transparent opacity-70 hover:opacity-100'
-              }`}
-            >
-              <CroppedImage src={img} crop={imagesMeta?.[i]} alt={`${title}-thumb-${i}`} sizes="20vw" />
-            </button>
+            <SwiperSlide key={i}>
+              <div className="aspect-square relative rounded-lg overflow-hidden border-2 border-transparent opacity-70 transition cursor-pointer">
+                <CroppedImage src={img} crop={imagesMeta?.[i]} alt={`${title}-thumb-${i}`} sizes="20vw" />
+              </div>
+            </SwiperSlide>
           ))}
-        </div>
+        </Swiper>
       )}
 
-      {/* Full-size lightbox modal */}
+      {/* Full-size lightbox modal — Swiper with pinch/double-tap Zoom */}
       {lightboxOpen && (
         <div
-          className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-8 animate-fade-in"
-          onClick={() => setLightboxOpen(false)}
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col animate-fade-in"
           role="dialog"
           aria-modal="true"
           aria-label={title}
         >
-          {/* Top bar — keeps the close button + counter from overlapping
-              on narrow mobile screens by using a flex row across the top. */}
-          <div
-            className="absolute top-0 inset-x-0 flex items-center justify-between gap-3 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 z-20 pointer-events-none"
-          >
-            {/* Counter on the start side */}
+          {/* Top bar */}
+          <div className="absolute top-0 inset-x-0 flex items-center justify-between gap-3 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 z-20 pointer-events-none">
             {total > 1 ? (
-              <div
-                className="bg-black/55 backdrop-blur text-white text-sm font-semibold px-3 py-1.5 rounded-full pointer-events-auto shadow"
-                dir="ltr"
-              >
+              <div className="bg-black/55 backdrop-blur text-white text-sm font-semibold px-3 py-1.5 rounded-full pointer-events-auto shadow" dir="ltr">
                 {active + 1} / {total}
               </div>
             ) : (
               <span />
             )}
-
-            {/* Close button on the end side */}
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setLightboxOpen(false);
-              }}
+              onClick={() => setLightboxOpen(false)}
               aria-label={isRtl ? 'إغلاق' : 'Close'}
               className="w-11 h-11 rounded-full bg-white/20 hover:bg-white/35 text-white flex items-center justify-center transition pointer-events-auto shadow"
             >
@@ -287,43 +217,49 @@ export default function ProductGallery({
             </button>
           </div>
 
-          {/* Image container — the FULL ORIGINAL image (uncropped), contained */}
-          <div
-            className="relative w-full h-full max-w-5xl max-h-[88vh] rounded-2xl overflow-hidden flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
+          <Swiper
+            modules={[Navigation, Keyboard, Zoom, A11y]}
+            dir={isRtl ? 'rtl' : 'ltr'}
+            initialSlide={active}
+            slidesPerView={1}
+            spaceBetween={24}
+            speed={400}
+            keyboard={{ enabled: true }}
+            zoom={{ maxRatio: 4, toggle: true }}
+            navigation={{ nextEl: '.lsm-lb-next', prevEl: '.lsm-lb-prev' }}
+            onSlideChange={(sw) => setActive(sw.activeIndex)}
+            className="w-full h-full"
           >
-            <Image
-              src={imagesFull?.[active] || images[active]}
-              alt={`${title}-${active}`}
-              fill
-              sizes="100vw"
-              className="object-contain rounded-2xl"
-              priority
-            />
-          </div>
+            {images.map((img, i) => (
+              <SwiperSlide key={i} className="flex items-center justify-center">
+                <div className="swiper-zoom-container w-full h-full flex items-center justify-center p-3 sm:p-10">
+                  <Image
+                    src={imagesFull?.[i] || images[i]}
+                    alt={`${title}-${i}`}
+                    width={1600}
+                    height={1600}
+                    sizes="100vw"
+                    className="object-contain max-w-full max-h-[88vh] w-auto h-auto rounded-2xl"
+                    priority={i === active}
+                  />
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
 
-          {/* Prev / Next in lightbox */}
           {total > 1 && (
             <>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  prev();
-                }}
                 aria-label={isRtl ? 'السابق' : 'Previous'}
-                className="absolute top-1/2 -translate-y-1/2 start-4 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 transition"
+                className="lsm-lb-prev absolute top-1/2 -translate-y-1/2 start-4 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-30 transition"
               >
                 {isRtl ? <ChevronRight size={26} /> : <ChevronLeft size={26} />}
               </button>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  next();
-                }}
                 aria-label={isRtl ? 'التالي' : 'Next'}
-                className="absolute top-1/2 -translate-y-1/2 end-4 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 transition"
+                className="lsm-lb-next absolute top-1/2 -translate-y-1/2 end-4 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-30 transition"
               >
                 {isRtl ? <ChevronLeft size={26} /> : <ChevronRight size={26} />}
               </button>
