@@ -176,45 +176,16 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
 /* ─────────── Swiper catalog (MagazineFlipbook) ───────────
-   تنسيق فاخر لعارض الكتالوج: ترقيم ذهبي، ظلال coverflow، شريط مصغّرات. */
+   عارض بسيط أنيق: صور المنتجات فقط على خلفية رمادية داكنة. */
 
-/* الترقيم الديناميكي (bullets) */
-.lsm-pagination .swiper-pagination-bullet {
-  width: 8px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.3);
+/* ترقيم ذهبي ديناميكي داخل المعاينة */
+.lsm-cat .swiper-pagination-bullet {
+  background: rgba(255, 255, 255, 0.45);
   opacity: 1;
   transition: all 0.3s ease;
 }
-.lsm-pagination .swiper-pagination-bullet-active {
-  width: 26px;
-  border-radius: 9999px;
-  background: linear-gradient(135deg, #E8C765 0%, #D4AF37 50%, #9C7A1E 100%);
-}
-
-/* ظلال coverflow أدفأ قليلاً لتناسب الهوية الذهبية */
-.lsm-catalog .swiper-slide-shadow-left,
-.lsm-catalog .swiper-slide-shadow-right {
-  background-image: linear-gradient(to left, rgba(10, 10, 10, 0.65), rgba(10, 10, 10, 0));
-  border-radius: 1.5rem;
-}
-
-/* تعتيم الشرائح الجانبية في وضع coverflow لإبراز الشريحة النشطة */
-.lsm-catalog .swiper-slide {
-  transition: opacity 0.45s ease, filter 0.45s ease;
-}
-.lsm-catalog .swiper-slide:not(.swiper-slide-active) {
-  opacity: 0.55;
-  filter: saturate(0.85);
-}
-
-/* شريط المصغّرات */
-.lsm-thumbs .swiper-slide {
-  height: auto;
-}
-.lsm-thumbs .swiper-slide-thumb-active > div {
-  border-color: #D4AF37;
-  opacity: 1;
+.lsm-cat .swiper-pagination-bullet-active {
+  background: #D4AF37;
 }
 
 /* مؤشّر تكبير Swiper Zoom */
