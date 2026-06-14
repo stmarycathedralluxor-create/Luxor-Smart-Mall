@@ -65,8 +65,12 @@ export default function Navbar() {
             <Link href="/catalog" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
               {t.nav.catalog}
             </Link>
-            <Link href="/search" className="p-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian transition">
-              <Search size={20} />
+            <Link
+              href="/search"
+              className="ms-1 inline-flex items-center gap-1.5 rounded-full border border-luxor-gold/50 bg-luxor-gold/10 px-3.5 py-2 text-sm font-bold text-luxor-darkgold hover:bg-luxor-gold/20 transition"
+            >
+              <Search size={18} />
+              {locale === 'ar' ? 'بحث' : 'Search'}
             </Link>
           </div>
 
@@ -102,14 +106,24 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile toggle */}
-          <button
-            onClick={() => setOpen(!open)}
-            className="md:hidden p-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian transition"
-            aria-label="menu"
-          >
-            {open ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          {/* Mobile: search button (always visible) + menu toggle */}
+          <div className="md:hidden flex items-center gap-1.5">
+            <Link
+              href="/search"
+              onClick={() => setOpen(false)}
+              aria-label={locale === 'ar' ? 'بحث' : 'Search'}
+              className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-luxor-gold/50 bg-luxor-gold/10 text-luxor-darkgold hover:bg-luxor-gold/20 transition"
+            >
+              <Search size={20} />
+            </Link>
+            <button
+              onClick={() => setOpen(!open)}
+              className="p-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian transition"
+              aria-label="menu"
+            >
+              {open ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile menu */}

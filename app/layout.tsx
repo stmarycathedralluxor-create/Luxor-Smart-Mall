@@ -6,6 +6,8 @@ import Footer from '@/components/Footer';
 import { LocaleProvider } from '@/components/LocaleProvider';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import FreshnessGuard from '@/components/FreshnessGuard';
+import InstallPrompt from '@/components/InstallPrompt';
+import BottomNav from '@/components/BottomNav';
 import { siteUrl } from '@/lib/utils';
 
 const cairo = Cairo({
@@ -62,8 +64,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AnalyticsTracker />
           <FreshnessGuard />
           <Navbar />
-          <main className="flex-1">{children}</main>
+          {/* مساحة سفلية على الجوال حتى لا يغطّي شريط التنقّل المحتوى */}
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
           <Footer />
+          <BottomNav />
+          <InstallPrompt />
         </LocaleProvider>
         <script
           dangerouslySetInnerHTML={{

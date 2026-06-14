@@ -54,6 +54,8 @@ export default function MagazineFlipbook({
   coverImage,
   /** تشغيل تلقائي للمعاينة داخل الصفحة (الكارت يتحرّك لوحده). */
   autoPlayPreview = false,
+  /** فتح ملء الشاشة تلقائياً عند فتح رابط المشاركة (?view=full أو #full). */
+  autoFullscreenFromUrl = false,
 }: {
   title: string;
   products: ProductWithStore[];
@@ -61,6 +63,7 @@ export default function MagazineFlipbook({
   store?: Pick<Store, 'name' | 'slug' | 'logo_url'> | null;
   coverImage?: string | null;
   autoPlayPreview?: boolean;
+  autoFullscreenFromUrl?: boolean;
 }) {
   void coverImage;
   void title;
@@ -77,6 +80,22 @@ export default function MagazineFlipbook({
   const [fsStartIndex, setFsStartIndex] = useState(0);
 
   useEffect(() => setMounted(true), []);
+
+  // عند فتح رابط مشاركة الكتالوج (الذي يحمل ?view=full أو #full) نفتح
+  // عرض ملء الشاشة مباشرةً بدل المعاينة القديمة داخل الصفحة.
+  useEffect(() => {
+    if (!autoFullscreenFromUrl) return;
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const wantsFull =
+      params.get('view') === 'full' ||
+      params.get('fullscreen') === '1' ||
+      window.location.hash === '#full';
+    if (wantsFull) {
+      setFsStartIndex(0);
+      setFullscreen(true);
+    }
+  }, [autoFullscreenFromUrl]);
 
   // منع تمرير الصفحة + Esc للخروج أثناء ملء الشاشة.
   useEffect(() => {
