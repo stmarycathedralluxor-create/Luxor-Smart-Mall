@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -16,31 +16,53 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/effect-creative';
 
-import type { ProductWithStore } from '@/lib/types';
+import type { ProductWithStore, Store } from '@/lib/types';
+
+/** شريحة واحدة = صورة + المنتج التابع لها (منتج واحد قد يملك عدّة صور). */
+type Slide = {
+  key: string;
+  img: string | null;
+  product: ProductWithStore;
+};
 
 /**
  * MagazineFlipbook — عارض كتالوج بسيط وأنيق:
  *
- *  • صور المنتجات فقط (بدون إطارات أو شارات أو بيانات) على خلفية رمادية داكنة.
- *  • الصور لا تُمدَّد إطلاقاً (object-contain).
- *  • الضغط على الكتالوج يفتحه بملء الشاشة.
+ *  • صور المنتجات فقط (بدون إطارات أو بيانات) على خلفية رمادية داكنة.
+ *  • الصور لا تُمدَّد إطلاقاً (object-contain). عدد الصور غير محدود.
+ *  • اتجاه السحب طبيعي وثابت (لا يتأثّر بتغيير اللغة).
+ *  • الضغط على الكتالوج يفتحه بملء الشاشة، مع لوجو صغير أسفل اليسار
+ *    ينقلك لمتجر المنتج المعروض حالياً.
  *  • متوافق تماماً مع الهواتف (سحب + استجابة كاملة).
  */
 export default function MagazineFlipbook({
   title,
   products,
-  storeName,
+  store,
   coverImage,
 }: {
   title: string;
   products: ProductWithStore[];
-  storeName?: string | null;
+  /** متجر الكتالوج (احتياطي إن لم يكن للمنتج متجر خاص). */
+  store?: Pick<Store, 'name' | 'slug' | 'logo_url'> | null;
   coverImage?: string | null;
 }) {
   void coverImage;
-  void storeName;
+  void title;
 
-  const total = products.length;
+  // نبني الشرائح من كل صور كل المنتجات (غير محدودة) — وليس أول صورة فقط.
+  const slides = useMemo<Slide[]>(() => {
+    const out: Slide[] = [];
+    products.forEach((product) => {
+      const imgs = product.images?.length ? product.images : [null];
+      imgs.forEach((img, idx) => {
+        out.push({ key: `${product.id}-${idx}`, img, product });
+      });
+    });
+    return out;
+  }, [products]);
+
+  const total = slides.length;
   const [mounted, setMounted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -64,6 +86,9 @@ export default function MagazineFlipbook({
 
   if (!total) return null;
 
+  // متجر المنتج المعروض حالياً (للّوجو الصغير في ملء الشاشة).
+  const activeStore = slides[activeIndex]?.product?.store ?? store ?? null;
+
   /* ─────────── معاينة داخل الصفحة (تُفتح بملء الشاشة عند الضغط) ─────────── */
   const preview = (
     <button
@@ -72,12 +97,7 @@ export default function MagazineFlipbook({
       aria-label="افتح الكتالوج بملء الشاشة"
       className="group relative block w-full overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 to-black"
     >
-      <CarouselImages
-        products={products}
-        onIndexChange={setActiveIndex}
-        // داخل الصفحة: تنقّل بسيط، الضغط يفتح ملء الشاشة (لا روابط).
-        interactive={false}
-      />
+      <CarouselImages slides={slides} onIndexChange={setActiveIndex} interactive={false} />
       {/* تلميح ملء الشاشة */}
       <span className="pointer-events-none absolute top-3 end-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition group-hover:bg-black/75">
         <Maximize2 size={14} /> ملء الشاشة
@@ -98,18 +118,34 @@ export default function MagazineFlipbook({
       </button>
 
       <div className="flex-1 min-h-0">
-        <CarouselImages
-          products={products}
-          fullscreen
-          onIndexChange={setActiveIndex}
-          interactive
-        />
+        <CarouselImages slides={slides} fullscreen onIndexChange={setActiveIndex} interactive />
       </div>
+
+      {/* لوجو متجر المنتج الحالي — أسفل اليسار، ينقل لصفحة المتجر */}
+      {activeStore?.slug && (
+        <Link
+          href={`/stores/${activeStore.slug}`}
+          onClick={() => setFullscreen(false)}
+          aria-label={`متجر ${activeStore.name ?? ''}`}
+          className="group absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] start-3 z-[110] inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 py-1.5 pe-3 ps-1.5 text-white backdrop-blur transition hover:bg-white/20"
+        >
+          <span className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15">
+            {activeStore.logo_url ? (
+              <Image src={activeStore.logo_url} alt={activeStore.name ?? ''} fill sizes="36px" className="object-cover" />
+            ) : (
+              <StoreIcon size={16} className="text-luxor-goldlight" />
+            )}
+          </span>
+          {activeStore.name && (
+            <span className="max-w-[40vw] truncate text-xs font-bold">{activeStore.name}</span>
+          )}
+        </Link>
+      )}
 
       {/* الترقيم الكسري */}
       {total > 1 && (
         <div
-          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] start-1/2 z-[110] -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
+          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] end-3 z-[110] rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
           dir="ltr"
         >
           {activeIndex + 1} / {total}
@@ -128,24 +164,26 @@ export default function MagazineFlipbook({
 
 /* ───────────────────────── Swiper carousel (الصور فقط) ───────────────────────── */
 function CarouselImages({
-  products,
+  slides,
   fullscreen = false,
   interactive,
   onIndexChange,
 }: {
-  products: ProductWithStore[];
+  slides: Slide[];
   fullscreen?: boolean;
   /** في ملء الشاشة: الضغط على الصورة يفتح صفحة المنتج. */
   interactive: boolean;
   onIndexChange?: (i: number) => void;
 }) {
-  const total = products.length;
+  const total = slides.length;
 
   return (
     <div className={`lsm-cat relative ${fullscreen ? 'h-full' : ''}`}>
       <Swiper
         modules={[Navigation, Pagination, Keyboard, A11y, EffectCreative, Autoplay]}
-        dir="rtl"
+        // اتجاه ثابت (LTR) لا يتأثّر بلغة الصفحة، فيظلّ السحب طبيعياً وصحيحاً:
+        // سحب لليسار = التالي، سحب لليمين = السابق.
+        dir="ltr"
         slidesPerView={1}
         spaceBetween={0}
         speed={750}
@@ -181,8 +219,7 @@ function CarouselImages({
         onSlideChange={(sw) => onIndexChange?.(sw.realIndex)}
         className={`lsm-cat-swiper ${fullscreen ? 'h-full' : ''}`}
       >
-        {products.map((product, i) => {
-          const img = product.images?.[0];
+        {slides.map(({ key, img, product }, i) => {
           const inner = img ? (
             <Image
               src={img}
@@ -200,20 +237,14 @@ function CarouselImages({
           );
 
           return (
-            <SwiperSlide key={product.id}>
+            <SwiperSlide key={key}>
               <div
                 className={`relative w-full ${
-                  fullscreen
-                    ? 'h-[100svh] sm:h-full'
-                    : 'aspect-square sm:aspect-[4/3]'
+                  fullscreen ? 'h-[100svh] sm:h-full' : 'aspect-square sm:aspect-[4/3]'
                 }`}
               >
                 {interactive && img ? (
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="absolute inset-0 block"
-                    aria-label={product.title}
-                  >
+                  <Link href={`/products/${product.id}`} className="absolute inset-0 block" aria-label={product.title}>
                     {inner}
                   </Link>
                 ) : (
@@ -225,24 +256,24 @@ function CarouselImages({
         })}
       </Swiper>
 
-      {/* أسهم التنقّل — مخفية على الشاشات الصغيرة جداً، السحب يكفي على الهاتف */}
+      {/* أسهم التنقّل — ثابتة الاتجاه: السابق على اليسار، التالي على اليمين */}
       {total > 1 && (
         <>
           <button
             type="button"
             aria-label="السابق"
             onClick={(e) => e.stopPropagation()}
-            className="lsm-cat-prev absolute end-2 md:end-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/70 sm:inline-flex"
+            className="lsm-cat-prev absolute start-2 md:start-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/70 sm:inline-flex"
           >
-            <ChevronRight size={24} />
+            <ChevronLeft size={24} />
           </button>
           <button
             type="button"
             aria-label="التالي"
             onClick={(e) => e.stopPropagation()}
-            className="lsm-cat-next absolute start-2 md:start-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/70 sm:inline-flex"
+            className="lsm-cat-next absolute end-2 md:end-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/70 sm:inline-flex"
           >
-            <ChevronLeft size={24} />
+            <ChevronRight size={24} />
           </button>
         </>
       )}
