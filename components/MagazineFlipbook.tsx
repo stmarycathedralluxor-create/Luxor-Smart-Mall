@@ -347,7 +347,7 @@ function CarouselImages({
             <SwiperSlide key={key}>
               <div
                 className={`relative w-full ${
-                  fullscreen ? 'h-[100svh] sm:h-full' : 'aspect-square sm:aspect-[4/3]'
+                  fullscreen ? 'h-full' : 'aspect-square sm:aspect-[4/3]'
                 }`}
               >
                 {interactive && img ? (

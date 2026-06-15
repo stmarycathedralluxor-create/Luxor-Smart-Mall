@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { Shield, Users, Store, Package, ArrowLeft, CheckCircle2, BellRing, HardDrive, BookOpen } from 'lucide-react';
+import { Shield, Users, Store, Package, ArrowLeft, CheckCircle2, BellRing, HardDrive, BookOpen, LayoutGrid } from 'lucide-react';
 
 // Dashboards must always show live data — never cache
 export const dynamic = 'force-dynamic';
@@ -44,6 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminLink href="/admin" icon={Shield} label="نظرة عامة" />
           <AdminLink href="/admin/approvals" icon={CheckCircle2} label="الموافقات" />
           <AdminLink href="/admin/catalogs" icon={BookOpen} label="الكتالوجات" />
+          <AdminLink href="/admin/categories" icon={LayoutGrid} label="الأقسام" />
           <AdminLink href="/admin/users" icon={Users} label="المستخدمون" />
           <AdminLink href="/admin/stores" icon={Store} label="المتاجر" />
           <AdminLink href="/admin/expiry" icon={BellRing} label="تذكيرات التفعيل" />

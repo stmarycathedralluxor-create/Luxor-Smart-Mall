@@ -40,6 +40,10 @@ export type Category = {
   name_ar: string;
   name_en: string;
   icon: string | null;
+  /** رابط صورة القسم (تُخزَّن الصورة الأصلية مرة واحدة) */
+  image_url?: string | null;
+  /** بيانات قص صورة القسم — نفس نظام بقية الصور (CSS فقط) */
+  image_meta?: ImageCrop | null;
 };
 
 /** براند مسجَّل على متجر — يظهر كاختيار جاهز عند إضافة منتج جديد */

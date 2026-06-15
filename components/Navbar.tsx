@@ -3,14 +3,16 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { Menu, X, Store, LogIn, UserPlus, LogOut, LayoutDashboard, Search } from 'lucide-react';
+import { Menu, X, LogIn, UserPlus, LogOut, LayoutDashboard, Search } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import NavbarSearch from './NavbarSearch';
 
 export default function Navbar() {
   const { locale, setLocale, t } = useLocale();
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const supabase = createClient();
@@ -56,22 +58,23 @@ export default function Navbar() {
             <Link href="/" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
               {t.nav.home}
             </Link>
+            <Link href="/categories" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
+              {t.nav.categories}
+            </Link>
             <Link href="/stores" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
               {t.nav.stores}
             </Link>
-            <Link href="/categories" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
-              {t.nav.categories}
+            <Link href="/search" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
+              {locale === 'ar' ? 'المنتجات' : 'Products'}
             </Link>
             <Link href="/catalog" className="px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium transition">
               {t.nav.catalog}
             </Link>
-            <Link
-              href="/search"
-              className="ms-1 inline-flex items-center gap-1.5 rounded-full border border-luxor-gold/50 bg-luxor-gold/10 px-3.5 py-2 text-sm font-bold text-luxor-darkgold hover:bg-luxor-gold/20 transition"
-            >
-              <Search size={18} />
-              {locale === 'ar' ? 'المنتجات' : 'Products'}
-            </Link>
+          </div>
+
+          {/* Desktop live search (center) */}
+          <div className="hidden lg:flex flex-1 justify-center px-4">
+            <NavbarSearch variant="desktop" />
           </div>
 
           {/* Auth + Lang */}
@@ -106,18 +109,28 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile: search button (always visible) + menu toggle */}
+          {/* Mobile: search toggle (always visible) + menu toggle */}
           <div className="md:hidden flex items-center gap-1.5">
-            <Link
-              href="/search"
-              onClick={() => setOpen(false)}
-              aria-label={locale === 'ar' ? 'المنتجات' : 'Products'}
-              className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-luxor-gold/50 bg-luxor-gold/10 text-luxor-darkgold hover:bg-luxor-gold/20 transition"
-            >
-              <Search size={20} />
-            </Link>
             <button
-              onClick={() => setOpen(!open)}
+              onClick={() => {
+                setSearchOpen((s) => !s);
+                setOpen(false);
+              }}
+              aria-label={locale === 'ar' ? 'بحث' : 'Search'}
+              aria-expanded={searchOpen}
+              className={`inline-flex items-center justify-center h-10 w-10 rounded-full border transition ${
+                searchOpen
+                  ? 'border-luxor-gold bg-luxor-gold/20 text-luxor-darkgold'
+                  : 'border-luxor-gold/50 bg-luxor-gold/10 text-luxor-darkgold hover:bg-luxor-gold/20'
+              }`}
+            >
+              {searchOpen ? <X size={20} /> : <Search size={20} />}
+            </button>
+            <button
+              onClick={() => {
+                setOpen(!open);
+                setSearchOpen(false);
+              }}
               className="p-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian transition"
               aria-label="menu"
             >
@@ -126,14 +139,21 @@ export default function Navbar() {
           </div>
         </div>
 
+        {/* Mobile live search bar */}
+        {searchOpen && (
+          <div className="md:hidden pb-3 animate-fade-in">
+            <NavbarSearch variant="mobile" onNavigate={() => setSearchOpen(false)} />
+          </div>
+        )}
+
         {/* Mobile menu */}
         {open && (
           <div className="md:hidden py-3 border-t border-luxor-gold/30 space-y-1 animate-fade-in">
             <Link href="/" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.home}</Link>
-            <Link href="/stores" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.stores}</Link>
             <Link href="/categories" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.categories}</Link>
-            <Link href="/catalog" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.catalog}</Link>
+            <Link href="/stores" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.stores}</Link>
             <Link href="/search" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{locale === 'ar' ? 'المنتجات' : 'Products'}</Link>
+            <Link href="/catalog" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.catalog}</Link>
             <div className="border-t border-luxor-gold/30 my-2" />
             {user ? (
               <>

@@ -6,6 +6,19 @@ A bilingual (Arabic/English), RTL-ready Progressive Web App built with **Next.js
 
 ---
 
+## 🆕 Recently Added (v16) — Category Images & Admin Management, Live Search, Nav Reorder
+
+1. **Live header search (like real e-commerce sites)** — the navbar now has a **live search box** (desktop center + a mobile toggle). Typing shows an **instant dropdown of matching products**; clicking a result opens the product, and pressing **Enter / "view all"** navigates to the Products page (`/search?q=...`). It no longer jumps to the Products page just for typing. (`components/NavbarSearch.tsx`, `app/api/search/route.ts`)
+2. **Redesigned Categories page** — a professional, image-driven grid (`/categories`): each category shows its **own image** (with the emoji as a graceful fallback), a product count, and a polished editorial card. The category detail page shows a hero banner when an image is set.
+3. **Admin category management** — admins can **add / edit / delete categories** and give each a **nice image** at **`/admin/categories`**, using the **same image editor** (crop/zoom/reposition, store-once + CSS crop meta) used everywhere else on the site.
+4. **Cleaner navigation** — main nav reordered to **الرئيسية ← الأقسام ← المتاجر ← المنتجات ← الكتالوج** (Home → Categories → Stores → Products → Catalog), consistent across the desktop navbar and the mobile bottom bar.
+5. **Removed page-swipe & slide animations** — since pages still load on navigation, the swipe-between-pages gesture and the slide-in page animation were removed for a snappier, more predictable experience.
+6. **Catalog fullscreen fix** — the image now fills the viewer correctly so the **page counter and store logo align with the image** (no more counter/image landing in different spots).
+
+> 📌 **To activate v16: run `supabase/migrations/0015_category_images.sql` once in the Supabase SQL Editor.** It's idempotent — it adds `image_url` + `image_meta` to `categories` and admin-only write policies (public read stays unchanged). Until you run it, existing categories keep showing their emoji icons.
+
+---
+
 ## 🆕 Recently Added (v11) — Magazine Catalogs, Phone Fix, Bulk Deposit & Share Images
 
 1. **`+2` phone prefix (preserves the leading `0`)** — the phone inputs show a **locked `+2` prefix** and the seller types their number **starting from `0`** (e.g. `01012345678`). The stored value is `+2` + the number = `+201012345678` (the correct Egyptian international form, valid for `wa.me`). Old stored numbers no longer lose their leading `0`. (`components/PhoneInput.tsx`)

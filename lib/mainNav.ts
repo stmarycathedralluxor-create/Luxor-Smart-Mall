@@ -1,15 +1,15 @@
 import { Home, Store, LayoutGrid, BookOpen, ShoppingBag } from 'lucide-react';
 
 /**
- * الصفحات الرئيسية الخمس — تظهر في شريط التنقّل السفلي وتُتيح التنقّل
- * بالسحب يميناً/يساراً بينها بالترتيب نفسه.
+ * الصفحات الرئيسية الخمس — تظهر في شريط التنقّل السفلي.
+ * الترتيب: الرئيسية ← الأقسام ← المتاجر ← المنتجات ← الكتالوج.
  */
 export const MAIN_NAV = [
   { href: '/', icon: Home, ar: 'الرئيسية', en: 'Home' },
-  { href: '/stores', icon: Store, ar: 'المتاجر', en: 'Stores' },
   { href: '/categories', icon: LayoutGrid, ar: 'الأقسام', en: 'Categories' },
-  { href: '/catalog', icon: BookOpen, ar: 'الكتالوج', en: 'Catalog' },
+  { href: '/stores', icon: Store, ar: 'المتاجر', en: 'Stores' },
   { href: '/search', icon: ShoppingBag, ar: 'المنتجات', en: 'Products' },
+  { href: '/catalog', icon: BookOpen, ar: 'الكتالوج', en: 'Catalog' },
 ] as const;
 
 export type MainNavItem = (typeof MAIN_NAV)[number];
