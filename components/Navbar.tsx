@@ -70,7 +70,7 @@ export default function Navbar() {
               className="ms-1 inline-flex items-center gap-1.5 rounded-full border border-luxor-gold/50 bg-luxor-gold/10 px-3.5 py-2 text-sm font-bold text-luxor-darkgold hover:bg-luxor-gold/20 transition"
             >
               <Search size={18} />
-              {locale === 'ar' ? 'بحث' : 'Search'}
+              {locale === 'ar' ? 'المنتجات' : 'Products'}
             </Link>
           </div>
 
@@ -111,7 +111,7 @@ export default function Navbar() {
             <Link
               href="/search"
               onClick={() => setOpen(false)}
-              aria-label={locale === 'ar' ? 'بحث' : 'Search'}
+              aria-label={locale === 'ar' ? 'المنتجات' : 'Products'}
               className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-luxor-gold/50 bg-luxor-gold/10 text-luxor-darkgold hover:bg-luxor-gold/20 transition"
             >
               <Search size={20} />
@@ -133,7 +133,7 @@ export default function Navbar() {
             <Link href="/stores" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.stores}</Link>
             <Link href="/categories" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.categories}</Link>
             <Link href="/catalog" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.nav.catalog}</Link>
-            <Link href="/search" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{t.common.search}</Link>
+            <Link href="/search" onClick={() => setOpen(false)} className="block px-4 py-2 rounded-lg hover:bg-luxor-gold/10 text-luxor-obsidian font-medium">{locale === 'ar' ? 'المنتجات' : 'Products'}</Link>
             <div className="border-t border-luxor-gold/30 my-2" />
             {user ? (
               <>
