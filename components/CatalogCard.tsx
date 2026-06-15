@@ -10,12 +10,11 @@ import {
 } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import {
-  Navigation, Pagination, Keyboard, A11y, EffectCreative, Autoplay,
+  Navigation, Pagination, Keyboard, A11y, Autoplay,
 } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-import 'swiper/css/effect-creative';
 
 import { buildCatalogSlides } from '@/components/MagazineFlipbook';
 import ShareButton from '@/components/ShareButton';
@@ -92,21 +91,18 @@ export default function CatalogCard({
       <div className="flex-1 min-h-0">
         <div className="lsm-cat relative h-full">
           <Swiper
-            modules={[Navigation, Pagination, Keyboard, A11y, EffectCreative, Autoplay]}
+            modules={[Navigation, Pagination, Keyboard, A11y]}
             dir="ltr"
+            // قطار كاروسيل: انزلاق أفقي بسيط كالقطار.
+            effect="slide"
             slidesPerView={1}
             spaceBetween={0}
-            speed={750}
+            speed={650}
             grabCursor
             initialSlide={fsStartIndex}
             loop={total > 1}
-            effect="creative"
-            creativeEffect={{
-              limitProgress: 2,
-              prev: { shadow: true, translate: ['-18%', 0, -220], rotate: [0, 0, -4], scale: 0.86, opacity: 0.45 },
-              next: { shadow: true, translate: ['100%', 0, 0], scale: 1, opacity: 1 },
-            }}
-            autoplay={total > 1 ? { delay: 4500, disableOnInteraction: true, pauseOnMouseEnter: true } : false}
+            // ملء الشاشة بلا تشغيل تلقائي — التنقّل يدوي فقط.
+            autoplay={false}
             keyboard={{ enabled: true }}
             navigation={total > 1 ? { nextEl: '.lsm-fs-next', prevEl: '.lsm-fs-prev' } : false}
             onSlideChange={(sw) => setActiveIndex(sw.realIndex)}
@@ -211,20 +207,16 @@ export default function CatalogCard({
         <div className="relative aspect-[4/5] overflow-hidden bg-luxor-obsidian">
           <div className="lsm-cat lsm-cat-card absolute inset-0">
             <Swiper
-              modules={[Pagination, A11y, EffectCreative, Autoplay]}
+              modules={[Pagination, A11y, Autoplay]}
               dir="ltr"
+              // قطار كاروسيل يتحرّك لوحده: انزلاق أفقي بسيط كالقطار.
+              effect="slide"
               slidesPerView={1}
               spaceBetween={0}
-              speed={750}
+              speed={650}
               loop={total > 1}
               allowTouchMove={false}
-              effect="creative"
-              creativeEffect={{
-                limitProgress: 2,
-                prev: { shadow: true, translate: ['-18%', 0, -220], rotate: [0, 0, -4], scale: 0.86, opacity: 0.45 },
-                next: { shadow: true, translate: ['100%', 0, 0], scale: 1, opacity: 1 },
-              }}
-              autoplay={total > 1 ? { delay: 3000, disableOnInteraction: false } : false}
+              autoplay={total > 1 ? { delay: 2600, disableOnInteraction: false } : false}
               onSlideChange={(sw) => setActiveIndex(sw.realIndex)}
               className="lsm-cat-swiper h-full"
             >
@@ -285,7 +277,7 @@ export default function CatalogCard({
         </button>
         <ShareButton
           variant="icon"
-          path={`/catalog/${slug}`}
+          path={`/catalog/${slug}#full`}
           title={title}
           text={`تصفّح كتالوج «${title}» على الأقصر سمارت مول`}
           label="مشاركة الكتالوج"

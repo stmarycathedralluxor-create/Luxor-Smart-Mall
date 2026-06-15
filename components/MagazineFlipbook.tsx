@@ -10,12 +10,11 @@ import { X, ChevronLeft, ChevronRight, Maximize2, Store as StoreIcon } from 'luc
 // بانتقال راقٍ ومركّب (Creative: عمق + تحجيم + دوران + تلاشٍ + ظلال).
 import { Swiper, SwiperSlide } from 'swiper/react';
 import {
-  Navigation, Pagination, Keyboard, A11y, EffectCreative, Autoplay,
+  Navigation, Pagination, Keyboard, A11y, Autoplay,
 } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-import 'swiper/css/effect-creative';
 
 import type { ProductWithStore, Store } from '@/lib/types';
 
@@ -231,9 +230,8 @@ function CarouselImages({
   const swiperRef = useRef<SwiperClass | null>(null);
 
   // إصلاح ملء الشاشة: عند فتح العارض داخل Portal فإن Swiper قد يُهيَّأ قبل أن
-  // يأخذ الحاوية أبعادها الفعلية، فتصبح ترجمة تأثير "creative" (‎100%‎) = 0px
-  // فتتغيّر الشريحة (والعدّاد) دون أن تتحرّك الصورة فعلياً. الحلّ: إعادة قياس
-  // وتحديث Swiper بعد أن يكتمل تخطيط الحاوية، ثم إعادة تشغيل التشغيل التلقائي.
+  // يأخذ الحاوية أبعادها الفعلية، فتتغيّر الشريحة (والعدّاد) دون أن تتحرّك
+  // الصورة فعلياً. الحلّ: إعادة قياس وتحديث Swiper بعد اكتمال تخطيط الحاوية.
   useEffect(() => {
     if (!fullscreen) return;
     const sw = swiperRef.current;
@@ -247,10 +245,7 @@ function CarouselImages({
       sw.updateSlides();
       // أعد ضبط الموضع على الشريحة الحالية بأبعاد صحيحة (بدون أنميشن).
       sw.slideToLoop(sw.realIndex, 0, false);
-      if (sw.autoplay) {
-        sw.autoplay.stop();
-        sw.autoplay.start();
-      }
+      // ملء الشاشة بلا تشغيل تلقائي — التنقّل يدوي فقط (سحب/أسهم/لوحة مفاتيح).
     };
     // مرّتان عبر rAF لضمان اكتمال تخطيط الـ Portal قبل القياس.
     raf1 = requestAnimationFrame(() => {
@@ -273,13 +268,18 @@ function CarouselImages({
         onSwiper={(sw) => {
           swiperRef.current = sw;
         }}
-        modules={[Navigation, Pagination, Keyboard, A11y, EffectCreative, Autoplay]}
+        modules={[Navigation, Pagination, Keyboard, A11y, Autoplay]}
         // اتجاه ثابت (LTR) لا يتأثّر بلغة الصفحة، فيظلّ السحب طبيعياً وصحيحاً:
         // سحب لليسار = التالي، سحب لليمين = السابق.
         dir="ltr"
+        // ── قطار كاروسيل ──
+        // انتقال انزلاقي بسيط كالقطار: الشرائح تمرّ أفقياً بسلاسة. في المعاينة
+        // نُظهِر أطراف الشرائح المجاورة قليلاً ليبدو كشريط/قطار متحرّك، أمّا في
+        // ملء الشاشة فشريحة واحدة كاملة لكلّ صورة.
+        effect="slide"
         slidesPerView={1}
-        spaceBetween={0}
-        speed={750}
+        spaceBetween={fullscreen ? 0 : 12}
+        speed={650}
         grabCursor
         initialSlide={initialIndex}
         loop={total > 1}
@@ -290,33 +290,14 @@ function CarouselImages({
         observeSlideChildren
         updateOnWindowResize
         watchOverflow={false}
-        // انتقال مركّب وأنيق: الشريحة الخارجة تتراجع للعمق وتصغر وتدور قليلاً
-        // وتتلاشى، بينما الداخلة تنزلق من الجانب مع ظلّ ناعم — دون تمطيط الصورة.
-        effect="creative"
-        creativeEffect={{
-          limitProgress: 2,
-          prev: {
-            shadow: true,
-            translate: ['-18%', 0, -220],
-            rotate: [0, 0, -4],
-            scale: 0.86,
-            opacity: 0.45,
-          },
-          next: {
-            shadow: true,
-            translate: ['100%', 0, 0],
-            scale: 1,
-            opacity: 1,
-          },
-        }}
+        // التشغيل التلقائي للمعاينة فقط (قطار يتحرّك لوحده). ملء الشاشة بلا
+        // تشغيل تلقائي إطلاقاً — التنقّل يدوي فقط (سحب/أسهم/لوحة مفاتيح).
         autoplay={
-          (fullscreen || autoPlay) && total > 1
+          autoPlay && !fullscreen && total > 1
             ? {
-                delay: autoPlay && !fullscreen ? 3000 : 4500,
-                // لا نوقف التشغيل التلقائي نهائياً بعد أول لمسة في ملء الشاشة —
-                // نتركه يُستأنف حتى تستمرّ الصور في التحرّك تلقائياً.
+                delay: 2600,
                 disableOnInteraction: false,
-                pauseOnMouseEnter: fullscreen,
+                pauseOnMouseEnter: true,
               }
             : false
         }
