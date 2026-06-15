@@ -141,7 +141,7 @@ export default async function CatalogPage({ params }: { params: { slug: string }
               </Link>
             )}
             <ShareButton
-              path={`/catalog/${catalog.slug}?view=full`}
+              path={`/catalog/${catalog.slug}#full`}
               title={catalog.title}
               text={`تصفّح كتالوج «${catalog.title}» على الأقصر سمارت مول`}
               label="مشاركة الكتالوج"
