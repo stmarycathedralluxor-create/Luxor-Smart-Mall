@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, ShoppingBag, Store, Sparkles, Globe, Eye } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Store, Sparkles, Globe, Eye, BookOpen } from 'lucide-react';
 import { useLocale } from './LocaleProvider';
-import ProductCard from './ProductCard';
-import StoreCard from './StoreCard';
+import CategoriesCarousel from './CategoriesCarousel';
+import StoresCarousel from './StoresCarousel';
+import ProductsCarousel from './ProductsCarousel';
+import CatalogsCarousel, { type HomeCatalogCard } from './CatalogsCarousel';
 import ShareButton from './ShareButton';
 import type { ProductWithStore, Store as StoreType, Category } from '@/lib/types';
 
@@ -19,11 +21,13 @@ export default function HomeContent({
   products,
   stores,
   categories,
+  catalogs = [],
   siteStats,
 }: {
   products: ProductWithStore[];
   stores: StoreType[];
   categories: Category[];
+  catalogs?: HomeCatalogCard[];
   siteStats?: SiteStats;
 }) {
   const { locale, t } = useLocale();
@@ -127,30 +131,19 @@ export default function HomeContent({
         </div>
       </section>
 
-      {/* CATEGORIES */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-luxor-navy">{t.home.categories}</h2>
-          <Link href="/categories" className="text-luxor-gold hover:text-luxor-darkgold font-medium flex items-center gap-1">
-            {t.common.all} <ArrowLeft size={16} className="rtl:rotate-180" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          {categories.map((cat) => (
-            <Link
-              key={cat.id}
-              href={`/categories/${cat.slug}`}
-              className="card p-6 text-center hover:border-luxor-gold hover:-translate-y-1"
-            >
-              <div className="text-4xl mb-3">{cat.icon}</div>
-              <h3 className="font-semibold text-luxor-navy text-sm">
-                {locale === 'ar' ? cat.name_ar : cat.name_en}
-              </h3>
+      {/* CATEGORIES — قطار أفقي بالصور المختارة */}
+      {categories.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-luxor-navy">{t.home.categories}</h2>
+            <Link href="/categories" className="text-luxor-gold hover:text-luxor-darkgold font-medium flex items-center gap-1">
+              {t.common.all} <ArrowLeft size={16} className="rtl:rotate-180" />
             </Link>
-          ))}
-        </div>
-      </section>
+          </div>
+
+          <CategoriesCarousel categories={categories} />
+        </section>
+      )}
 
       {/* FEATURED STORES */}
       {stores.length > 0 && (
@@ -162,26 +155,35 @@ export default function HomeContent({
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {stores.map((store) => (
-              <StoreCard key={store.id} store={store} />
-            ))}
-          </div>
+          <StoresCarousel stores={stores} />
         </section>
       )}
 
-      {/* LATEST PRODUCTS */}
+      {/* LATEST PRODUCTS — قطار أفقي */}
       {products.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl md:text-3xl font-bold text-luxor-navy">{t.home.latestProducts}</h2>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
+          <ProductsCarousel products={products} />
+        </section>
+      )}
+
+      {/* CATALOGS — قطار أفقي للكتالوجات التفاعلية */}
+      {catalogs.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-luxor-navy flex items-center gap-2">
+              <BookOpen size={26} className="text-luxor-gold" />
+              {t.home.catalogs}
+            </h2>
+            <Link href="/catalog" className="text-luxor-gold hover:text-luxor-darkgold font-medium flex items-center gap-1">
+              {t.common.all} <ArrowLeft size={16} className="rtl:rotate-180" />
+            </Link>
           </div>
+
+          <CatalogsCarousel catalogs={catalogs} />
         </section>
       )}
 

@@ -239,3 +239,26 @@ body {
   border-radius: 9999px;
   background: #D4AF37;
 }
+
+/* ─────────── Home carousels (قطار أفقي للأقسام/المتاجر/المنتجات/الكتالوجات) ─────────── */
+/* نسمح للظل بالظهور خارج حدود القطار، ونمنع القصّ الأفقي على الجوانب */
+.lsm-home-carousel .swiper {
+  overflow: visible;
+}
+.lsm-home-carousel {
+  overflow: hidden;
+  padding-inline: 2px;
+}
+/* شرائح بارتفاع متساوٍ حتى تبقى الكروت منسّقة جنب بعضها */
+.lsm-home-carousel .swiper-slide {
+  height: auto;
+  display: flex;
+}
+.lsm-home-carousel .swiper-slide > * {
+  width: 100%;
+}
+/* أزرار التنقل: حالة التعطيل عند بداية/نهاية القطار */
+.lsm-hc-btn.swiper-button-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
