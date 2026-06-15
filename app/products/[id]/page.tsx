@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Store as StoreIcon, Eye, Tag, Zap, CalendarClock, BadgeCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { isStoreOpen, deliveryDaysLabel, absoluteUrl } from '@/lib/utils';
+import { isStoreOpen, deliveryDaysLabel, absoluteUrl, buildProductShareCaption } from '@/lib/utils';
 import ProductGallery from '@/components/ProductGallery';
 import ProductVariants from '@/components/ProductVariants';
 import PriceReveal from '@/components/PriceReveal';
@@ -135,7 +135,20 @@ export default async function ProductPage({ params }: { params: { id: string } }
               variant="icon"
               path={`/products/${product.id}`}
               title={product.title}
-              text={`${product.title} على الأقصر سمارت مول`}
+              text={buildProductShareCaption({
+                title: product.title,
+                storeName: product.store?.name,
+                storeCity: product.store?.city,
+                categoryName: product.category?.name_ar ?? null,
+                brand: product.brand,
+                description: product.description,
+                isAvailable: product.is_available,
+                deliveryType: product.delivery_type,
+                deliveryDays: product.delivery_days,
+                sizes: product.sizes,
+                colors: product.colors,
+                fulfillmentOptions: product.fulfillment_options,
+              })}
               label="مشاركة المنتج"
             />
           </div>

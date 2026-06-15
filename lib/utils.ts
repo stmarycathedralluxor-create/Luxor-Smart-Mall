@@ -189,3 +189,84 @@ export function deliveryDaysLabel(days: number, locale: 'ar' | 'en' = 'ar'): str
   }
   return `Arrives within ${days} day${days > 1 ? 's' : ''}`;
 }
+
+/* ─────────── Product share caption ─────────── */
+
+/** اسم خيار الاستلام بالعربي مع أيقونة. */
+function fulfillmentLabel(opt: 'delivery' | 'store_pickup' | 'address_pickup'): string {
+  switch (opt) {
+    case 'delivery':
+      return '🚚 توصيل للمنزل';
+    case 'store_pickup':
+      return '🏬 استلام من المتجر';
+    case 'address_pickup':
+      return '📍 استلام من عنوان';
+    default:
+      return opt;
+  }
+}
+
+/**
+ * يبني كابشن مشاركة جميل للمنتج يحتوي كل التفاصيل ما عدا السعر،
+ * مع أيقونات (إيموجي) — وفي النهاية دعوة للتسجيل لمعرفة السعر.
+ *
+ * يُستخدم كنص المشاركة (Web Share / واتساب / تيليجرام …) بحيث يصل المستلم
+ * كل تفاصيل المنتج، ولا يظهر السعر إلا بعد دخول الموقع والتسجيل.
+ */
+export function buildProductShareCaption(p: {
+  title: string;
+  storeName?: string | null;
+  storeCity?: string | null;
+  categoryName?: string | null;
+  brand?: string | null;
+  description?: string | null;
+  isAvailable?: boolean;
+  deliveryType?: 'instant' | 'preorder' | null;
+  deliveryDays?: number | null;
+  sizes?: { name: string; available?: boolean }[] | null;
+  colors?: { name: string; available?: boolean }[] | null;
+  fulfillmentOptions?: ('delivery' | 'store_pickup' | 'address_pickup')[] | null;
+}): string {
+  const lines: string[] = [];
+
+  lines.push(`✨ ${p.title}`);
+
+  if (p.brand) lines.push(`🏷️ الماركة: ${p.brand}`);
+  if (p.storeName) {
+    lines.push(`🏪 المتجر: ${p.storeName}${p.storeCity ? ` — ${p.storeCity}` : ''}`);
+  }
+  if (p.categoryName) lines.push(`📂 القسم: ${p.categoryName}`);
+
+  // التوفّر / طريقة الحجز
+  if (p.deliveryType === 'preorder') {
+    lines.push(`⏳ ${p.deliveryDays ? deliveryDaysLabel(p.deliveryDays, 'ar') : 'حجز مسبق'}`);
+  } else {
+    lines.push('⚡ متاح فوراً وجاهز للتسليم');
+  }
+  if (p.isAvailable === false) lines.push('🚫 غير متاح حالياً');
+
+  // المقاسات المتاحة
+  const sizes = (p.sizes ?? []).filter((s) => s.available !== false).map((s) => s.name);
+  if (sizes.length) lines.push(`📏 المقاسات: ${sizes.join('، ')}`);
+
+  // الألوان المتاحة
+  const colors = (p.colors ?? []).filter((c) => c.available !== false).map((c) => c.name);
+  if (colors.length) lines.push(`🎨 الألوان: ${colors.join('، ')}`);
+
+  // خيارات الاستلام
+  const fulfil = (p.fulfillmentOptions ?? []).map(fulfillmentLabel);
+  if (fulfil.length) lines.push(`📦 الاستلام: ${fulfil.join(' • ')}`);
+
+  // وصف مختصر
+  if (p.description) {
+    const desc = p.description.replace(/\s+/g, ' ').trim().slice(0, 140);
+    if (desc) lines.push(`📝 ${desc}${p.description.length > 140 ? '…' : ''}`);
+  }
+
+  // دعوة لمعرفة السعر — بدون كشف السعر
+  lines.push('');
+  lines.push('💰 السعر مخفي 👀 — لمعرفة السعر ادخل وسجّل على الموقع 👇');
+  lines.push('🛒 الأقصر سمارت مول');
+
+  return lines.join('\n');
+}

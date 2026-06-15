@@ -48,7 +48,10 @@ export default function CatalogCard({
 
   const [mounted, setMounted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
+  // عدّاد الكارت المتحرّك تلقائياً (الـ autoplay) — منفصل تماماً عن عدّاد ملء الشاشة.
+  const [cardIndex, setCardIndex] = useState(0);
+  // عدّاد ملء الشاشة — يتحدّث فقط من سلايدر ملء الشاشة (تنقّل يدوي) ولا يعدّ لوحده.
+  const [fsIndex, setFsIndex] = useState(0);
   const [fsStartIndex, setFsStartIndex] = useState(0);
 
   useEffect(() => setMounted(true), []);
@@ -70,11 +73,14 @@ export default function CatalogCard({
   if (!total) return null;
 
   const openFullscreen = () => {
-    setFsStartIndex(activeIndex);
+    // نبدأ ملء الشاشة من نفس الصورة المعروضة حالياً في الكارت المتحرّك.
+    setFsStartIndex(cardIndex);
+    setFsIndex(cardIndex);
     setFullscreen(true);
   };
 
-  const activeStore = slides[activeIndex]?.product?.store ?? store ?? null;
+  // متجر/عدّاد ملء الشاشة يعتمد على fsIndex فقط — لا يتأثر بحركة الكارت التلقائية.
+  const activeStore = slides[fsIndex]?.product?.store ?? store ?? null;
 
   /* ─────────── وضع ملء الشاشة (Portal) ─────────── */
   const overlay = (
@@ -105,7 +111,7 @@ export default function CatalogCard({
             autoplay={false}
             keyboard={{ enabled: true }}
             navigation={total > 1 ? { nextEl: '.lsm-fs-next', prevEl: '.lsm-fs-prev' } : false}
-            onSlideChange={(sw) => setActiveIndex(sw.realIndex)}
+            onSlideChange={(sw) => setFsIndex(sw.realIndex)}
             className="lsm-cat-swiper h-full"
           >
             {slides.map(({ key, img, product }, i) => {
@@ -189,7 +195,7 @@ export default function CatalogCard({
           className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[110] rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
           dir="ltr"
         >
-          {activeIndex + 1} / {total}
+          {fsIndex + 1} / {total}
         </div>
       )}
     </div>
@@ -204,7 +210,7 @@ export default function CatalogCard({
         aria-label={`افتح كتالوج ${title} بملء الشاشة`}
         className="block w-full text-start"
       >
-        <div className="relative aspect-[4/5] overflow-hidden bg-luxor-obsidian">
+        <div className="relative m-2 mb-0 aspect-[4/5] overflow-hidden rounded-2xl bg-luxor-obsidian">
           <div className="lsm-cat lsm-cat-card absolute inset-0">
             <Swiper
               modules={[Pagination, A11y, Autoplay]}
@@ -216,8 +222,9 @@ export default function CatalogCard({
               speed={650}
               loop={total > 1}
               allowTouchMove={false}
-              autoplay={total > 1 ? { delay: 2600, disableOnInteraction: false } : false}
-              onSlideChange={(sw) => setActiveIndex(sw.realIndex)}
+              // يتوقف الكارت عن الحركة التلقائية أثناء فتح ملء الشاشة حتى لا يعدّ في الخلفية.
+              autoplay={total > 1 && !fullscreen ? { delay: 2600, disableOnInteraction: false } : false}
+              onSlideChange={(sw) => setCardIndex(sw.realIndex)}
               className="lsm-cat-swiper h-full"
             >
               {slides.map(({ key, img, product }, i) => (
