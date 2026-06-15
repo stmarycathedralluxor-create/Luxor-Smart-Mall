@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import CroppedImage from '@/components/CroppedImage';
 import ShareButton from '@/components/ShareButton';
+import ProductCard from '@/components/ProductCard';
 import { discountPercent, deliveryDaysLabel } from '@/lib/utils';
 import type { Category, ProductWithStore } from '@/lib/types';
 
@@ -45,13 +46,17 @@ export default function BrowseAllView({
   stores,
   brands,
   initialFilters,
+  /** 'catalog' = عرض مجلة (افتراضي). 'products' = شبكة منتجات نظيفة لصفحة المنتجات. */
+  variant = 'catalog',
 }: {
   products: ProductWithStore[];
   categories: Category[];
   stores: StoreLite[];
   brands: string[];
   initialFilters: Filters;
+  variant?: 'catalog' | 'products';
 }) {
+  const isProducts = variant === 'products';
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -120,14 +125,20 @@ export default function BrowseAllView({
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
             <div>
               <div className="inline-flex items-center gap-2 bg-luxor-gold/15 border border-luxor-gold/30 text-luxor-goldlight px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4">
-                <BookOpen size={13} />
-                كتالوج الأقصر سمارت مول
+                {isProducts ? <Layers size={13} /> : <BookOpen size={13} />}
+                {isProducts ? 'كل منتجات الأقصر سمارت مول' : 'كتالوج الأقصر سمارت مول'}
               </div>
               <h1 className="text-4xl md:text-6xl font-black text-white leading-tight">
-                تصفّح <span className="text-gold-gradient">الكتالوج</span>
+                {isProducts ? (
+                  <>كل <span className="text-gold-gradient">المنتجات</span></>
+                ) : (
+                  <>تصفّح <span className="text-gold-gradient">الكتالوج</span></>
+                )}
               </h1>
               <p className="text-white/70 text-base md:text-lg max-w-2xl mt-3">
-                طريقة عرض عصرية كأنها مجلة — اكتشف المنتجات حسب القسم، البراند، أو نطاق السعر.
+                {isProducts
+                  ? 'تصفّح كل المنتجات المتاحة — ابحث وفلتر حسب القسم، البراند، المتجر أو نطاق السعر، ورتّب كما تشاء.'
+                  : 'طريقة عرض عصرية كأنها مجلة — اكتشف المنتجات حسب القسم، البراند، أو نطاق السعر.'}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -136,7 +147,7 @@ export default function BrowseAllView({
                 <div className="text-[11px] text-white/60 uppercase tracking-wider">منتج معروض</div>
               </div>
               <ShareButton
-                path="/catalog/browse"
+                path={isProducts ? '/search' : '/catalog/browse'}
                 title="كل منتجات الأقصر سمارت مول"
                 text="تصفّح كل منتجات الأقصر سمارت مول"
                 label="مشاركة الصفحة"
@@ -315,6 +326,12 @@ export default function BrowseAllView({
                 <X size={16} /> مسح الفلاتر
               </button>
             )}
+          </div>
+        ) : isProducts ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {filtered.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
           </div>
         ) : (
           <MagazineGrid products={filtered} />

@@ -12,8 +12,11 @@ import { MAIN_NAV, mainNavIndex } from '@/lib/mainNav';
  *
  *  • يظهر على الجوال فقط (md:hidden).
  *  • يُبرز الصفحة الحالية.
- *  • السحب الأفقي على الصفحة ينقل للصفحة المجاورة بنفس ترتيب الشريط.
- *    (في الاتجاه RTL: السحب لليسار = الصفحة التالية، لليمين = السابقة).
+ *  • اتجاه السحب ثابت ولا يتأثّر باللغة (RTL/LTR):
+ *      - السحب لليسار  = الصفحة التالية.
+ *      - السحب لليمين  = الصفحة السابقة.
+ *  • انتقال الصفحات يصاحبه أنميشن انزلاقي أنيق (يدخل المحتوى الجديد من
+ *    الجهة المناسبة لاتجاه السحب).
  */
 export default function BottomNav() {
   const { locale } = useLocale();
@@ -25,8 +28,10 @@ export default function BottomNav() {
   // نُبقي أحدث قيمة للفهرس داخل ref حتى يستخدمها مستمع اللمس دون إعادة تسجيله.
   const indexRef = useRef(activeIndex);
   indexRef.current = activeIndex;
-  const localeRef = useRef(ar);
-  localeRef.current = ar;
+
+  // اتجاه آخر انتقال (1 = للأمام/التالي، -1 = للخلف/السابق) لتشغيل الأنميشن
+  // المناسب على المحتوى بعد تغيّر المسار.
+  const pendingDirRef = useRef<1 | -1 | 0>(0);
 
   // التنقّل بالسحب الأفقي بين الصفحات الرئيسية فقط.
   useEffect(() => {
@@ -61,11 +66,15 @@ export default function BottomNav() {
       // سحب أفقي واضح فقط (ليس تمريراً رأسياً)
       if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) return;
 
-      // في RTL: السحب لليسار (dx<0) يعني "التالي"؛ في LTR العكس.
-      const rtl = localeRef.current;
-      const movingForward = rtl ? dx < 0 : dx > 0;
+      // اتجاه ثابت لا يتأثّر باللغة:
+      //   • السحب لليسار (dx < 0) = "التالي".
+      //   • السحب لليمين (dx > 0) = "السابق".
+      const movingForward = dx < 0;
       const nextIndex = movingForward ? idx + 1 : idx - 1;
       if (nextIndex < 0 || nextIndex >= MAIN_NAV.length) return;
+
+      // سجّل اتجاه الانتقال لتشغيل الأنميشن بعد تغيّر المسار.
+      pendingDirRef.current = movingForward ? 1 : -1;
       router.push(MAIN_NAV[nextIndex].href);
     };
 
@@ -76,6 +85,28 @@ export default function BottomNav() {
       document.removeEventListener('touchend', onEnd);
     };
   }, [router]);
+
+  // بعد تغيّر المسار: شغّل أنميشن الانزلاق على المحتوى الرئيسي بالاتجاه الصحيح
+  // (يدخل المحتوى الجديد من اليمين عند "التالي"، ومن اليسار عند "السابق").
+  useEffect(() => {
+    const dir = pendingDirRef.current;
+    if (!dir) return;
+    pendingDirRef.current = 0;
+    const main = document.querySelector('main');
+    if (!main) return;
+    const enterClass = dir === 1 ? 'animate-page-from-right' : 'animate-page-from-left';
+    main.classList.remove('animate-page-from-right', 'animate-page-from-left');
+    // إعادة التدفّق لإعادة تشغيل الأنميشن عند الانتقال السريع المتتالي.
+    void (main as HTMLElement).offsetWidth;
+    main.classList.add(enterClass);
+    const clear = () => main.classList.remove(enterClass);
+    main.addEventListener('animationend', clear, { once: true });
+    const fallback = window.setTimeout(clear, 600);
+    return () => {
+      window.clearTimeout(fallback);
+      main.removeEventListener('animationend', clear);
+    };
+  }, [pathname]);
 
   // لا نعرض الشريط خارج الصفحات الرئيسية (مثل صفحات التفاصيل/اللوحة).
   if (activeIndex < 0) return null;
@@ -93,6 +124,11 @@ export default function BottomNav() {
             <li key={item.href}>
               <Link
                 href={item.href}
+                onClick={() => {
+                  // التنقّل بالضغط أيضاً يشغّل الأنميشن المناسب للاتجاه.
+                  if (i === activeIndex) return;
+                  pendingDirRef.current = i > activeIndex ? 1 : -1;
+                }}
                 aria-current={active ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold transition ${
                   active ? 'text-luxor-darkgold' : 'text-luxor-navy/55 hover:text-luxor-navy'

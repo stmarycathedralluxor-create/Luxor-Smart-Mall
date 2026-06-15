@@ -162,6 +162,27 @@ body {
 .animate-slide-in-fwd { animation: slideInFwd 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-slide-in-back { animation: slideInBack 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+/* ─────────── Main-page swipe transition (BottomNav) ───────────
+   انتقال أنيق عند التنقّل بين الصفحات الرئيسية بالسحب.
+   اتجاه ثابت لا يتأثّر باللغة:
+   • السحب لليسار = الصفحة التالية → المحتوى الجديد يدخل من اليمين.
+   • السحب لليمين = الصفحة السابقة → المحتوى الجديد يدخل من اليسار.
+   نستخدم الإحداثيات الفيزيائية (left/right) لا المنطقية حتى لا تنعكس مع RTL. */
+@keyframes pageSwipeFromRight {
+  0%   { opacity: 0; transform: translate3d(8%, 0, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes pageSwipeFromLeft {
+  0%   { opacity: 0; transform: translate3d(-8%, 0, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.animate-page-from-right { animation: pageSwipeFromRight 0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-page-from-left  { animation: pageSwipeFromLeft  0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-from-right,
+  .animate-page-from-left { animation: none; }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #1A1A1A; }

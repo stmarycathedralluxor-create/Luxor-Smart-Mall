@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import type { Swiper as SwiperClass } from 'swiper';
 import Link from 'next/link';
 import Image from 'next/image';
 import { X, ChevronLeft, ChevronRight, Maximize2, Store as StoreIcon } from 'lucide-react';
@@ -227,10 +228,51 @@ function CarouselImages({
   autoPlay?: boolean;
 }) {
   const total = slides.length;
+  const swiperRef = useRef<SwiperClass | null>(null);
+
+  // إصلاح ملء الشاشة: عند فتح العارض داخل Portal فإن Swiper قد يُهيَّأ قبل أن
+  // يأخذ الحاوية أبعادها الفعلية، فتصبح ترجمة تأثير "creative" (‎100%‎) = 0px
+  // فتتغيّر الشريحة (والعدّاد) دون أن تتحرّك الصورة فعلياً. الحلّ: إعادة قياس
+  // وتحديث Swiper بعد أن يكتمل تخطيط الحاوية، ثم إعادة تشغيل التشغيل التلقائي.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const sw = swiperRef.current;
+    if (!sw) return;
+    let raf1 = 0;
+    let raf2 = 0;
+    const recalc = () => {
+      if (sw.destroyed) return;
+      sw.update();
+      sw.updateSize();
+      sw.updateSlides();
+      // أعد ضبط الموضع على الشريحة الحالية بأبعاد صحيحة (بدون أنميشن).
+      sw.slideToLoop(sw.realIndex, 0, false);
+      if (sw.autoplay) {
+        sw.autoplay.stop();
+        sw.autoplay.start();
+      }
+    };
+    // مرّتان عبر rAF لضمان اكتمال تخطيط الـ Portal قبل القياس.
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(recalc);
+    });
+    const onResize = () => recalc();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, [fullscreen]);
 
   return (
     <div className={`lsm-cat relative ${fullscreen ? 'h-full' : ''}`}>
       <Swiper
+        onSwiper={(sw) => {
+          swiperRef.current = sw;
+        }}
         modules={[Navigation, Pagination, Keyboard, A11y, EffectCreative, Autoplay]}
         // اتجاه ثابت (LTR) لا يتأثّر بلغة الصفحة، فيظلّ السحب طبيعياً وصحيحاً:
         // سحب لليسار = التالي، سحب لليمين = السابق.
@@ -241,6 +283,13 @@ function CarouselImages({
         grabCursor
         initialSlide={initialIndex}
         loop={total > 1}
+        // مراقبة تغيّر أبعاد الحاوية/أبويها (مهمّ داخل Portal ملء الشاشة) حتى
+        // يُعيد Swiper القياس تلقائياً عندما تأخذ الحاوية حجمها الفعلي.
+        observer
+        observeParents
+        observeSlideChildren
+        updateOnWindowResize
+        watchOverflow={false}
         // انتقال مركّب وأنيق: الشريحة الخارجة تتراجع للعمق وتصغر وتدور قليلاً
         // وتتلاشى، بينما الداخلة تنزلق من الجانب مع ظلّ ناعم — دون تمطيط الصورة.
         effect="creative"
@@ -264,7 +313,9 @@ function CarouselImages({
           (fullscreen || autoPlay) && total > 1
             ? {
                 delay: autoPlay && !fullscreen ? 3000 : 4500,
-                disableOnInteraction: fullscreen,
+                // لا نوقف التشغيل التلقائي نهائياً بعد أول لمسة في ملء الشاشة —
+                // نتركه يُستأنف حتى تستمرّ الصور في التحرّك تلقائياً.
+                disableOnInteraction: false,
                 pauseOnMouseEnter: fullscreen,
               }
             : false
