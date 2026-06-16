@@ -20,7 +20,10 @@ const PRESET_COLORS: { name: string; hex: string }[] = [
   { name: 'بني', hex: '#92400e' }, { name: 'رمادي', hex: '#6b7280' }, { name: 'بيج', hex: '#d6c7a1' },
   { name: 'ذهبي', hex: '#D4AF37' }, { name: 'كحلي', hex: '#1e3a5f' },
 ];
-const PRESET_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '38', '40', '42', '44'];
+const PRESET_SIZES = [
+  'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL',
+  '2', '4', '6', '8', '10', '12', '14', '16', '18', '20',
+];
 const FULFILLMENT_CHOICES: { value: FulfillmentOption; label: string; Icon: typeof Truck }[] = [
   { value: 'delivery', label: 'توصيل', Icon: Truck },
   { value: 'store_pickup', label: 'استلام من المتجر', Icon: StoreIcon2 },

@@ -45,7 +45,10 @@ const PRESET_COLORS: { name: string; hex: string }[] = [
 ];
 
 /** مقاسات جاهزة شائعة */
-const PRESET_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '38', '40', '42', '44'];
+const PRESET_SIZES = [
+  'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL',
+  '2', '4', '6', '8', '10', '12', '14', '16', '18', '20',
+];
 
 /** خيارات الاستلام المتاحة للعرض في النموذج */
 const FULFILLMENT_CHOICES: { value: FulfillmentOption; label: string; Icon: typeof Truck }[] = [
