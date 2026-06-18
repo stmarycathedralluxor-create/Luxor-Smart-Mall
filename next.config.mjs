@@ -1,6 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    // Disable Vercel's on-demand Image Optimization API entirely.
+    //
+    // With `unoptimized: true`, every `next/image` <Image> keeps working
+    // exactly as before (fill, sizes, width/height, className, native lazy
+    // loading, blur placeholders, etc.) but the `src` is emitted verbatim
+    // instead of being routed through `/_next/image?...`. That means ZERO
+    // image-optimization invocations are billed against the Vercel free
+    // quota — images are served straight from their origin (R2 / Supabase),
+    // which already deliver them over a CDN with long-lived cache headers.
+    //
+    // No component code changes are required and no functionality is lost.
+    unoptimized: true,
     remotePatterns: [
       // Legacy images still hosted on Supabase Storage (transition period)
       { protocol: 'https', hostname: '**.supabase.co' },
