@@ -87,8 +87,18 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function CatalogPage({ params }: { params: { slug: string } }) {
+export default async function CatalogPage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams: { view?: string; fullscreen?: string };
+}) {
   const { supabase, catalog, tableMissing } = await loadCatalog(params.slug);
+
+  // رابط المشاركة يحمل ?view=full ⇒ نعرض الكتالوج بملء الشاشة مباشرةً
+  // (بلا شريط تنقّل/وصف/معاينة خلفه).
+  const wantsFullView = searchParams?.view === 'full' || searchParams?.fullscreen === '1';
 
   // الجدول غير موجود (لم يُشغَّل المايجريشن) — اعرض تعليمات بدل 404 غامض
   if (tableMissing) {
@@ -119,6 +129,31 @@ export default async function CatalogPage({ params }: { params: { slug: string }
 
   const products = await resolveCatalogProducts(supabase, catalog);
 
+  // ─── عرض ملء الشاشة المباشر (من رابط المشاركة) ───
+  // يفتح الكتالوج بملء الشاشة فوراً بلا أي عناصر صفحة خلفه. زر الإغلاق
+  // يرجع لصفحة الكتالوج العادية.
+  if (wantsFullView && products.length > 0) {
+    return (
+      <div className="fixed inset-0 z-[90] bg-neutral-950">
+        <MagazineFlipbook
+          title={catalog.title}
+          products={products}
+          sharedFullView
+          store={
+            catalog.store
+              ? {
+                  name: catalog.store.name,
+                  slug: catalog.store.slug,
+                  logo_url: catalog.store.logo_url ?? null,
+                }
+              : null
+          }
+          coverImage={catalog.cover_image}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-luxor-sandlight/30 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -141,7 +176,7 @@ export default async function CatalogPage({ params }: { params: { slug: string }
               </Link>
             )}
             <ShareButton
-              path={`/catalog/${catalog.slug}#full`}
+              path={`/catalog/${catalog.slug}?view=full`}
               title={catalog.title}
               text={`تصفّح كتالوج «${catalog.title}» على الأقصر سمارت مول`}
               label="مشاركة الكتالوج"

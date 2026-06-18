@@ -284,7 +284,7 @@ export default function CatalogCard({
         </button>
         <ShareButton
           variant="icon"
-          path={`/catalog/${slug}#full`}
+          path={`/catalog/${slug}?view=full`}
           title={title}
           text={`تصفّح كتالوج «${title}» على الأقصر سمارت مول`}
           label="مشاركة الكتالوج"

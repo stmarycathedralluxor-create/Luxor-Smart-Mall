@@ -13,6 +13,7 @@ import {
   BellRing,
 } from 'lucide-react';
 import ExpiryCountdown from '@/components/ExpiryCountdown';
+import DailyAnalytics from './DailyAnalytics';
 import type { AdminCounters } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -127,6 +128,9 @@ export default async function AdminOverviewPage() {
           <Stat icon={Eye} label="مشاهدات المنتجات" value={totalViews} color="gold" />
         </div>
       </div>
+
+      {/* التحليلات اليومية — صفّ لكل يوم */}
+      <DailyAnalytics />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card p-6">

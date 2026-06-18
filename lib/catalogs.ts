@@ -16,7 +16,9 @@ export async function resolveCatalogProducts(
   supabase: SupabaseClient,
   catalog: Catalog
 ): Promise<ProductWithStore[]> {
-  const limit = Math.max(1, Math.min(catalog.product_limit || 24, 100));
+  // عدد غير محدود: لا سقف أعلى. إن لم يُحدَّد حد نستخدم رقماً كبيراً جداً
+  // ليشمل كل منتجات المتجر دون اقتطاع.
+  const limit = Math.max(1, catalog.product_limit || 100000);
 
   // يربط المتجر والفئة بكل منتج عبر استعلامات منفصلة (لا embedded join)
   // لأن الربط الداخلي يتصرّف كـ inner join فيحذف المنتجات بصمت عندما
@@ -83,7 +85,8 @@ export async function resolveCatalogProducts(
     query = query.order('created_at', { ascending: false });
   }
 
-  const { data: productsRaw } = await query.limit(catalog.filter_type === 'rating_high' ? 200 : limit);
+  // للأعلى تقييماً نجلب كل المنتجات المرشّحة ثم نرتّبها ونقتطع لاحقاً.
+  const { data: productsRaw } = await query.limit(catalog.filter_type === 'rating_high' ? 100000 : limit);
 
   const withRel = await attachStoresAndCategories((productsRaw ?? []) as any[]);
   let list = withRel.filter((p: any) => p.store && isStoreOpen(p.store));

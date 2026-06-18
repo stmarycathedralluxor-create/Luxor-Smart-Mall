@@ -177,6 +177,18 @@ export type AdminCounters = {
   pending_stores: number;
 };
 
+/** صف تحليلات يومي واحد — يُرجِعه RPC get_daily_analytics. */
+export type DailyAnalyticsRow = {
+  day: string;            // YYYY-MM-DD
+  site_visits: number;    // زيارات فريدة (جلسات) في اليوم
+  site_hits: number;      // إجمالي مرّات فتح الصفحات في اليوم
+  store_visits: number;
+  price_inquiries: number;
+  orders: number;
+  new_users: number;
+  new_stores: number;
+};
+
 export type Review = {
   id: string;
   user_id: string;
