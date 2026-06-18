@@ -1,18 +1,27 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    // Disable Vercel's on-demand Image Optimization API entirely.
+    // Avoid Vercel's on-demand Image Optimization API (the `/_next/image`
+    // endpoint) so it never consumes the limited free-tier quota.
     //
-    // With `unoptimized: true`, every `next/image` <Image> keeps working
-    // exactly as before (fill, sizes, width/height, className, native lazy
-    // loading, blur placeholders, etc.) but the `src` is emitted verbatim
-    // instead of being routed through `/_next/image?...`. That means ZERO
-    // image-optimization invocations are billed against the Vercel free
-    // quota — images are served straight from their origin (R2 / Supabase),
-    // which already deliver them over a CDN with long-lived cache headers.
+    // We do this with a custom passthrough `loader` instead of
+    // `unoptimized: true`. The difference matters:
+    //   • `unoptimized: true` ALSO strips the responsive `srcset` and the
+    //     intrinsic sizing markup that next/image normally emits. Several
+    //     layouts here (wide desktop views using `sizes`, `fill` +
+    //     `object-*`, and the lightbox) relied on that markup, so dropping it
+    //     made images render at the wrong size / not show up — mostly on
+    //     desktop.
+    //   • A custom `loader` keeps the FULL next/image behaviour (srcset,
+    //     sizes, layout boxes, lazy loading, placeholders) but lets us return
+    //     the original origin URL, so the bytes are served straight from the
+    //     CDN (Cloudflare R2 / Supabase) and NO Vercel optimization
+    //     invocation is ever billed.
     //
-    // No component code changes are required and no functionality is lost.
-    unoptimized: true,
+    // See lib/imageLoader.ts. No component code changes are needed and no
+    // functionality is lost.
+    loader: 'custom',
+    loaderFile: './lib/imageLoader.ts',
     remotePatterns: [
       // Legacy images still hosted on Supabase Storage (transition period)
       { protocol: 'https', hostname: '**.supabase.co' },
