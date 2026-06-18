@@ -167,7 +167,8 @@ export default function CatalogForm({
       is_approved: isApproved,
       filter_type: filterType,
       filter_store_id: filterType === 'manual' ? null : sourceStoreId || null,
-      product_limit: Math.max(1, Math.min(Number(productLimit) || 24, 100)),
+      // عدد غير محدود: نخزّن القيمة كما أدخلها البائع (1 على الأقل) بلا سقف أعلى.
+      product_limit: Math.max(1, Number(productLimit) || 24),
       updated_at: new Date().toISOString(),
     };
 
@@ -374,16 +375,16 @@ export default function CatalogForm({
 
         {/* حد العدد للفلاتر التلقائية */}
         {filterType !== 'manual' && (
-          <div className="mt-4 max-w-[200px]">
+          <div className="mt-4 max-w-[220px]">
             <label className="block text-sm font-bold text-luxor-navy mb-1.5">أقصى عدد منتجات</label>
             <input
               type="number"
               min={1}
-              max={100}
               value={productLimit}
               onChange={(e) => setProductLimit(Number(e.target.value))}
               className="input-field"
             />
+            <p className="text-[11px] text-luxor-navy/50 mt-1">بلا حد أقصى — اترك الرقم كبيراً لعرض كل المنتجات.</p>
           </div>
         )}
       </div>

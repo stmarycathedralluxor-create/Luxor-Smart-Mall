@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import type { Swiper as SwiperClass } from 'swiper';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { X, ChevronLeft, ChevronRight, Maximize2, Store as StoreIcon } from 'lucide-react';
 // Swiper — عارض بسيط أنيق: صور المنتجات فقط على خلفية رمادية داكنة،
 // بانتقال راقٍ ومركّب (Creative: عمق + تحجيم + دوران + تلاشٍ + ظلال).
@@ -56,6 +57,9 @@ export default function MagazineFlipbook({
   autoPlayPreview = false,
   /** فتح ملء الشاشة تلقائياً عند فتح رابط المشاركة (?view=full أو #full). */
   autoFullscreenFromUrl = false,
+  /** وضع المشاركة: يفتح العرض بملء الشاشة فقط (بلا معاينة/خلفية) وزر الإغلاق
+   *  يرجع لصفحة الكتالوج العادية بدل كشف معاينة خلفه. */
+  sharedFullView = false,
 }: {
   title: string;
   products: ProductWithStore[];
@@ -64,16 +68,19 @@ export default function MagazineFlipbook({
   coverImage?: string | null;
   autoPlayPreview?: boolean;
   autoFullscreenFromUrl?: boolean;
+  sharedFullView?: boolean;
 }) {
   void coverImage;
   void title;
+  const router = useRouter();
 
   // صورة واحدة لكل منتج (الصورة الأولى) — عدد المنتجات غير محدود.
   const slides = useMemo<Slide[]>(() => buildCatalogSlides(products), [products]);
 
   const total = slides.length;
   const [mounted, setMounted] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
+  // في وضع المشاركة نبدأ بملء الشاشة مباشرةً.
+  const [fullscreen, setFullscreen] = useState(sharedFullView);
   // الشريحة المعروضة في المعاينة — نفتح ملء الشاشة منها مباشرةً.
   const [activeIndex, setActiveIndex] = useState(0);
   // الفهرس الذي يبدأ منه عرض ملء الشاشة (نفس الصورة المعروضة في المعاينة).
@@ -103,16 +110,29 @@ export default function MagazineFlipbook({
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setFullscreen(false);
+      if (e.key === 'Escape') closeFullscreen();
     };
     window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener('keydown', onKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullscreen]);
 
   if (!total) return null;
+
+  // إغلاق العرض: في وضع المشاركة نرجع لصفحة الكتالوج العادية (بدون #full)
+  // بدل كشف معاينة خلفه؛ في الوضع العادي نُخفي ملء الشاشة فقط.
+  const closeFullscreen = () => {
+    if (sharedFullView) {
+      const clean = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (clean) router.replace(clean);
+      setFullscreen(false);
+      return;
+    }
+    setFullscreen(false);
+  };
 
   const openFullscreen = () => {
     // ابدأ ملء الشاشة من الصورة المعروضة حالياً في المعاينة.
@@ -149,7 +169,7 @@ export default function MagazineFlipbook({
     <div className="fixed inset-0 z-[100] flex flex-col bg-neutral-950">
       <button
         type="button"
-        onClick={() => setFullscreen(false)}
+        onClick={closeFullscreen}
         aria-label="إغلاق"
         className="absolute top-[max(0.75rem,env(safe-area-inset-top))] end-3 z-[110] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
       >
@@ -198,6 +218,11 @@ export default function MagazineFlipbook({
       )}
     </div>
   );
+
+  // وضع المشاركة: لا نعرض المعاينة إطلاقاً — العرض بملء الشاشة فقط منذ الفتح.
+  if (sharedFullView) {
+    return <>{fullscreen && mounted && createPortal(overlay, document.body)}</>;
+  }
 
   return (
     <>
