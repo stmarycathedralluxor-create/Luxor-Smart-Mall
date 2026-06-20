@@ -11,12 +11,12 @@ import { X, ChevronLeft, ChevronRight, Maximize2, Store as StoreIcon } from 'luc
 // بانتقال راقٍ ومركّب (Creative: عمق + تحجيم + دوران + تلاشٍ + ظلال).
 import { Swiper, SwiperSlide } from 'swiper/react';
 import {
-  Navigation, Pagination, Keyboard, A11y, Autoplay, Zoom,
+  Navigation, Pagination, Keyboard, A11y, Autoplay, FreeMode,
 } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-import 'swiper/css/zoom';
+import 'swiper/css/free-mode';
 
 import { useHaptics } from '@/lib/haptics';
 import type { ProductWithStore, Store } from '@/lib/types';
@@ -274,7 +274,8 @@ function CarouselImages({
       sw.updateSize();
       sw.updateSlides();
       // أعد ضبط الموضع على الشريحة الحالية بأبعاد صحيحة (بدون أنميشن).
-      sw.slideToLoop(sw.realIndex, 0, false);
+      // ملء الشاشة بلا loop الآن (وضع السحب الحرّ) — نستخدم slideTo مباشرةً.
+      sw.slideTo(sw.activeIndex, 0, false);
       // ملء الشاشة بلا تشغيل تلقائي — التنقّل يدوي فقط (سحب/أسهم/لوحة مفاتيح).
     };
     // مرّتان عبر rAF لضمان اكتمال تخطيط الـ Portal قبل القياس.
@@ -298,7 +299,7 @@ function CarouselImages({
         onSwiper={(sw) => {
           swiperRef.current = sw;
         }}
-        modules={[Navigation, Pagination, Keyboard, A11y, Autoplay, Zoom]}
+        modules={[Navigation, Pagination, Keyboard, A11y, Autoplay, FreeMode]}
         // اتجاه ثابت (LTR) لا يتأثّر بلغة الصفحة، فيظلّ السحب طبيعياً وصحيحاً:
         // سحب لليسار = التالي، سحب لليمين = السابق.
         dir="ltr"
@@ -310,18 +311,31 @@ function CarouselImages({
         slidesPerView={1}
         spaceBetween={fullscreen ? 0 : 12}
         // انتقال أسرع وأكثر "تشويقاً" مع easing نابض (يُضبط من الـ CSS).
-        speed={fullscreen ? 420 : 560}
+        speed={fullscreen ? 380 : 560}
         grabCursor
         initialSlide={initialIndex}
-        loop={total > 1}
+        // ملء الشاشة بلا loop (لازم لوضع السحب الحرّ بالزخم). المعاينة بـ loop.
+        loop={!fullscreen && total > 1}
+        // ── سحب حرّ بزخم في ملء الشاشة: السحبة الواحدة قد تمرّ عدّة صور بسلاسة ──
+        freeMode={
+          fullscreen
+            ? {
+                enabled: true,
+                momentum: true,
+                momentumRatio: 1.1,
+                momentumVelocityRatio: 1.1,
+                sticky: true,
+              }
+            : false
+        }
         // ── إحساس سحب طبيعي وإدماني ──
         // عتبة سحب أقل = استجابة أسرع للمسة. نسبة سحب أعلى = الإصبع "يقود" الشريحة.
-        threshold={4}
-        touchRatio={1.25}
+        threshold={fullscreen ? 3 : 4}
+        touchRatio={fullscreen ? 1.4 : 1.25}
         touchAngle={45}
         // ارتداد مرن عند الحواف (resistanceRatio منخفض = شدّ مطّاطي محبّب).
         resistance
-        resistanceRatio={0.72}
+        resistanceRatio={fullscreen ? 0.6 : 0.72}
         // التقاط لمسة سريعة (flick) ينقل شريحة كاملة فوراً — يشعر بالخفّة.
         followFinger
         longSwipesRatio={0.18}
@@ -333,8 +347,6 @@ function CarouselImages({
         observeSlideChildren
         updateOnWindowResize
         watchOverflow={false}
-        // تكبير بالنقر المزدوج / القرص (ملء الشاشة فقط).
-        zoom={fullscreen ? { maxRatio: 3, toggle: true } : false}
         // التشغيل التلقائي للمعاينة فقط (قطار يتحرّك لوحده). ملء الشاشة بلا
         // تشغيل تلقائي إطلاقاً — التنقّل يدوي فقط (سحب/أسهم/لوحة مفاتيح).
         autoplay={
@@ -349,11 +361,12 @@ function CarouselImages({
         keyboard={{ enabled: true }}
         navigation={fullscreen && total > 1 ? { nextEl: '.lsm-cat-next', prevEl: '.lsm-cat-prev' } : false}
         pagination={!fullscreen && total > 1 ? { clickable: true, dynamicBullets: true } : false}
-        onSlideChange={(sw) => onIndexChange?.(sw.realIndex)}
+        onSlideChange={(sw) => onIndexChange?.(fullscreen ? sw.activeIndex : sw.realIndex)}
         // لمسة اهتزازية خفيفة فور تغيّر الشريحة فعلياً (إحساس "نقرة").
         onSlideChangeTransitionStart={() => buzz('tick')}
-        // تتبّع تقدّم السحب الحيّ لشريط التقدّم وإحساس الحافة.
+        // تتبّع تقدّم السحب الحيّ لشريط التقدّم وإحساس الحافة (ملء الشاشة فقط).
         onSetTranslate={(sw) => {
+          if (!fullscreen) return;
           if (typeof sw.progress === 'number') {
             setDragProgress(Math.min(1, Math.max(0, sw.progress)));
           }
@@ -361,33 +374,19 @@ function CarouselImages({
         // ارتداد + لمسة عند بلوغ الحافة (الشريحة الأولى/الأخيرة بلا loop).
         onReachBeginning={() => buzz('snap')}
         onReachEnd={() => buzz('snap')}
-        className={`lsm-cat-swiper lsm-cat-snappy ${fullscreen ? 'h-full' : ''}`}
+        className={`lsm-cat-swiper lsm-cat-snappy ${fullscreen ? 'lsm-fs-swiper h-full' : ''}`}
       >
         {slides.map(({ key, img, product }, i) => {
           const inner = img ? (
-            fullscreen ? (
-              // ملء الشاشة: غلاف Zoom يتيح النقر المزدوج/القرص للتكبير.
-              <div className="swiper-zoom-container h-full w-full">
-                <Image
-                  src={img}
-                  alt={product.title}
-                  fill
-                  sizes="100vw"
-                  className="object-contain"
-                  priority={i === 0}
-                />
-              </div>
-            ) : (
-              <Image
-                src={img}
-                alt={product.title}
-                fill
-                sizes="(max-width:768px) 100vw, 800px"
-                // الصور لا تُمدَّد أبداً — تُحتوى بالكامل داخل الإطار.
-                className="object-contain"
-                priority={i === 0}
-              />
-            )
+            <Image
+              src={img}
+              alt={product.title}
+              fill
+              sizes={fullscreen ? '100vw' : '(max-width:768px) 100vw, 800px'}
+              // الصور لا تُمدَّد أبداً — تُحتوى بالكامل داخل الإطار.
+              className="object-contain"
+              priority={i === 0}
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-white/15">
               <StoreIcon size={72} />
