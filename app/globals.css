@@ -175,27 +175,22 @@ body {
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
-/* ─────────── Swiper catalog (MagazineFlipbook) ───────────
-   عارض بسيط أنيق: صور المنتجات فقط على خلفية رمادية داكنة، بانتقال
-   مركّب (Creative): عمق + تحجيم + دوران خفيف + تلاشٍ + ظلّ ناعم.
-   الصور تبقى object-contain — بلا تمطيط ولا قصّ. */
+/* ─────────── Swiper catalog preview (CatalogCard / MagazineFlipbook) ───────────
+   معاينة داخل الصفحة: صور المنتجات على خلفية داكنة. الكارت في الرئيسية
+   يستخدم object-cover (يملأ العرض بلا حواف) مع حركة Ken-Burns لطيفة. */
 
-/* منظور ثلاثي الأبعاد ألطف لإبراز العمق في تأثير Creative */
-.lsm-cat-swiper {
-  --swiper-perspective: 1400px;
+/* ترقيم ذهبي ديناميكي */
+.lsm-cat .swiper-pagination-bullet {
+  background: rgba(255, 255, 255, 0.45);
+  opacity: 1;
+  width: 7px;
+  height: 7px;
+  transition: all 0.3s ease;
 }
-.lsm-cat-swiper .swiper-slide {
-  overflow: hidden;
-  border-radius: 16px;
-}
-@media (min-width: 768px) {
-  .lsm-cat-swiper .swiper-slide { border-radius: 24px; }
-}
-
-/* ظلال الانتقال (Creative) منسّقة للخلفية الداكنة */
-.lsm-cat-swiper .swiper-slide-shadow {
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: inherit;
+.lsm-cat .swiper-pagination-bullet-active {
+  background: #D4AF37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25), 0 0 10px rgba(212, 175, 55, 0.6);
+  transform: scale(1.15);
 }
 
 /* كارت الكتالوج المتحرّك في الصفحة الرئيسية — يملأ ارتفاع الإطار بالكامل */
@@ -204,62 +199,29 @@ body {
 .lsm-cat-card .swiper-slide {
   height: 100%;
 }
-.lsm-cat-card .swiper-slide { border-radius: 0; }
-
-/* ترقيم ذهبي ديناميكي */
-.lsm-cat .swiper-pagination-bullet {
-  background: rgba(255, 255, 255, 0.45);
-  opacity: 1;
-  transition: all 0.3s ease;
-}
-.lsm-cat .swiper-pagination-bullet-active {
-  background: #D4AF37;
-}
-
-/* مؤشّر تكبير Swiper Zoom */
-.swiper-zoom-container > img,
-.swiper-zoom-container > span > img {
-  cursor: zoom-in;
-}
-
-/* ─────────── إحساس السحب "الإدماني" (Snappy / Fluid) ───────────
-   خفيف على الأداء: لا تأثيرات opacity/scale على كل شريحة أثناء السحب (هي
-   التي كانت تُسبّب التقطيع). نعتمد على GPU فقط: translate3d من Swiper +
-   easing لطيف على الـ wrapper. */
-
-/* easing نابض خفيف للشريحة + تسريع GPU */
-.lsm-cat-snappy .swiper-wrapper {
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-.lsm-cat-snappy .swiper-slide {
-  /* نُبقي الشرائح على طبقة GPU مستقلة لانزلاق سلس بلا repaint */
-  transform: translateZ(0);
-  backface-visibility: hidden;
+.lsm-cat-card .swiper-slide {
+  border-radius: 0;
+  overflow: hidden;
 }
 
 /* الصور تحت الإصبع لا تُختار/تُسحب كصورة (يحسّن إحساس السحب على الجوال) */
-.lsm-cat-snappy img {
+.lsm-cat-card img {
   -webkit-user-drag: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-/* ترقيم ذهبي متوهّج وأكثر حيوية */
-.lsm-cat .swiper-pagination-bullet {
-  width: 7px;
-  height: 7px;
+/* ─────────── حركة Ken-Burns على كارت الكتالوج ───────────
+   زوم بطيء + إزاحة نحو الأعلى على الشريحة النشطة فقط. GPU فقط. */
+@keyframes lsm-kenburns {
+  0%   { transform: scale(1.02) translate3d(0, 0, 0); }
+  100% { transform: scale(1.10) translate3d(0, -1.5%, 0); }
 }
-.lsm-cat .swiper-pagination-bullet-active {
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25), 0 0 10px rgba(212, 175, 55, 0.6);
-  transform: scale(1.15);
-}
-
-/* أزرار التنقّل تنبض قليلاً عند الضغط (إحساس لمسي) */
-.lsm-cat-prev:active,
-.lsm-cat-next:active,
-.lsm-fs-prev:active,
-.lsm-fs-next:active {
-  transform: translateY(-50%) scale(0.9);
+@media (prefers-reduced-motion: no-preference) {
+  .lsm-cat-card .swiper-slide-active img {
+    animation: lsm-kenburns 7s ease-in-out infinite alternate;
+    will-change: transform;
+  }
 }
 
 /* كارت الكتالوج كلّه يهبط قليلاً عند الضغط (إحساس "press") */
@@ -270,31 +232,40 @@ body {
   }
 }
 
-/* ─────────── ملء الشاشة: زوايا دائرية + شريط مصغّرات ─────────── */
-/* الشريحة في ملء الشاشة لها زوايا دائرية أنيقة (الصورة object-contain كما هي) */
-.lsm-fs-swiper {
-  padding: 10px;
+/* ─────────── ملء الشاشة: عارض الكتالوج (yet-another-react-lightbox) ───────────
+   الصورة تملأ عرض الشاشة بالكامل على الجوال (object-contain يحافظ على النسبة)
+   مع زوايا خفيفة الاستدارة جداً (أقرب للحادّة) بحسب طلب المستخدم. */
+.lsm-lightbox .yarl__slide {
+  padding: 0;
 }
-.lsm-fs-swiper .swiper-slide {
-  border-radius: 22px;
-  overflow: hidden;
-  background: #0a0a0a;
+/* عرض كامل على الجوال: لا حشو حول الصورة + زوايا صغيرة */
+.lsm-lightbox .yarl__slide_image {
+  border-radius: 4px;
+  box-shadow: none;
+}
+@media (min-width: 768px) {
+  /* على الشاشات الكبيرة نسمح بحشو بسيط وزوايا أنعم قليلاً */
+  .lsm-lightbox .yarl__slide_image { border-radius: 6px; }
 }
 
-/* شريط المصغّرات أسفل الكاروسيل */
-.lsm-fs-thumbs .swiper-slide {
-  border-radius: 10px;
+/* شريط المصغّرات بخلفية متناسقة وزوايا خفيفة */
+.lsm-lightbox .yarl__thumbnails_thumbnail {
+  border-radius: 6px;
   overflow: hidden;
-  opacity: 0.45;
-  transition: opacity 0.25s ease, box-shadow 0.25s ease;
-  cursor: pointer;
 }
-.lsm-fs-thumbs .swiper-slide-thumb-active {
-  opacity: 1;
-  box-shadow: 0 0 0 2px #D4AF37;
+
+/* عدّاد أنيق أعلى المنتصف */
+.lsm-lightbox .yarl__counter {
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 /* ─────────── Product gallery (Swiper) ─────────── */
+/* مؤشّر تكبير صور صفحة المنتج (Swiper Zoom) */
+.swiper-zoom-container > img,
+.swiper-zoom-container > span > img {
+  cursor: zoom-in;
+}
 .lsm-gallery-thumbs .swiper-slide-thumb-active > div {
   border-color: #D4AF37 !important;
   opacity: 1 !important;
