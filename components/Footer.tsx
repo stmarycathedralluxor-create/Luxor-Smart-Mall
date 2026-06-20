@@ -56,6 +56,7 @@ export default function Footer() {
           <div>
             <h4 className="font-bold mb-3 text-gold-gradient">{t.nav.sell}</h4>
             <ul className="space-y-2 text-sm text-white/80">
+              <li><Link href="/campaign" className="hover:text-luxor-gold transition">{t.campaign.ctaSeller}</Link></li>
               <li><Link href="/signup" className="hover:text-luxor-gold transition">{t.nav.signup}</Link></li>
               <li><Link href="/dashboard" className="hover:text-luxor-gold transition">{t.nav.dashboard}</Link></li>
               <li><Link href="/dashboard/store" className="hover:text-luxor-gold transition">{t.nav.myStore}</Link></li>
