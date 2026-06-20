@@ -106,8 +106,8 @@ export default function CatalogCard({
                         alt={product.title}
                         fill
                         sizes="(max-width:768px) 100vw, 33vw"
-                        // تملأ عرض الكارت بالكامل من الأعلى — بلا حواف سوداء.
-                        className="object-cover object-top"
+                        // تُعرض الصورة كاملةً مع احترام نسبتها الأصلية — بلا قصّ.
+                        className="object-contain"
                         priority={i === 0}
                       />
                     ) : (
