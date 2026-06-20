@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import type { Swiper as SwiperClass } from 'swiper';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -10,12 +11,13 @@ import {
 } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import {
-  Navigation, Pagination, Keyboard, A11y, Autoplay, Zoom,
+  Navigation, Pagination, Keyboard, A11y, Autoplay, FreeMode, Thumbs,
 } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-import 'swiper/css/zoom';
+import 'swiper/css/free-mode';
+import 'swiper/css/thumbs';
 
 import { buildCatalogSlides } from '@/components/MagazineFlipbook';
 import ShareButton from '@/components/ShareButton';
@@ -48,8 +50,6 @@ export default function CatalogCard({
   const slides = useMemo(() => buildCatalogSlides(products), [products]);
   const total = slides.length;
   const buzz = useHaptics();
-  // نسبة تقدّم السحب الحيّة (شريط التقدّم في ملء الشاشة).
-  const [fsProgress, setFsProgress] = useState(0);
 
   const [mounted, setMounted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -58,6 +58,8 @@ export default function CatalogCard({
   // عدّاد ملء الشاشة — يتحدّث فقط من سلايدر ملء الشاشة (تنقّل يدوي) ولا يعدّ لوحده.
   const [fsIndex, setFsIndex] = useState(0);
   const [fsStartIndex, setFsStartIndex] = useState(0);
+  // سلايدر المصغّرات المتزامن مع العرض الرئيسي في ملء الشاشة.
+  const [thumbsSwiper, setThumbsSwiper] = useState<SwiperClass | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -81,7 +83,6 @@ export default function CatalogCard({
     // نبدأ ملء الشاشة من نفس الصورة المعروضة حالياً في الكارت المتحرّك.
     setFsStartIndex(cardIndex);
     setFsIndex(cardIndex);
-    setFsProgress(total > 1 ? cardIndex / (total - 1) : 0);
     setFullscreen(true);
     buzz('medium');
   };
@@ -103,66 +104,50 @@ export default function CatalogCard({
 
       <div className="flex-1 min-h-0">
         <div className="lsm-cat relative h-full">
-          {/* شريط تقدّم حيّ يتحرّك مع السحب */}
-          {total > 1 && (
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] bg-white/10">
-              <div
-                className="h-full bg-gradient-to-r from-luxor-goldlight to-luxor-gold transition-[width] duration-150 ease-out"
-                style={{ width: `${fsProgress * 100}%` }}
-              />
-            </div>
-          )}
           <Swiper
-            modules={[Navigation, Pagination, Keyboard, A11y, Zoom]}
+            modules={[Navigation, Keyboard, A11y, FreeMode, Thumbs]}
             dir="ltr"
             // قطار كاروسيل: انزلاق أفقي بسيط كالقطار.
             effect="slide"
             slidesPerView={1}
             spaceBetween={0}
-            // انتقال أسرع وأكثر "تشويقاً".
-            speed={420}
+            // انتقال سريع وسلس.
+            speed={380}
             grabCursor
             initialSlide={fsStartIndex}
-            loop={total > 1}
-            // ── إحساس سحب طبيعي وإدماني ──
-            threshold={4}
-            touchRatio={1.25}
+            loop={false}
+            // ── سحب حرّ بزخم: السحبة الواحدة قد تمرّ عدّة صور بسلاسة ──
+            freeMode={{
+              enabled: true,
+              momentum: true,
+              momentumRatio: 1.1,
+              momentumVelocityRatio: 1.1,
+              sticky: true, // يستقرّ على أقرب صورة بعد التوقّف
+            }}
+            threshold={3}
+            touchRatio={1.4}
             touchAngle={45}
-            resistance
-            resistanceRatio={0.72}
+            resistanceRatio={0.6}
             followFinger
-            longSwipesRatio={0.18}
-            shortSwipes
-            // تكبير بالنقر المزدوج / القرص.
-            zoom={{ maxRatio: 3, toggle: true }}
-            // ملء الشاشة بلا تشغيل تلقائي — التنقّل يدوي فقط.
+            // تزامن مع شريط المصغّرات.
+            thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
             autoplay={false}
             keyboard={{ enabled: true }}
             navigation={total > 1 ? { nextEl: '.lsm-fs-next', prevEl: '.lsm-fs-prev' } : false}
-            onSlideChange={(sw) => setFsIndex(sw.realIndex)}
+            onSlideChange={(sw) => setFsIndex(sw.activeIndex)}
             onSlideChangeTransitionStart={() => buzz('tick')}
-            onSetTranslate={(sw) => {
-              if (total < 2) return;
-              // progress من 0..1 عبر كامل السلايدر.
-              const p = typeof sw.progress === 'number' ? sw.progress : 0;
-              setFsProgress(Math.min(1, Math.max(0, p)));
-            }}
-            onReachBeginning={() => buzz('snap')}
-            onReachEnd={() => buzz('snap')}
-            className="lsm-cat-swiper lsm-cat-snappy h-full"
+            className="lsm-cat-swiper lsm-cat-snappy lsm-fs-swiper h-full"
           >
             {slides.map(({ key, img, product }, i) => {
               const inner = img ? (
-                <div className="swiper-zoom-container h-full w-full">
-                  <Image
-                    src={img}
-                    alt={product.title}
-                    fill
-                    sizes="100vw"
-                    className="object-contain"
-                    priority={i === 0}
-                  />
-                </div>
+                <Image
+                  src={img}
+                  alt={product.title}
+                  fill
+                  sizes="100vw"
+                  className="object-contain"
+                  priority={i === 0}
+                />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-white/15">
                   <StoreIcon size={72} />
@@ -170,7 +155,7 @@ export default function CatalogCard({
               );
               return (
                 <SwiperSlide key={key}>
-                  <div className="relative w-full h-[100svh] sm:h-full">
+                  <div className="relative w-full h-full">
                     {img ? (
                       <Link href={`/products/${product.id}`} className="absolute inset-0 block" aria-label={product.title}>
                         {inner}
@@ -207,13 +192,49 @@ export default function CatalogCard({
         </div>
       </div>
 
-      {/* لوجو متجر المنتج الحالي — أسفل اليمين */}
+      {/* شريط المصغّرات أسفل الكاروسيل */}
+      {total > 1 && (
+        <div className="shrink-0 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1">
+          <Swiper
+            modules={[FreeMode, Thumbs, A11y]}
+            onSwiper={setThumbsSwiper}
+            dir="ltr"
+            spaceBetween={8}
+            slidesPerView="auto"
+            freeMode
+            watchSlidesProgress
+            className="lsm-fs-thumbs !mx-auto max-w-3xl"
+          >
+            {slides.map(({ key, img, product }) => (
+              <SwiperSlide key={`thumb-${key}`} className="!w-16 !h-16 sm:!w-20 sm:!h-20">
+                <div className="relative h-full w-full bg-neutral-800">
+                  {img ? (
+                    <Image
+                      src={img}
+                      alt={product.title}
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-white/20">
+                      <StoreIcon size={20} />
+                    </div>
+                  )}
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        </div>
+      )}
+
+      {/* لوجو متجر المنتج الحالي — أعلى اليسار (شريط المصغّرات يشغل الأسفل) */}
       {activeStore?.slug && (
         <Link
           href={`/stores/${activeStore.slug}`}
           onClick={() => setFullscreen(false)}
           aria-label={`متجر ${activeStore.name ?? ''}`}
-          className="group absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] end-3 z-[110] inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 py-1.5 pe-3 ps-1.5 text-white backdrop-blur transition hover:bg-white/20"
+          className="group absolute top-[max(0.75rem,env(safe-area-inset-top))] start-3 z-[110] inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 py-1.5 pe-3 ps-1.5 text-white backdrop-blur transition hover:bg-white/20"
         >
           <span className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15">
             {activeStore.logo_url ? (
@@ -228,10 +249,10 @@ export default function CatalogCard({
         </Link>
       )}
 
-      {/* عدّاد الصور — أسفل المنتصف */}
+      {/* عدّاد الصور — أعلى المنتصف (الأسفل لشريط المصغّرات) */}
       {total > 1 && (
         <div
-          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[110] rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
+          className="absolute top-[max(0.75rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-[110] rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur"
           dir="ltr"
         >
           {fsIndex + 1} / {total}
@@ -249,7 +270,7 @@ export default function CatalogCard({
         aria-label={`افتح كتالوج ${title} بملء الشاشة`}
         className="block w-full text-start"
       >
-        <div className="relative m-2 mb-0 aspect-[4/5] overflow-hidden rounded-2xl bg-luxor-obsidian">
+        <div className="lsm-cat-card-wrap relative m-2 mb-0 aspect-[4/5] overflow-hidden rounded-2xl bg-luxor-obsidian">
           <div className="lsm-cat lsm-cat-card absolute inset-0">
             <Swiper
               modules={[Pagination, A11y, Autoplay]}
@@ -293,7 +314,8 @@ export default function CatalogCard({
                         alt={product.title}
                         fill
                         sizes="(max-width:768px) 100vw, 33vw"
-                        className="object-contain"
+                        // تملأ عرض الكارت بالكامل من الأعلى — بلا حواف سوداء.
+                        className="object-cover object-top"
                         priority={i === 0}
                       />
                     ) : (
