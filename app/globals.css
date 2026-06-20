@@ -222,6 +222,72 @@ body {
   cursor: zoom-in;
 }
 
+/* ─────────── إحساس السحب "الإدماني" (Snappy / Spring) ───────────
+   انتقال نابض خفيف بدل الخطّي، حتى يبدو السحب حيّاً ومُرضياً، مع تأثيرات
+   عمق/تكبير ناعمة على الشريحة النشطة، وتوهّج ذهبي على الترقيم. */
+
+/* easing نابض للشريحة (يُطبّق على wrapper الذي يحرّكه Swiper) */
+.lsm-cat-snappy .swiper-wrapper {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* الصور تحت الإصبع لا تُختار/تُسحب كصورة (يحسّن إحساس السحب على الجوال) */
+.lsm-cat-snappy img {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* تكبير لطيف جداً للصورة الحالية في كارت المعاينة + تحريك بطيء (Ken Burns)
+   يجعل الكارت يبدو "حيّاً" دائماً ويشجّع على الضغط. */
+@keyframes lsm-kenburns {
+  0%   { transform: scale(1.02) translate3d(0, 0, 0); }
+  100% { transform: scale(1.09) translate3d(0, -1.2%, 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lsm-cat-card .swiper-slide-active img {
+    animation: lsm-kenburns 6s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+}
+
+/* الشريحة النشطة في ملء الشاشة تظهر بوضوح كامل، والمجاورة باهتة قليلاً
+   فتُعطي إحساس "العمق" أثناء السحب. */
+.lsm-cat-snappy.h-full .swiper-slide {
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lsm-cat-snappy.h-full .swiper-slide:not(.swiper-slide-active) {
+  opacity: 0.55;
+  transform: scale(0.94);
+}
+
+/* ترقيم ذهبي متوهّج وأكثر حيوية */
+.lsm-cat .swiper-pagination-bullet {
+  width: 7px;
+  height: 7px;
+}
+.lsm-cat .swiper-pagination-bullet-active {
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25), 0 0 10px rgba(212, 175, 55, 0.6);
+  transform: scale(1.15);
+}
+
+/* أزرار التنقّل تنبض قليلاً عند الضغط (إحساس لمسي) */
+.lsm-cat-prev:active,
+.lsm-cat-next:active,
+.lsm-fs-prev:active,
+.lsm-fs-next:active {
+  transform: translateY(-50%) scale(0.9);
+}
+
+/* كارت الكتالوج كلّه يهبط قليلاً عند الضغط (إحساس "press") */
+.lsm-cat-card { will-change: transform; }
+@media (prefers-reduced-motion: no-preference) {
+  .group:active .lsm-cat-card {
+    transform: scale(0.985);
+    transition: transform 0.12s ease;
+  }
+}
+
 /* ─────────── Product gallery (Swiper) ─────────── */
 .lsm-gallery-thumbs .swiper-slide-thumb-active > div {
   border-color: #D4AF37 !important;
