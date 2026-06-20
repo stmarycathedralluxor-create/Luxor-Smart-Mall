@@ -7,8 +7,7 @@ import { useLocale } from './LocaleProvider';
 import CategoriesCarousel from './CategoriesCarousel';
 import StoresCarousel from './StoresCarousel';
 import ProductsCarousel from './ProductsCarousel';
-import { type HomeCatalogCard } from './CatalogsCarousel';
-import CatalogsCoverflow from './CatalogsCoverflow';
+import CatalogsCarousel, { type HomeCatalogCard } from './CatalogsCarousel';
 import ShareButton from './ShareButton';
 import type { ProductWithStore, Store as StoreType, Category } from '@/lib/types';
 
@@ -184,7 +183,7 @@ export default function HomeContent({
             </Link>
           </div>
 
-          <CatalogsCoverflow catalogs={catalogs} />
+          <CatalogsCarousel catalogs={catalogs} />
         </section>
       )}
 
