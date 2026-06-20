@@ -13,9 +13,8 @@ import {
 } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import type { Swiper as SwiperType } from 'swiper';
-import { EffectCoverflow, Keyboard, Mousewheel, A11y } from 'swiper/modules';
+import { Keyboard, Mousewheel, A11y } from 'swiper/modules';
 import 'swiper/css';
-import 'swiper/css/effect-coverflow';
 
 import type { ProductWithStore, Store } from '@/lib/types';
 
@@ -28,16 +27,13 @@ type CatalogSlide = {
 type CardStore = Pick<Store, 'name' | 'slug' | 'logo_url'> | null | undefined;
 
 /**
- * CatalogLightbox — عارض كتالوج بملء الشاشة بأسلوب «Coverflow ثلاثي الأبعاد»
- * سينمائي فاخر:
+ * CatalogLightbox — عارض كتالوج بملء الشاشة، بسيط وأنيق واحترافي:
  *
- *  • كاروسيل ثلاثي الأبعاد: الكارت الأوسط (النشط) أكبر وفي المنتصف، والكروت
- *    المجاورة تظهر جزئياً خلفه بزوايا دوران Y وعمق متدرّج (perspective).
- *  • خلفية داكنة فاخرة، زوايا مستديرة كبيرة، ظلال ناعمة وانعكاس خفيف.
- *  • الصور تحترم نسبتها الأصلية (object-contain) داخل كارت بزوايا مستديرة.
- *  • أسهم تنقّل تطفو على الحافتين، ونقاط ترقيم أسفل الكاروسيل.
- *  • انتقالات سلسة زنبركية (spring-based) بإحساس انزلاق ثلاثي الأبعاد.
- *  • لوجو متجر المنتج الحالي أعلى اليسار، وزر «عرض المنتج» أسفل المنتصف.
+ *  • شريحة واحدة في كل مرّة (slidesPerView=1) بانتقال انزلاقي سلس وهادئ.
+ *  • الصورة تحترم نسبتها الأصلية (object-contain) داخل خلفية داكنة فاخرة.
+ *  • أسهم تنقّل على الحافتين، عدّاد أعلى اليمين، وشريط تقدّم رفيع أسفل الشاشة
+ *    (سطر واحد) بدلاً من مئات النقاط — يصلح لأي عدد من الصور.
+ *  • تنقّل بلوحة المفاتيح وعجلة الماوس وإغلاق بـ Esc أو النقر على الخلفية.
  */
 export default function CatalogLightbox({
   open,
@@ -90,6 +86,7 @@ export default function CatalogLightbox({
 
   const current = items[Math.min(active, items.length - 1)];
   const showStore = activeStore?.slug ? activeStore : current?.product?.store ?? null;
+  const progress = items.length > 1 ? ((active + 1) / items.length) * 100 : 100;
 
   const view = (
     <div
@@ -146,28 +143,19 @@ export default function CatalogLightbox({
         </div>
       </div>
 
-      {/* الكاروسيل ثلاثي الأبعاد */}
-      <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center">
+      {/* الكاروسيل البسيط الأنيق — شريحة واحدة في كل مرّة */}
+      <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center px-3 pb-2">
         <Swiper
-          modules={[EffectCoverflow, Keyboard, Mousewheel, A11y]}
+          modules={[Keyboard, Mousewheel, A11y]}
           dir="ltr"
-          effect="coverflow"
-          grabCursor
-          centeredSlides
-          slidesPerView="auto"
+          slidesPerView={1}
+          spaceBetween={24}
           initialSlide={active}
-          loop={items.length > 2}
-          speed={520}
+          loop={items.length > 1}
+          speed={420}
+          grabCursor
           keyboard={{ enabled: true }}
           mousewheel={{ forceToAxis: true, sensitivity: 0.6 }}
-          coverflowEffect={{
-            rotate: 32,
-            stretch: 0,
-            depth: 240,
-            modifier: 1,
-            slideShadows: false,
-            scale: 0.82,
-          }}
           onSwiper={(sw) => {
             swiperRef.current = sw;
           }}
@@ -175,33 +163,22 @@ export default function CatalogLightbox({
             setActive(sw.realIndex);
             onIndexChange(sw.realIndex);
           }}
-          className="lsm-cf-swiper w-full"
+          className="lsm-cf-swiper h-full w-full"
         >
           {items.map(({ key, img, product }) => (
             <SwiperSlide key={key} className="lsm-cf-slide">
-              <div className="lsm-cf-card relative overflow-hidden rounded-[26px] bg-luxor-obsidian shadow-2xl ring-1 ring-white/10">
+              <div className="lsm-cf-card relative">
                 {img && (
                   <Image
                     src={img}
                     alt={product.title}
                     fill
-                    sizes="(max-width:768px) 86vw, 60vw"
+                    sizes="(max-width:768px) 92vw, 70vw"
                     className="object-contain select-none"
                     draggable={false}
                     priority
                   />
                 )}
-                {/* تدرّج سفلي + عنوان ووصف */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-5 pt-12">
-                  <h3 className="line-clamp-2 text-lg font-black text-white drop-shadow">
-                    {product.title}
-                  </h3>
-                  {product.store?.name && (
-                    <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-white/75">
-                      <StoreIcon size={12} className="text-luxor-goldlight" /> {product.store.name}
-                    </p>
-                  )}
-                </div>
               </div>
             </SwiperSlide>
           ))}
@@ -214,7 +191,7 @@ export default function CatalogLightbox({
               type="button"
               aria-label="السابق"
               onClick={() => swiperRef.current?.slidePrev()}
-              className="absolute start-2 top-1/2 z-20 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur transition hover:bg-black/60 hover:scale-105 active:scale-95 md:start-6"
+              className="absolute start-2 top-1/2 z-20 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur transition hover:bg-black/60 active:scale-95 md:start-6"
             >
               <ChevronLeft size={26} />
             </button>
@@ -222,7 +199,7 @@ export default function CatalogLightbox({
               type="button"
               aria-label="التالي"
               onClick={() => swiperRef.current?.slideNext()}
-              className="absolute end-2 top-1/2 z-20 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur transition hover:bg-black/60 hover:scale-105 active:scale-95 md:end-6"
+              className="absolute end-2 top-1/2 z-20 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur transition hover:bg-black/60 active:scale-95 md:end-6"
             >
               <ChevronRight size={26} />
             </button>
@@ -230,32 +207,35 @@ export default function CatalogLightbox({
         )}
       </div>
 
-      {/* زر «عرض المنتج» + نقاط الترقيم */}
+      {/* العنوان + زر «عرض المنتج» + شريط تقدّم رفيع (سطر واحد) */}
       <div className="relative z-10 flex flex-col items-center gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {current && (
-          <Link
-            href={`/products/${current.product.id}`}
-            onClick={onNavigate}
-            className="inline-flex items-center gap-1.5 rounded-full bg-luxor-gold px-5 py-2.5 text-sm font-bold text-luxor-obsidian shadow-lg transition hover:bg-luxor-goldlight active:scale-95"
-          >
-            <ExternalLink size={16} /> عرض المنتج
-          </Link>
+          <div className="flex w-full max-w-md flex-col items-center gap-2 text-center">
+            <h3 className="line-clamp-1 text-base font-bold text-white drop-shadow">
+              {current.product.title}
+            </h3>
+            <Link
+              href={`/products/${current.product.id}`}
+              onClick={onNavigate}
+              className="inline-flex items-center gap-1.5 rounded-full bg-luxor-gold px-5 py-2.5 text-sm font-bold text-luxor-obsidian shadow-lg transition hover:bg-luxor-goldlight active:scale-95"
+            >
+              <ExternalLink size={16} /> عرض المنتج
+            </Link>
+          </div>
         )}
 
         {items.length > 1 && (
-          <div className="flex max-w-[80vw] flex-wrap items-center justify-center gap-1.5">
-            {items.map((it, i) => (
-              <button
-                key={it.key}
-                type="button"
-                aria-label={`اذهب للشريحة ${i + 1}`}
-                aria-current={i === active}
-                onClick={() => swiperRef.current?.slideToLoop(i)}
-                className={`lsm-cf-dot h-1.5 rounded-full transition-all ${
-                  i === active ? 'w-6 bg-luxor-gold' : 'w-1.5 bg-white/35 hover:bg-white/60'
-                }`}
-              />
-            ))}
+          <div
+            className="lsm-cf-progress h-1 w-full max-w-[70vw] overflow-hidden rounded-full bg-white/15"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={items.length}
+            aria-valuenow={active + 1}
+          >
+            <span
+              className="block h-full rounded-full bg-luxor-gold transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         )}
       </div>

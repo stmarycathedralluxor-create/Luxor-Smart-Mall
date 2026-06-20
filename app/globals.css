@@ -217,31 +217,31 @@ body {
   backface-visibility: hidden;
 }
 
-/* ─────────── حركة Ken-Burns على كارت الكتالوج ───────────
-   زوم لأعلى مرّة واحدة (داخل) ثم رجوع مرّة واحدة (خارج)، بلا تكرار.
-   الحركة على طبقة الزوم المنفصلة (لا على الصورة) كي لا تتعارض مع
-   تحويلات Swiper أثناء السحب → يمنع الاهتزاز/الرعشة. تبدأ من تكبير
-   خفيف (1.06) لضمان ملء العرض بلا أي حواف سوداء في كل اللحظات. */
+/* ─────────── حركة زوم لطيفة على كارت الكتالوج ───────────
+   تكبير بطيء وهادئ جداً (scale ثابتة الاتجاه) على طبقة الزوم المنفصلة،
+   باستخدام scale فقط (بلا translate) كي لا تتعارض مع تحويلات Swiper
+   أثناء السحب → يمنع الاهتزاز/الرعشة تماماً. الطبقة دائماً مكبّرة قليلاً
+   (1.05) لضمان ملء العرض بلا أي حواف سوداء في كل اللحظات. */
 @keyframes lsm-kenburns {
-  0%   { transform: scale(1.06) translate3d(0, 0, 0); }
-  50%  { transform: scale(1.16) translate3d(0, -1.5%, 0); }
-  100% { transform: scale(1.06) translate3d(0, 0, 0); }
+  from { transform: scale(1.05); }
+  to   { transform: scale(1.14); }
 }
 @media (prefers-reduced-motion: no-preference) {
-  /* الطبقة دائماً مكبّرة قليلاً (1.06) كي لا تظهر حواف عند توقّف الحركة */
+  /* الطبقة دائماً مكبّرة قليلاً (1.05) كي لا تظهر حواف عند توقّف الحركة */
   .lsm-cat-card .lsm-cat-zoom {
-    transform: scale(1.06) translate3d(0, 0, 0);
+    transform: scale(1.05);
+    backface-visibility: hidden;
   }
-  /* حركة واحدة (داخل ثم خارج) على الشريحة النشطة فقط */
+  /* زوم بطيء أحادي الاتجاه على الشريحة النشطة فقط — هادئ بلا رعشة */
   .lsm-cat-card .swiper-slide-active .lsm-cat-zoom {
-    animation: lsm-kenburns 6s ease-in-out 1 both;
+    animation: lsm-kenburns 7s ease-out 1 forwards;
     will-change: transform;
   }
 }
 /* عند تعطيل الحركة: تبقى الطبقة مكبّرة قليلاً لملء العرض بلا حواف */
 @media (prefers-reduced-motion: reduce) {
   .lsm-cat-card .lsm-cat-zoom {
-    transform: scale(1.06) translate3d(0, 0, 0);
+    transform: scale(1.05);
   }
 }
 
@@ -253,70 +253,36 @@ body {
   }
 }
 
-/* ─────────── ملء الشاشة: عارض الكتالوج «Coverflow ثلاثي الأبعاد» ───────────
-   كاروسيل سينمائي فاخر: الكارت الأوسط أكبر وفي المنتصف، والكروت المجاورة
-   تظهر جزئياً خلفه بعمق وزوايا دوران. خلفية داكنة فاخرة وزوايا مستديرة. */
+/* ─────────── ملء الشاشة: عارض الكتالوج البسيط الأنيق ───────────
+   عارض هادئ واحترافي: شريحة واحدة في كل مرّة، الصورة تحترم نسبتها
+   (object-contain) على خلفية داكنة فاخرة، بانتقال انزلاقي سلس. */
 
 /* خلفية متدرّجة داكنة فاخرة */
 .lsm-cf-backdrop {
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(40, 34, 16, 0.55) 0%, rgba(10, 10, 10, 0) 55%),
+    radial-gradient(120% 80% at 50% 0%, rgba(40, 34, 16, 0.45) 0%, rgba(10, 10, 10, 0) 55%),
     radial-gradient(120% 90% at 50% 100%, rgba(0, 0, 0, 0.6) 0%, rgba(10, 10, 10, 0) 50%),
     rgba(8, 8, 9, 0.985);
   backdrop-filter: blur(4px);
 }
 
-/* مساحة الكاروسيل مع منظور ثلاثي الأبعاد */
+/* مساحة الكاروسيل */
 .lsm-cf-swiper {
-  padding: 8px 0 14px;
-  perspective: 1400px;
-  overflow: visible;
+  overflow: hidden;
 }
 
-/* الشريحة: مقاسها يحدّد حجم الكارت (slidesPerView=auto) — تحترم النسبة */
+/* الشريحة تملأ المساحة المتاحة وتتوسّط محتواها */
 .lsm-cf-slide {
-  width: min(86vw, 60vh, 460px);
-  height: auto;
-  transition: opacity 0.4s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
-/* الكارت: نسبة 3/4 (رأسي) بزوايا مستديرة كبيرة وظلّ ناعم */
+/* الكارت يحمل الصورة (object-contain) — يملأ المساحة المتاحة محترماً النسبة */
 .lsm-cf-card {
   width: 100%;
-  aspect-ratio: 3 / 4;
-  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.75);
-}
-
-/* الكروت غير النشطة أغمق قليلاً لإبراز المركز */
-.lsm-cf-slide:not(.swiper-slide-active) .lsm-cf-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  transition: background 0.4s ease;
-}
-.lsm-cf-slide.swiper-slide-active .lsm-cf-card {
-  box-shadow:
-    0 40px 80px -20px rgba(0, 0, 0, 0.85),
-    0 0 0 1px rgba(212, 175, 55, 0.18);
-}
-
-/* انعكاس/توهّج ذهبي خفيف أسفل الكارت النشط */
-.lsm-cf-slide.swiper-slide-active::after {
-  content: '';
-  position: absolute;
-  left: 12%;
-  right: 12%;
-  bottom: -10px;
-  height: 24px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(212, 175, 55, 0.28), rgba(212, 175, 55, 0));
-  filter: blur(6px);
-  pointer-events: none;
-}
-
-@media (min-width: 768px) {
-  .lsm-cf-slide { width: min(56vw, 64vh, 520px); }
+  height: 100%;
 }
 
 /* ─────────── Product gallery (Swiper) ─────────── */
