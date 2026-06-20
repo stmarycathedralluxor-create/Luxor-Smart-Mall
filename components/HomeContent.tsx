@@ -7,7 +7,8 @@ import { useLocale } from './LocaleProvider';
 import CategoriesCarousel from './CategoriesCarousel';
 import StoresCarousel from './StoresCarousel';
 import ProductsCarousel from './ProductsCarousel';
-import CatalogsCarousel, { type HomeCatalogCard } from './CatalogsCarousel';
+import { type HomeCatalogCard } from './CatalogsCarousel';
+import CatalogsCoverflow from './CatalogsCoverflow';
 import ShareButton from './ShareButton';
 import type { ProductWithStore, Store as StoreType, Category } from '@/lib/types';
 
@@ -170,7 +171,7 @@ export default function HomeContent({
         </section>
       )}
 
-      {/* CATALOGS — قطار أفقي للكتالوجات التفاعلية */}
+      {/* CATALOGS — كاروسيل ملء الشاشة بنمط الأفلام (Coverflow) */}
       {catalogs.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="flex items-center justify-between mb-8">
@@ -183,7 +184,7 @@ export default function HomeContent({
             </Link>
           </div>
 
-          <CatalogsCarousel catalogs={catalogs} />
+          <CatalogsCoverflow catalogs={catalogs} />
         </section>
       )}
 

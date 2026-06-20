@@ -305,3 +305,74 @@ body {
   opacity: 0.3;
   cursor: not-allowed;
 }
+
+/* ─────────── Catalogs Coverflow (كاروسيل ملء الشاشة بنمط الأفلام) ─────────── */
+.lsm-cf {
+  /* خلفية داكنة غامقة كمرجع الأفلام */
+  background: radial-gradient(circle at 50% 0%, #1b2333 0%, #0d1119 70%);
+  border-radius: 1.5rem;
+  padding-block: 1.25rem 2rem;
+  overflow: hidden;
+}
+.lsm-cf-swiper {
+  overflow: visible;
+}
+/* عرض الشريحة: الكارت الأوسط كبير والجانبية تظهر خلفه */
+.lsm-cf-slide {
+  width: 60% !important;
+  max-width: 640px;
+  height: auto;
+}
+@media (max-width: 768px) {
+  .lsm-cf-slide { width: 80% !important; }
+}
+/* تعتيم الكروت غير النشطة + إخفاء بياناتها */
+.lsm-cf-slide .lsm-cf-dim { opacity: 1; }
+.lsm-cf-slide.swiper-slide-active .lsm-cf-dim { opacity: 0; }
+.lsm-cf-slide .lsm-cf-meta,
+.lsm-cf-slide .lsm-cf-fs { opacity: 0; transition: opacity 0.45s ease; }
+.lsm-cf-slide.swiper-slide-active .lsm-cf-meta { opacity: 1; }
+.lsm-cf-slide.swiper-slide-active:hover .lsm-cf-fs { opacity: 1; }
+/* إطار ذهبي خفيف للكارت النشط */
+.lsm-cf-slide.swiper-slide-active .lsm-cf-card {
+  outline: 2px solid rgba(212, 175, 55, 0.55);
+  outline-offset: -1px;
+}
+
+/* أسهم التنقّل */
+.lsm-cf-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.85);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.lsm-cf-arrow:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-50%) scale(1.08);
+}
+.lsm-cf-arrow.swiper-button-disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+/* نقاط الترقيم */
+.lsm-cf-dots .swiper-pagination-bullet {
+  width: 7px;
+  height: 7px;
+  margin: 0 !important;
+  background: rgba(255, 255, 255, 0.35);
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+.lsm-cf-dots .swiper-pagination-bullet-active {
+  width: 9px;
+  height: 9px;
+  background: #fff;
+}
