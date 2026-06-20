@@ -21,8 +21,8 @@ type CardStore = Pick<Store, 'name' | 'slug' | 'logo_url'> | null | undefined;
 /**
  * CatalogCard — كارت كتالوج تفاعلي في صفحة الكتالوجات الرئيسية:
  *
- *  • يعرض صور المنتجات (صورة واحدة لكل منتج) ويتحرّك لوحده تلقائياً مع تكبير
- *    لطيف بطيء (Ken Burns) ليبدو حيّاً.
+ *  • يعرض صور المنتجات (صورة واحدة لكل منتج) بعرض كامل (بلا حواف سوداء)
+ *    ويتحرّك لوحده تلقائياً مع تكبير لطيف يدخل ويخرج مرّة واحدة (Ken Burns).
  *  • الضغط عليه يفتح عارض كتالوج بملء الشاشة (CatalogLightbox) — سحب طبيعي
  *    وسلس، تكبير، شريط مصغّرات — بدءاً من نفس الصورة المعروضة.
  */
@@ -99,15 +99,17 @@ export default function CatalogCard({
             >
               {slides.map(({ key, img, product }, i) => (
                 <SwiperSlide key={key}>
-                  <div className="relative w-full h-full">
+                  {/* طبقة الزوم المنفصلة: تحمل حركة Ken-Burns وحدها كي لا
+                      تتعارض مع تحويلات Swiper أثناء السحب (يمنع الاهتزاز). */}
+                  <div className="lsm-cat-zoom relative w-full h-full">
                     {img ? (
                       <Image
                         src={img}
                         alt={product.title}
                         fill
                         sizes="(max-width:768px) 100vw, 33vw"
-                        // تُعرض الصورة كاملةً مع احترام نسبتها الأصلية — بلا قصّ.
-                        className="object-contain"
+                        // تملأ الصورة الكارت بعرض كامل بلا حواف سوداء.
+                        className="object-cover"
                         priority={i === 0}
                       />
                     ) : (
