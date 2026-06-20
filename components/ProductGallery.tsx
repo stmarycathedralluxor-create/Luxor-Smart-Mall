@@ -232,14 +232,14 @@ export default function ProductGallery({
           >
             {images.map((img, i) => (
               <SwiperSlide key={i} className="flex items-center justify-center">
-                <div className="swiper-zoom-container w-full h-full flex items-center justify-center p-3 sm:p-10">
+                <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
                   <Image
                     src={imagesFull?.[i] || images[i]}
                     alt={`${title}-${i}`}
                     width={1600}
                     height={1600}
                     sizes="100vw"
-                    className="object-contain max-w-full max-h-[88vh] w-auto h-auto rounded-2xl"
+                    className="object-contain w-full h-full max-w-full max-h-full rounded-lg"
                     priority={i === active}
                   />
                 </div>
