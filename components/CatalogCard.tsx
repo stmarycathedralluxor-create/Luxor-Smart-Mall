@@ -10,14 +10,16 @@ import {
 } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import {
-  Navigation, Pagination, Keyboard, A11y, Autoplay,
+  Navigation, Pagination, Keyboard, A11y, Autoplay, Zoom,
 } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
+import 'swiper/css/zoom';
 
 import { buildCatalogSlides } from '@/components/MagazineFlipbook';
 import ShareButton from '@/components/ShareButton';
+import { useHaptics } from '@/lib/haptics';
 import type { ProductWithStore, Store } from '@/lib/types';
 
 type CardStore = Pick<Store, 'name' | 'slug' | 'logo_url'> | null | undefined;
@@ -45,6 +47,9 @@ export default function CatalogCard({
 }) {
   const slides = useMemo(() => buildCatalogSlides(products), [products]);
   const total = slides.length;
+  const buzz = useHaptics();
+  // نسبة تقدّم السحب الحيّة (شريط التقدّم في ملء الشاشة).
+  const [fsProgress, setFsProgress] = useState(0);
 
   const [mounted, setMounted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -76,7 +81,9 @@ export default function CatalogCard({
     // نبدأ ملء الشاشة من نفس الصورة المعروضة حالياً في الكارت المتحرّك.
     setFsStartIndex(cardIndex);
     setFsIndex(cardIndex);
+    setFsProgress(total > 1 ? cardIndex / (total - 1) : 0);
     setFullscreen(true);
+    buzz('medium');
   };
 
   // متجر/عدّاد ملء الشاشة يعتمد على fsIndex فقط — لا يتأثر بحركة الكارت التلقائية.
@@ -96,34 +103,66 @@ export default function CatalogCard({
 
       <div className="flex-1 min-h-0">
         <div className="lsm-cat relative h-full">
+          {/* شريط تقدّم حيّ يتحرّك مع السحب */}
+          {total > 1 && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] bg-white/10">
+              <div
+                className="h-full bg-gradient-to-r from-luxor-goldlight to-luxor-gold transition-[width] duration-150 ease-out"
+                style={{ width: `${fsProgress * 100}%` }}
+              />
+            </div>
+          )}
           <Swiper
-            modules={[Navigation, Pagination, Keyboard, A11y]}
+            modules={[Navigation, Pagination, Keyboard, A11y, Zoom]}
             dir="ltr"
             // قطار كاروسيل: انزلاق أفقي بسيط كالقطار.
             effect="slide"
             slidesPerView={1}
             spaceBetween={0}
-            speed={650}
+            // انتقال أسرع وأكثر "تشويقاً".
+            speed={420}
             grabCursor
             initialSlide={fsStartIndex}
             loop={total > 1}
+            // ── إحساس سحب طبيعي وإدماني ──
+            threshold={4}
+            touchRatio={1.25}
+            touchAngle={45}
+            resistance
+            resistanceRatio={0.72}
+            followFinger
+            longSwipesRatio={0.18}
+            shortSwipes
+            // تكبير بالنقر المزدوج / القرص.
+            zoom={{ maxRatio: 3, toggle: true }}
             // ملء الشاشة بلا تشغيل تلقائي — التنقّل يدوي فقط.
             autoplay={false}
             keyboard={{ enabled: true }}
             navigation={total > 1 ? { nextEl: '.lsm-fs-next', prevEl: '.lsm-fs-prev' } : false}
             onSlideChange={(sw) => setFsIndex(sw.realIndex)}
-            className="lsm-cat-swiper h-full"
+            onSlideChangeTransitionStart={() => buzz('tick')}
+            onSetTranslate={(sw) => {
+              if (total < 2) return;
+              // progress من 0..1 عبر كامل السلايدر.
+              const p = typeof sw.progress === 'number' ? sw.progress : 0;
+              setFsProgress(Math.min(1, Math.max(0, p)));
+            }}
+            onReachBeginning={() => buzz('snap')}
+            onReachEnd={() => buzz('snap')}
+            className="lsm-cat-swiper lsm-cat-snappy h-full"
           >
             {slides.map(({ key, img, product }, i) => {
               const inner = img ? (
-                <Image
-                  src={img}
-                  alt={product.title}
-                  fill
-                  sizes="100vw"
-                  className="object-contain"
-                  priority={i === 0}
-                />
+                <div className="swiper-zoom-container h-full w-full">
+                  <Image
+                    src={img}
+                    alt={product.title}
+                    fill
+                    sizes="100vw"
+                    className="object-contain"
+                    priority={i === 0}
+                  />
+                </div>
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-white/15">
                   <StoreIcon size={72} />
@@ -219,13 +258,31 @@ export default function CatalogCard({
               effect="slide"
               slidesPerView={1}
               spaceBetween={0}
-              speed={650}
+              speed={560}
               loop={total > 1}
-              allowTouchMove={false}
+              // الكارت قابل للسحب يدوياً أيضاً (أكثر "تفاعلية وإدماناً").
+              allowTouchMove
+              grabCursor
+              threshold={4}
+              touchRatio={1.2}
+              resistance
+              resistanceRatio={0.7}
+              followFinger
+              shortSwipes
+              longSwipesRatio={0.2}
               // يتوقف الكارت عن الحركة التلقائية أثناء فتح ملء الشاشة حتى لا يعدّ في الخلفية.
-              autoplay={total > 1 && !fullscreen ? { delay: 2600, disableOnInteraction: false } : false}
+              autoplay={
+                total > 1 && !fullscreen
+                  ? { delay: 2600, disableOnInteraction: false, pauseOnMouseEnter: true }
+                  : false
+              }
               onSlideChange={(sw) => setCardIndex(sw.realIndex)}
-              className="lsm-cat-swiper h-full"
+              onTouchStart={() => buzz('soft')}
+              onSlideChangeTransitionStart={(sw) => {
+                // لمسة خفيفة فقط عند السحب اليدوي (لا أثناء التشغيل التلقائي).
+                if (sw.animating && (sw as any).touchEventsData?.isTouched) buzz('tick');
+              }}
+              className="lsm-cat-swiper lsm-cat-snappy h-full"
             >
               {slides.map(({ key, img, product }, i) => (
                 <SwiperSlide key={key}>
