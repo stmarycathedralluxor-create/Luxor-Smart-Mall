@@ -204,6 +204,16 @@ body {
   overflow: hidden;
 }
 
+/* انتقال انزلاقي فائق النعومة بإحساس شركة تقنية + تسريع GPU */
+.lsm-cat-card .lsm-cat-swiper .swiper-wrapper {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lsm-cat-card .swiper-slide {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
 /* الصور تحت الإصبع لا تُختار/تُسحب كصورة (يحسّن إحساس السحب على الجوال) */
 .lsm-cat-card img {
   -webkit-user-drag: none;
@@ -271,6 +281,17 @@ body {
   overflow: hidden;
 }
 
+/* انتقال "Creative" فائق النعومة بمنحنى easing فاخر + تسريع GPU */
+.lsm-cf-swiper .swiper-wrapper {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lsm-cf-swiper .swiper-slide {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+
 /* الشريحة تملأ المساحة المتاحة وتتوسّط محتواها */
 .lsm-cf-slide {
   display: flex;
@@ -279,10 +300,33 @@ body {
   height: 100%;
 }
 
-/* الكارت يحمل الصورة (object-contain) — يملأ المساحة المتاحة محترماً النسبة */
+/* الكارت يحمل الصورة (object-contain) بزوايا دائرية + ظل فاخر */
 .lsm-cf-card {
   width: 100%;
   height: 100%;
+}
+.lsm-cf-card img {
+  border-radius: 1.25rem;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.65);
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* دخول العارض بتلاشٍ ناعم (إحساس احترافي عند الفتح) */
+@media (prefers-reduced-motion: no-preference) {
+  .lsm-cf {
+    animation: lsm-cf-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes lsm-cf-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  /* لمعة لطيفة على أزرار التنقّل عند المرور */
+  .lsm-cf-nav {
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 0.18s ease;
+  }
 }
 
 /* ─────────── Product gallery (Swiper) ─────────── */

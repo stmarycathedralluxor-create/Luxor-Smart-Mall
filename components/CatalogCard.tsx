@@ -13,6 +13,7 @@ import 'swiper/css/pagination';
 import { buildCatalogSlides } from '@/components/MagazineFlipbook';
 import CatalogLightbox from '@/components/CatalogLightbox';
 import ShareButton from '@/components/ShareButton';
+import { useLocale } from '@/components/LocaleProvider';
 import { useHaptics } from '@/lib/haptics';
 import type { ProductWithStore, Store } from '@/lib/types';
 
@@ -39,6 +40,7 @@ export default function CatalogCard({
   store?: CardStore;
   count: number;
 }) {
+  const { t } = useLocale();
   const slides = useMemo(() => buildCatalogSlides(products), [products]);
   const total = slides.length;
   const buzz = useHaptics();
@@ -66,7 +68,7 @@ export default function CatalogCard({
       <button
         type="button"
         onClick={openFullscreen}
-        aria-label={`افتح كتالوج ${title} بملء الشاشة`}
+        aria-label={`${title} — ${t.common.openFullscreen}`}
         className="block w-full text-start"
       >
         <div className="lsm-cat-card-wrap relative m-2 mb-0 aspect-[4/5] overflow-hidden rounded-2xl bg-luxor-obsidian">
@@ -77,7 +79,7 @@ export default function CatalogCard({
               effect="slide"
               slidesPerView={1}
               spaceBetween={0}
-              speed={560}
+              speed={700}
               loop={total > 1}
               // الكارت قابل للسحب يدوياً أيضاً.
               allowTouchMove
@@ -126,10 +128,10 @@ export default function CatalogCard({
           {/* تدرّج + شارة + عنوان فوق الصورة */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-luxor-obsidian/95 via-luxor-obsidian/20 to-transparent" />
           <span className="pointer-events-none absolute top-3 start-3 z-10 inline-flex items-center gap-1 bg-luxor-gold/90 text-luxor-obsidian px-2.5 py-0.5 rounded-full text-[11px] font-bold">
-            <BookOpen size={12} /> كتالوج
+            <BookOpen size={12} /> {t.common.catalog}
           </span>
           <span className="pointer-events-none absolute top-3 end-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1 text-[11px] font-bold text-white backdrop-blur transition group-hover:bg-black/75">
-            <Maximize2 size={13} /> ملء الشاشة
+            <Maximize2 size={13} /> {t.common.fullscreen}
           </span>
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-4">
             <h3 className="font-black text-white text-xl leading-tight line-clamp-2">{title}</h3>
@@ -140,7 +142,7 @@ export default function CatalogCard({
                 </span>
               )}
               <span className="inline-flex items-center gap-1">
-                <Sparkles size={12} className="text-luxor-goldlight" /> {count} منتج
+                <Sparkles size={12} className="text-luxor-goldlight" /> {count} {t.common.products}
               </span>
             </div>
           </div>
@@ -153,14 +155,14 @@ export default function CatalogCard({
           onClick={openFullscreen}
           className="inline-flex items-center gap-1.5 text-sm font-bold text-luxor-darkgold hover:text-luxor-obsidian transition"
         >
-          <Maximize2 size={15} /> افتح بملء الشاشة
+          <Maximize2 size={15} /> {t.common.openFullscreen}
         </button>
         <ShareButton
           variant="icon"
           path={`/catalog/${slug}?view=full`}
           title={title}
-          text={`تصفّح كتالوج «${title}» على الأقصر سمارت مول`}
-          label="مشاركة الكتالوج"
+          text={title}
+          label={t.common.shareCatalog}
         />
       </div>
 
