@@ -225,6 +225,21 @@ export default function PriceReveal({
     await doReveal();
   };
 
+  const handleContactSeller = () => {
+    const lines = [
+      `مرحباً، أتواصل معكم من الأقصر سمارت مول بخصوص المنتج التالي من متجر "${storeName}":`,
+      '',
+      `🛍️ *${productTitle}*`,
+      brand ? `🏷️ البراند: ${brand}` : null,
+      categoryName ? `📂 القسم: ${categoryName}` : null,
+      '',
+      `🔗 رابط المنتج: ${window.location.origin}/products/${productId}`,
+    ].filter((line): line is string => Boolean(line));
+
+    const link = buildWhatsAppLink(storeWhatsapp, lines.join('\n'));
+    window.open(link, '_blank', 'noopener,noreferrer');
+  };
+
   const handleOrder = async () => {
     if (!user) {
       try {
@@ -335,18 +350,30 @@ export default function PriceReveal({
     return (
       <div className="card p-6 mb-6 bg-gradient-to-br from-luxor-sandlight to-white">
         <div className="text-sm text-luxor-navy/70 mb-3">{t.product.price}</div>
-        <button
-          onClick={handleReveal}
-          disabled={loading}
-          className="btn-primary w-full !text-base !py-4 disabled:opacity-60"
-        >
-          {!user ? <LogIn size={20} /> : <Tag size={20} />}
-          {loading
-            ? t.product.revealing
-            : !user
-              ? t.product.loginToSeePrice
-              : t.product.askPrice}
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handleReveal}
+            disabled={loading}
+            className="btn-primary w-full !text-sm sm:!text-base !py-4 disabled:opacity-60"
+          >
+            {!user ? <LogIn size={20} /> : <Tag size={20} />}
+            <span className="leading-tight">
+              {loading
+                ? t.product.revealing
+                : !user
+                  ? t.product.loginToSeePrice
+                  : t.product.askPrice}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={handleContactSeller}
+            className="btn-whatsapp w-full !text-sm sm:!text-base !py-4"
+          >
+            <MessageCircle size={20} />
+            <span className="leading-tight">{t.product.contact}</span>
+          </button>
+        </div>
         {!user && (
           <p className="text-xs text-luxor-navy/60 mt-3 text-center">
             {locale === 'ar'
