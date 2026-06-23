@@ -167,35 +167,38 @@ export default function CatalogLightbox({
           dir="ltr"
           effect="creative"
           creativeEffect={{
-            limitProgress: 2,
+            limitProgress: 1,
+            // الصورة المجاورة تتبع الإصبع بسلاسة (انزلاق طبيعي بلا قفزات)
             prev: {
-              translate: ['-22%', 0, -220],
-              scale: 0.86,
-              opacity: 0,
-              rotate: [0, 0, 0],
+              translate: ['-100%', 0, 0],
+              opacity: 0.35,
             },
             next: {
-              translate: ['22%', 0, -220],
-              scale: 0.86,
-              opacity: 0,
-              rotate: [0, 0, 0],
+              translate: ['100%', 0, 0],
+              opacity: 0.35,
             },
           }}
           slidesPerView={1}
           spaceBetween={0}
           initialSlide={active}
           loop={items.length > 1}
-          speed={620}
+          speed={420}
           grabCursor
           watchSlidesProgress
           keyboard={{ enabled: true }}
-          mousewheel={{ forceToAxis: true, sensitivity: 0.6, thresholdDelta: 12 }}
-          // إحساس سحب طبيعي وسلس على الجوال
-          threshold={4}
-          touchRatio={1.1}
-          resistanceRatio={0.7}
+          mousewheel={{ forceToAxis: true, sensitivity: 0.5, thresholdDelta: 16 }}
+          // ── إحساس سحب طبيعي وسلس (يتبع الإصبع لحظياً مثل تطبيقات الصور) ──
+          threshold={3}
+          touchRatio={1}
+          touchAngle={45}
+          resistance
+          resistanceRatio={0.6}
           followFinger
-          longSwipesRatio={0.18}
+          // سحبة قصيرة سريعة تكفي للانتقال (إحساس أخفّ وأكثر طبيعية)
+          shortSwipes
+          longSwipes
+          longSwipesRatio={0.3}
+          longSwipesMs={260}
           onSwiper={(sw) => {
             swiperRef.current = sw;
           }}
