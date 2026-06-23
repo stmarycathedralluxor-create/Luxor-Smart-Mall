@@ -300,15 +300,16 @@ body {
   height: 100%;
 }
 
-/* الكارت يحمل الصورة (object-contain) بزوايا دائرية + ظل فاخر */
-.lsm-cf-card {
-  width: 100%;
-  height: 100%;
-  border-radius: 1.75rem;
-  overflow: hidden;
-}
-.lsm-cf-card img {
-  border-radius: 1.75rem;
+/* الصورة بحجمها الطبيعي (تحترم نسبتها) بزوايا دائرية حقيقية + ظل فاخر.
+   الزوايا تُطبَّق على الصورة المرئية نفسها (وليس على حاوية فارغة)، وتملأ
+   أقصى مساحة متاحة دون فراغات جانبية كبيرة. */
+.lsm-cf-img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 1.5rem;
   box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.65);
   -webkit-user-drag: none;
   user-select: none;

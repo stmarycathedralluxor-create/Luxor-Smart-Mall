@@ -161,7 +161,7 @@ export default function CatalogLightbox({
       </div>
 
       {/* الكاروسيل — انتقال Creative انزلاقي/تكبيري فائق النعومة */}
-      <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center px-3 pb-2">
+      <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center px-1 pb-1">
         <Swiper
           modules={[Keyboard, Mousewheel, A11y, EffectCreative]}
           dir="ltr"
@@ -208,20 +208,19 @@ export default function CatalogLightbox({
         >
           {items.map(({ key, img, product }, i) => (
             <SwiperSlide key={key} className="lsm-cf-slide">
-              <div className="lsm-cf-card relative">
-                {img && (
-                  <Image
-                    src={img}
-                    alt={product.title}
-                    fill
-                    sizes="(max-width:768px) 94vw, 72vw"
-                    className="object-contain select-none"
-                    draggable={false}
-                    priority={Math.abs(i - active) <= 1}
-                    loading={Math.abs(i - active) <= 1 ? undefined : 'lazy'}
-                  />
-                )}
-              </div>
+              {img && (
+                <Image
+                  src={img}
+                  alt={product.title}
+                  width={1200}
+                  height={1600}
+                  sizes="(max-width:768px) 98vw, 78vw"
+                  className="lsm-cf-img select-none"
+                  draggable={false}
+                  priority={Math.abs(i - active) <= 1}
+                  loading={Math.abs(i - active) <= 1 ? undefined : 'lazy'}
+                />
+              )}
             </SwiperSlide>
           ))}
         </Swiper>
