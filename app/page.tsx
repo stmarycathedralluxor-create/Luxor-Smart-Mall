@@ -19,7 +19,7 @@ export default async function HomePage() {
         .select('*, store:stores(*), category:categories(*)')
         .eq('is_available', true)
         .order('created_at', { ascending: false })
-        .limit(12),
+        .limit(100),
       supabase
         .from('stores')
         .select('*')

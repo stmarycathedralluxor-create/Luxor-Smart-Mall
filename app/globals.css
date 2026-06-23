@@ -304,9 +304,11 @@ body {
 .lsm-cf-card {
   width: 100%;
   height: 100%;
+  border-radius: 1.75rem;
+  overflow: hidden;
 }
 .lsm-cf-card img {
-  border-radius: 1.25rem;
+  border-radius: 1.75rem;
   box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.65);
   -webkit-user-drag: none;
   user-select: none;
@@ -334,6 +336,7 @@ body {
 .swiper-zoom-container > img,
 .swiper-zoom-container > span > img {
   cursor: zoom-in;
+  overflow: hidden;
 }
 .lsm-gallery-thumbs .swiper-slide-thumb-active > div {
   border-color: #D4AF37 !important;
