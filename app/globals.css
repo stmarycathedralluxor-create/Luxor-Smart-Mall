@@ -192,31 +192,36 @@ body {
   touch-action: pan-y;
 }
 
-/* الشريحة نفسها هي الطبقة المركّبة (لا الصورة). نرقّيها لطبقة GPU مستقلّة
-   حتى يرسمها WebKit على الجوال حتى وهي خارج الشاشة، فلا تظهر سوداء. */
-.lsm-embla__slide {
-  position: relative;
+/* ════════════ إصلاح جذري لمشكلة "الصورة السوداء" على الجوال ════════════
+   السبب الحقيقي لم يكن `position:absolute` بل الإفراط في ترقية الطبقات:
+   كان كل من الشريحة والصورة يحمل `translateZ(0)` + `backface-visibility:hidden`.
+   هذا يجبر Safari/WebKit على iOS على إنشاء طبقة تركيب (compositing layer)
+   مستقلّة لكل شريحة وصورة. ومع حدود ذاكرة الطبقات على iOS، يُسقِط المتصفّح
+   الطبقات الموجودة خارج الشاشة فتظهر سوداء.
+
+   الحل: نرقّي طبقة GPU واحدة فقط — حاوية Embla التي يحرّكها الكاروسيل بـ
+   transform — فيركّب WebKit كل الشرائح ضمن طبقة واحدة بدل عشرات الطبقات.
+   نزيل تماماً ترقية الطبقات عن الشرائح والصور. */
+.lsm-embla__container {
+  /* الحاوية وحدها هي ما يُحرَّك بـ transform → ترقيتها لطبقة واحدة كافٍ. */
+  will-change: transform;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
 }
 
-/* صورة كارت الكتالوج — السبب الجذري لظهور الصور السوداء على الجوال كان أن
-   الصورة كانت `position:absolute` داخل شريحة يحرّكها الكاروسيل بـ transform؛
-   فإطار WebKit لا يرسم العناصر المطلقة التي تبدأ خارج الشاشة في طبقة GPU
-   المركّبة. الحل: نجعل الصورة عنصراً عادياً ضمن التدفّق (in-flow) يملأ الشريحة
-   بـ object-cover، مع ترقية طبقة مستقلّة لها أيضاً لضمان الرسم. */
+.lsm-embla__slide {
+  position: relative;
+  /* لا ترقية طبقة هنا (كانت تسبّب الصور السوداء على iOS). */
+}
+
+/* صورة كارت الكتالوج — عنصر عادي ضمن التدفّق (in-flow) يملأ الشريحة بـ
+   object-cover، بدون أي ترقية طبقة GPU (translateZ/backface). */
 .lsm-card-img {
   display: block;
   position: relative;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
   -webkit-user-drag: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -234,26 +239,24 @@ body {
 .lsm-cat-embla {
   touch-action: pan-y;
 }
-.lsm-cat-embla__slide {
-  position: relative;
+/* ترقية طبقة واحدة فقط على الحاوية (نفس إصلاح كارت الكتالوج). */
+.lsm-cat-embla__container {
+  will-change: transform;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+}
+.lsm-cat-embla__slide {
+  position: relative;
+  /* لا ترقية طبقة على الشريحة (كانت تسبّب صوراً سوداء على iOS). */
 }
 
-/* صورة معاينة الكتالوج (object-contain) — عنصر ضمن التدفّق بدل position:absolute
-   حتى يرسمها WebKit على الجوال وهي خارج الشاشة، مع طبقة GPU مستقلّة. */
+/* صورة معاينة الكتالوج (object-contain) — عنصر ضمن التدفّق بدون ترقية طبقة. */
 .lsm-cat-img {
   display: block;
   position: relative;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
   -webkit-user-drag: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -285,10 +288,15 @@ body {
   /* السحب الأفقي للتنقّل بين الصور (السحب العمودي يلتقطه Motion للإغلاق) */
   touch-action: pan-y;
 }
-.lsm-cf-embla__slide {
+/* ترقية طبقة واحدة على الحاوية فقط (نفس إصلاح الصور السوداء). */
+.lsm-cf-embla__container {
+  will-change: transform;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
-  backface-visibility: hidden;
+}
+.lsm-cf-embla__slide {
+  position: relative;
+  /* لا ترقية طبقة على الشريحة (كانت تسبّب صوراً سوداء على iOS). */
 }
 
 /* الصورة تحترم نسبتها بالكامل (object-contain) على خلفية داكنة، مع تكبير
