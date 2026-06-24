@@ -187,23 +187,36 @@ body {
   height: 100%;
 }
 
-/* لمسة سحب أفقية طبيعية. ملاحظة: أزلنا translateZ/backface عن الشريحة لأنها
-   كانت تُنشئ طبقة GPU متداخلة مع transform الكاروسيل فتظهر صور سوداء على
-   الجوال في غير الشريحة الأولى. الكاروسيل نفسه يتكفّل بتسريع GPU. */
+/* لمسة سحب أفقية طبيعية. */
 .lsm-embla {
   touch-action: pan-y;
 }
 
-/* صورة كارت الكتالوج — نفس تقنية العارض بملء الشاشة الموثوقة:
-   <img> بسيطة بلا transform/transition على الصورة نفسها (السبب الجذري
-   لظهور الصور السوداء على الجوال). تملأ إطار 3:4 بـ object-cover. */
+/* الشريحة نفسها هي الطبقة المركّبة (لا الصورة). نرقّيها لطبقة GPU مستقلّة
+   حتى يرسمها WebKit على الجوال حتى وهي خارج الشاشة، فلا تظهر سوداء. */
+.lsm-embla__slide {
+  position: relative;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* صورة كارت الكتالوج — السبب الجذري لظهور الصور السوداء على الجوال كان أن
+   الصورة كانت `position:absolute` داخل شريحة يحرّكها الكاروسيل بـ transform؛
+   فإطار WebKit لا يرسم العناصر المطلقة التي تبدأ خارج الشاشة في طبقة GPU
+   المركّبة. الحل: نجعل الصورة عنصراً عادياً ضمن التدفّق (in-flow) يملأ الشريحة
+   بـ object-cover، مع ترقية طبقة مستقلّة لها أيضاً لضمان الرسم. */
 .lsm-card-img {
   display: block;
-  position: absolute;
-  inset: 0;
+  position: relative;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   -webkit-user-drag: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -222,9 +235,28 @@ body {
   touch-action: pan-y;
 }
 .lsm-cat-embla__slide {
+  position: relative;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+}
+
+/* صورة معاينة الكتالوج (object-contain) — عنصر ضمن التدفّق بدل position:absolute
+   حتى يرسمها WebKit على الجوال وهي خارج الشاشة، مع طبقة GPU مستقلّة. */
+.lsm-cat-img {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* قطار الكتالوجات الأفقي: التمرير العمودي مسموح، الأفقي يلتقطه Embla */
