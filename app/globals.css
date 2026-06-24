@@ -188,7 +188,7 @@ body {
    كل المتصفّحات بثبات. */
 
 /* ─── معاينة كارت الكتالوج (CatalogCard) ─── */
-/* الـ viewport يأخذ كامل ارتفاع الإطار 3:4 */
+/* الـ viewport والحاوية يأخذان كامل ارتفاع الإطار 3:4 */
 .lsm-embla,
 .lsm-embla__container {
   height: 100%;
@@ -199,17 +199,29 @@ body {
   touch-action: pan-y;
 }
 
+/* ════════ السبب الحقيقي للزوايا/الإطار الأسود ════════
+   الشريحة عنصر flex، و `height:100%` على الصورة بداخلها لا يُحَلّ بثبات
+   على iOS (ارتفاع عنصر الـ flex يُشتَقّ من المحتوى لا من الأب)، فالصورة
+   لا تملأ الشريحة وتظهر خلفية الإطار الداكنة من خلفها (زوايا سوداء).
+
+   الحل: نجعل الشريحة نفسها صندوقاً كامل الارتفاع (relative + height:100%)،
+   ونثبّت الصورة داخلها بـ position:absolute + inset:0 فتملأ الشريحة دائماً
+   تماماً مهما كان سلوك الـ flex. الصورة الآن "داخل الكارت" حرفياً ولا
+   يمكن أن تكون في مكان آخر. */
 .lsm-embla__slide {
   position: relative;
+  height: 100%;
 }
 
-/* صورة كارت الكتالوج — عنصر عادي ضمن التدفّق يملأ الشريحة بـ object-cover. */
+/* صورة كارت الكتالوج — مثبّتة داخل الشريحة فتملأ الكارت دائماً (object-cover). */
 .lsm-card-img {
   display: block;
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   user-select: none;
 }
 
@@ -227,10 +239,11 @@ body {
   position: relative;
 }
 
-/* صورة معاينة الكتالوج (object-contain) — عنصر ضمن التدفّق. */
+/* صورة معاينة الكتالوج — مثبّتة داخل صندوق النسبة (aspect) فتملأه دائماً. */
 .lsm-cat-img {
   display: block;
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
