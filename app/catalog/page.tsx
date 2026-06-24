@@ -115,7 +115,7 @@ export default async function CatalogsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7 md:gap-8">
             {visible.map(({ catalog, products, count }) => (
               <CatalogCard
                 key={catalog.id}

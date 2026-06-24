@@ -193,75 +193,36 @@ body {
   transform: scale(1.15);
 }
 
-/* كارت الكتالوج المتحرّك في الصفحة الرئيسية — يملأ ارتفاع الإطار بالكامل */
-.lsm-cat-card,
-.lsm-cat-card .lsm-cat-swiper,
-.lsm-cat-card .swiper-slide {
+/* ─────────── Embla catalog card / carousel (CatalogCard / CatalogsCarousel) ───────────
+   كارت الكتالوج الجديد مبني على Embla Carousel + Motion. هذه القواعد تضبط
+   فقط سلوك السحب والتمرير الناعم؛ التكبير عند المرور والظلال يُدار بـ Motion
+   وTailwind داخل المكوّن. */
+
+/* الـ viewport يأخذ كامل ارتفاع الإطار 3:4 */
+.lsm-embla,
+.lsm-embla__container {
   height: 100%;
 }
-.lsm-cat-card .swiper-slide {
-  border-radius: 0;
-  overflow: hidden;
-}
 
-/* انتقال انزلاقي فائق النعومة بإحساس شركة تقنية + تسريع GPU */
-.lsm-cat-card .lsm-cat-swiper .swiper-wrapper {
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-.lsm-cat-card .swiper-slide {
+/* تسريع GPU لشرائح الكارت */
+.lsm-embla__slide {
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
   backface-visibility: hidden;
 }
 
 /* الصور تحت الإصبع لا تُختار/تُسحب كصورة (يحسّن إحساس السحب على الجوال) */
-.lsm-cat-card img {
+.lsm-embla img {
   -webkit-user-drag: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-/* طبقة الزوم تملأ الإطار بالكامل (الصورة بداخلها object-cover) */
-.lsm-cat-card .lsm-cat-zoom {
-  transform-origin: center center;
-  backface-visibility: hidden;
+/* قطار الكتالوجات الأفقي: التمرير العمودي مسموح، الأفقي يلتقطه Embla */
+.lsm-cat-carousel [class*='flex-'] {
+  touch-action: pan-y;
 }
 
-/* ─────────── حركة زوم لطيفة على كارت الكتالوج ───────────
-   تكبير بطيء وهادئ جداً (scale ثابتة الاتجاه) على طبقة الزوم المنفصلة،
-   باستخدام scale فقط (بلا translate) كي لا تتعارض مع تحويلات Swiper
-   أثناء السحب → يمنع الاهتزاز/الرعشة تماماً. الطبقة دائماً مكبّرة قليلاً
-   (1.05) لضمان ملء العرض بلا أي حواف سوداء في كل اللحظات. */
-@keyframes lsm-kenburns {
-  from { transform: scale(1.05); }
-  to   { transform: scale(1.14); }
-}
-@media (prefers-reduced-motion: no-preference) {
-  /* الطبقة دائماً مكبّرة قليلاً (1.05) كي لا تظهر حواف عند توقّف الحركة */
-  .lsm-cat-card .lsm-cat-zoom {
-    transform: scale(1.05);
-    backface-visibility: hidden;
-  }
-  /* زوم بطيء أحادي الاتجاه على الشريحة النشطة فقط — هادئ بلا رعشة */
-  .lsm-cat-card .swiper-slide-active .lsm-cat-zoom {
-    animation: lsm-kenburns 7s ease-out 1 forwards;
-    will-change: transform;
-  }
-}
-/* عند تعطيل الحركة: تبقى الطبقة مكبّرة قليلاً لملء العرض بلا حواف */
-@media (prefers-reduced-motion: reduce) {
-  .lsm-cat-card .lsm-cat-zoom {
-    transform: scale(1.05);
-  }
-}
-
-/* كارت الكتالوج كلّه يهبط قليلاً عند الضغط (إحساس "press") */
-@media (prefers-reduced-motion: no-preference) {
-  .group:active .lsm-cat-card-wrap {
-    transform: scale(0.985);
-    transition: transform 0.12s ease;
-  }
-}
 
 /* ─────────── ملء الشاشة: عارض الكتالوج البسيط الأنيق ───────────
    عارض هادئ واحترافي: شريحة واحدة في كل مرّة، الصورة تحترم نسبتها
