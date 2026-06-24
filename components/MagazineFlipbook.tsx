@@ -63,8 +63,12 @@ export default function MagazineFlipbook({
     []
   );
   const usePreview = !sharedFullView;
+  // LTR ثابت: في الوضع RTL (العربية) كان Embla يحسب إزاحات الشرائح باتجاه
+  // معاكس لتخطيط الـ flex فتهبط خارج العرض وتظهر الخلفية السوداء.
   const [emblaRef, emblaApi] = useEmblaCarousel(
-    usePreview ? { loop: total > 1, align: 'center', containScroll: false } : { active: false },
+    usePreview
+      ? { direction: 'ltr', loop: total > 1, align: 'center', containScroll: false }
+      : { active: false },
     usePreview && autoPlayPreview && total > 1 ? [autoplay] : []
   );
 
@@ -149,14 +153,12 @@ export default function MagazineFlipbook({
         whileTap={reduceMotion ? undefined : { scale: 0.99 }}
         className="group relative block w-full overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 to-black"
       >
-        <div className="lsm-cat-embla overflow-hidden" ref={emblaRef}>
+        <div dir="ltr" className="lsm-cat-embla overflow-hidden" ref={emblaRef}>
           <div className="lsm-cat-embla__container flex">
             {slides.map(({ key, img, product }) => (
               <div key={key} className="lsm-cat-embla__slide min-w-0 flex-[0_0_100%]">
                 <div className="relative w-full aspect-square sm:aspect-[4/3]">
                   {img ? (
-                    // صورة عادية ضمن التدفّق بـ object-contain.
-                    // لا حِيَل GPU/WebKit — أبسط وأكثر ثباتاً عبر المتصفّحات.
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={img}
