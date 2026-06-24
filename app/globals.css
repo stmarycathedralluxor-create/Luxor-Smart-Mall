@@ -187,14 +187,26 @@ body {
   height: 100%;
 }
 
-/* تسريع GPU + لمسة سحب أفقية طبيعية */
-.lsm-embla__slide {
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
+/* لمسة سحب أفقية طبيعية. ملاحظة: أزلنا translateZ/backface عن الشريحة لأنها
+   كانت تُنشئ طبقة GPU متداخلة مع transform الكاروسيل فتظهر صور سوداء على
+   الجوال في غير الشريحة الأولى. الكاروسيل نفسه يتكفّل بتسريع GPU. */
 .lsm-embla {
   touch-action: pan-y;
+}
+
+/* صورة كارت الكتالوج — نفس تقنية العارض بملء الشاشة الموثوقة:
+   <img> بسيطة بلا transform/transition على الصورة نفسها (السبب الجذري
+   لظهور الصور السوداء على الجوال). تملأ إطار 3:4 بـ object-cover. */
+.lsm-card-img {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* الصور تحت الإصبع لا تُختار/تُسحب كصورة */

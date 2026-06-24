@@ -167,7 +167,7 @@ export default function CatalogCard({
           }}
         >
           <div className="lsm-embla__container flex h-full">
-            {slides.map(({ key, img, product }, i) => (
+            {slides.map(({ key, img, product }) => (
               <div
                 key={key}
                 className="lsm-embla__slide relative h-full min-w-0 flex-[0_0_100%]"
@@ -180,9 +180,9 @@ export default function CatalogCard({
                   <img
                     src={img}
                     alt={product.title}
-                    className="absolute inset-0 h-full w-full select-none object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+                    className="lsm-card-img"
                     draggable={false}
-                    loading={i === 0 ? 'eager' : 'lazy'}
+                    loading="eager"
                     decoding="async"
                   />
                 ) : (
