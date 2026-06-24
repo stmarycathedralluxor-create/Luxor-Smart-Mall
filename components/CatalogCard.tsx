@@ -173,10 +173,8 @@ export default function CatalogCard({
                 className="lsm-embla__slide h-full min-w-0 flex-[0_0_100%]"
               >
                 {img ? (
-                  // صورة ضمن التدفّق (in-flow) تملأ الشريحة بـ object-cover.
-                  // ليست `position:absolute` لأن ذلك كان يمنع WebKit على الجوال
-                  // من رسم الشرائح خارج الشاشة (تظهر سوداء). نضمن فكّ التشفير
-                  // فور التحميل عبر decode() حتى تُرسم كل الشرائح مسبقاً.
+                  // صورة عادية ضمن التدفّق تملأ الشريحة بـ object-cover.
+                  // لا حِيَل GPU/WebKit — أبسط طريقة وأكثرها ثباتاً عبر المتصفّحات.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={img}
@@ -185,14 +183,6 @@ export default function CatalogCard({
                     draggable={false}
                     loading="eager"
                     decoding="async"
-                    // فكّ تشفير الصورة بمجرّد تحميلها يجبر مسار رسم على الجوال
-                    // فلا تبقى الشريحة خارج الشاشة بلا طبقة مرسومة (سوداء).
-                    onLoad={(e) => {
-                      const el = e.currentTarget;
-                      if (typeof el.decode === 'function') {
-                        el.decode().catch(() => {});
-                      }
-                    }}
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-white/15">

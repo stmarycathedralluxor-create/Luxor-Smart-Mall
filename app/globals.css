@@ -180,6 +180,13 @@ body {
    لا Swiper إطلاقاً. الكارت الصغير والعارض بملء الشاشة متزامنان عبر فهرس
    مشترك واحد. الصور <img> أصلية لتحميل موثوق وسريع من الـ CDN. */
 
+/* ════════════ نهج مبسّط: لا أي طبقات GPU إطلاقاً ════════════
+   كل محاولات الإصلاح السابقة أضافت حِيَل تركيب GPU (translateZ / backface /
+   will-change). هذه الحيل بالذات هي ما يُربك مُركِّب WebKit على iOS فيُسقِط
+   الطبقات خارج الشاشة (الصور سوداء). الحل النهائي والأبسط: إزالة هذه الحيل
+   تماماً. شرائح عادية (position:relative) بصور in-flow بـ object-fit ترسمها
+   كل المتصفّحات بثبات. */
+
 /* ─── معاينة كارت الكتالوج (CatalogCard) ─── */
 /* الـ viewport يأخذ كامل ارتفاع الإطار 3:4 */
 .lsm-embla,
@@ -192,74 +199,42 @@ body {
   touch-action: pan-y;
 }
 
-/* ════════════ إصلاح جذري لمشكلة "الصورة السوداء" على الجوال ════════════
-   السبب الحقيقي لم يكن `position:absolute` بل الإفراط في ترقية الطبقات:
-   كان كل من الشريحة والصورة يحمل `translateZ(0)` + `backface-visibility:hidden`.
-   هذا يجبر Safari/WebKit على iOS على إنشاء طبقة تركيب (compositing layer)
-   مستقلّة لكل شريحة وصورة. ومع حدود ذاكرة الطبقات على iOS، يُسقِط المتصفّح
-   الطبقات الموجودة خارج الشاشة فتظهر سوداء.
-
-   الحل: نرقّي طبقة GPU واحدة فقط — حاوية Embla التي يحرّكها الكاروسيل بـ
-   transform — فيركّب WebKit كل الشرائح ضمن طبقة واحدة بدل عشرات الطبقات.
-   نزيل تماماً ترقية الطبقات عن الشرائح والصور. */
-.lsm-embla__container {
-  /* الحاوية وحدها هي ما يُحرَّك بـ transform → ترقيتها لطبقة واحدة كافٍ. */
-  will-change: transform;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
-
 .lsm-embla__slide {
   position: relative;
-  /* لا ترقية طبقة هنا (كانت تسبّب الصور السوداء على iOS). */
 }
 
-/* صورة كارت الكتالوج — عنصر عادي ضمن التدفّق (in-flow) يملأ الشريحة بـ
-   object-cover، بدون أي ترقية طبقة GPU (translateZ/backface). */
+/* صورة كارت الكتالوج — عنصر عادي ضمن التدفّق يملأ الشريحة بـ object-cover. */
 .lsm-card-img {
   display: block;
   position: relative;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  -webkit-user-drag: none;
   user-select: none;
-  -webkit-touch-callout: none;
 }
 
-/* الصور تحت الإصبع لا تُختار/تُسحب كصورة */
+/* الصور تحت الإصبع لا تُختار كنص */
 .lsm-embla img,
 .lsm-cat-embla img {
-  -webkit-user-drag: none;
   user-select: none;
-  -webkit-touch-callout: none;
 }
 
 /* ─── معاينة صفحة تفاصيل الكتالوج (MagazineFlipbook) ─── */
 .lsm-cat-embla {
   touch-action: pan-y;
 }
-/* ترقية طبقة واحدة فقط على الحاوية (نفس إصلاح كارت الكتالوج). */
-.lsm-cat-embla__container {
-  will-change: transform;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
 .lsm-cat-embla__slide {
   position: relative;
-  /* لا ترقية طبقة على الشريحة (كانت تسبّب صوراً سوداء على iOS). */
 }
 
-/* صورة معاينة الكتالوج (object-contain) — عنصر ضمن التدفّق بدون ترقية طبقة. */
+/* صورة معاينة الكتالوج (object-contain) — عنصر ضمن التدفّق. */
 .lsm-cat-img {
   display: block;
   position: relative;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  -webkit-user-drag: none;
   user-select: none;
-  -webkit-touch-callout: none;
 }
 
 /* قطار الكتالوجات الأفقي: التمرير العمودي مسموح، الأفقي يلتقطه Embla */
@@ -288,15 +263,8 @@ body {
   /* السحب الأفقي للتنقّل بين الصور (السحب العمودي يلتقطه Motion للإغلاق) */
   touch-action: pan-y;
 }
-/* ترقية طبقة واحدة على الحاوية فقط (نفس إصلاح الصور السوداء). */
-.lsm-cf-embla__container {
-  will-change: transform;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
 .lsm-cf-embla__slide {
   position: relative;
-  /* لا ترقية طبقة على الشريحة (كانت تسبّب صوراً سوداء على iOS). */
 }
 
 /* الصورة تحترم نسبتها بالكامل (object-contain) على خلفية داكنة، مع تكبير
@@ -311,9 +279,7 @@ body {
   object-fit: contain;
   border-radius: 0.75rem;
   box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.65);
-  -webkit-user-drag: none;
   user-select: none;
-  -webkit-touch-callout: none;
 }
 
 /* لمعة لطيفة على أزرار التنقّل عند المرور */

@@ -155,9 +155,8 @@ export default function MagazineFlipbook({
               <div key={key} className="lsm-cat-embla__slide min-w-0 flex-[0_0_100%]">
                 <div className="relative w-full aspect-square sm:aspect-[4/3]">
                   {img ? (
-                    // صورة ضمن التدفّق (in-flow) بدل position:absolute حتى يرسمها
-                    // WebKit على الجوال وهي خارج الشاشة (وإلا تظهر سوداء). كل
-                    // الصور eager + decode() لضمان رسمها مسبقاً قبل التمرير.
+                    // صورة عادية ضمن التدفّق بـ object-contain.
+                    // لا حِيَل GPU/WebKit — أبسط وأكثر ثباتاً عبر المتصفّحات.
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={img}
@@ -166,12 +165,6 @@ export default function MagazineFlipbook({
                       draggable={false}
                       loading="eager"
                       decoding="async"
-                      onLoad={(e) => {
-                        const el = e.currentTarget;
-                        if (typeof el.decode === 'function') {
-                          el.decode().catch(() => {});
-                        }
-                      }}
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-white/15">
