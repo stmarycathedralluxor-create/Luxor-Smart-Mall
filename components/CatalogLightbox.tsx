@@ -15,6 +15,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 
 import { useLocale } from '@/components/LocaleProvider';
 import { useHaptics } from '@/lib/haptics';
+import { cdnImage } from '@/lib/utils';
 import type { CatalogSlide, CardStore } from '@/lib/catalog';
 
 /**
@@ -168,7 +169,7 @@ export default function CatalogLightbox({
                   {showStore.logo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={showStore.logo_url}
+                      src={cdnImage(showStore.logo_url, 96)}
                       alt={showStore.name ?? ''}
                       className="h-full w-full object-cover"
                       loading="eager"
@@ -200,17 +201,10 @@ export default function CatalogLightbox({
             </div>
           </div>
 
-          {/* الكاروسيل (Embla) — سحب أفقي للتنقّل + سحب لأسفل للإغلاق */}
-          <motion.div
-            className="relative z-0 flex min-h-0 flex-1 items-center justify-center px-1 pb-1"
-            drag={reduceMotion ? false : 'y'}
-            dragDirectionLock
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0.05, bottom: 0.6 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 120 || info.velocity.y > 700) onClose();
-            }}
-          >
+          {/* الكاروسيل (Embla) — سحب أفقي للتنقّل بين الصور فقط.
+              تم تعطيل السحب لأسفل للإغلاق (drag-to-dismiss) بناءً على الطلب:
+              الإغلاق يتم عبر زر X أو النقر على الخلفية أو مفتاح Escape فقط. */}
+          <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center px-1 pb-1">
             <div className="lsm-cf-embla h-full w-full overflow-hidden" ref={emblaRef}>
               <div className="lsm-cf-embla__container flex h-full">
                 {items.map(({ key, img, product }, i) => (
@@ -221,7 +215,7 @@ export default function CatalogLightbox({
                     {img && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={img}
+                        src={cdnImage(img, 1400, 82)}
                         alt={product.title}
                         className="lsm-cf-img"
                         draggable={false}
@@ -257,7 +251,7 @@ export default function CatalogLightbox({
                 </button>
               </>
             )}
-          </motion.div>
+          </div>
 
           {/* العنوان + زر «عرض المنتج» + شريط تقدّم رفيع */}
           <div className="relative z-10 flex flex-col items-center gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">

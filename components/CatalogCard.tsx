@@ -14,6 +14,7 @@ import ShareButton from '@/components/ShareButton';
 import { useLocale } from '@/components/LocaleProvider';
 import { useHaptics } from '@/lib/haptics';
 import { buildCatalogSlides, type CardStore } from '@/lib/catalog';
+import { cdnImage } from '@/lib/utils';
 import type { ProductWithStore } from '@/lib/types';
 
 /**
@@ -179,11 +180,11 @@ export default function CatalogCard({
                 {img ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={img}
+                    src={cdnImage(img, 700)}
                     alt={product.title}
                     className="lsm-card-img"
                     draggable={false}
-                    loading="eager"
+                    loading="lazy"
                     decoding="async"
                   />
                 ) : (
