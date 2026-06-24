@@ -173,22 +173,18 @@ export default function CatalogCard({
                 className="lsm-embla__slide relative h-full min-w-0 flex-[0_0_100%]"
               >
                 {img ? (
-                  <motion.div
-                    className="relative h-full w-full"
-                    initial={false}
-                    animate={{ scale: i === index ? 1 : 1.04 }}
-                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={img}
-                      alt={product.title}
-                      className="h-full w-full select-none object-cover"
-                      draggable={false}
-                      loading={i === 0 ? 'eager' : 'lazy'}
-                      decoding="async"
-                    />
-                  </motion.div>
+                  // صورة fill بسيطة وموثوقة (نفس أسلوب العارض الذي يعمل):
+                  // <img> مطلقة تملأ الشريحة بـ object-cover، بلا أي تحويل
+                  // (transform) متداخل كان يسبّب ظهور صور سوداء على الجوال.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={img}
+                    alt={product.title}
+                    className="absolute inset-0 h-full w-full select-none object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+                    draggable={false}
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                  />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-white/15">
                     <BookOpen size={48} />
