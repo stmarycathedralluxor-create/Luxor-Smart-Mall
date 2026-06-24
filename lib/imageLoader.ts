@@ -82,6 +82,38 @@ export default function imageLoader({
     return `${url.origin}/cdn-cgi/image/${opts}${url.pathname}${url.search}`;
   }
 
-  // r2.dev / Supabase / any other origin: serve straight from the CDN.
+  // ── Supabase Storage: use Supabase's OWN image transformer ──────────────
+  // Legacy images still hosted on Supabase load at full resolution otherwise,
+  // which is the #1 cause of slow first paint on iOS / Safari (a 200px
+  // thumbnail still downloads the multi-megapixel original).
+  //
+  // Supabase Storage exposes a native render/transform endpoint:
+  //   /storage/v1/render/image/public/<bucket>/<path>?width=&quality=&resize=
+  // This is served by Supabase (NOT Cloudflare's /cdn-cgi/image and NOT
+  // Vercel's /_next/image), so it adds nothing to either provider's quota.
+  // We just rewrite the public object URL to the render URL and append the
+  // width next/image is actually asking for, capped at the 2000px we store.
+  if (/\.supabase\.(co|in)$/i.test(url.hostname)) {
+    const objectMatch = url.pathname.match(
+      /^\/storage\/v1\/object\/public\/(.+)$/
+    );
+    if (objectMatch) {
+      const q = Math.min(Math.max(quality ?? 70, 20), 100);
+      const w = Math.min(Math.max(Math.round(width) || 256, 16), 2000);
+      const params = new URLSearchParams(url.search);
+      params.set('width', String(w));
+      params.set('quality', String(q));
+      // scale-down: never upscale beyond the stored original (saves bytes,
+      // keeps sharpness on retina screens via next/image's srcset widths).
+      params.set('resize', 'contain');
+      return `${url.origin}/storage/v1/render/image/public/${objectMatch[1]}?${params.toString()}`;
+    }
+    return src;
+  }
+
+  // r2.dev / any other origin (e.g. pub-*.r2.dev which can't resize at the
+  // edge): serve straight from the CDN. Uploads are already capped at 2000px
+  // / ~220 KB WebP, and CroppedImage adds lazy/async decoding so iOS doesn't
+  // block painting on these.
   return src;
 }

@@ -14,13 +14,12 @@ export default function ProductsCarousel({ products }: { products: ProductWithSt
   return (
     <HomeCarousel
       count={products.length}
-      slidesPerViewBase={2.1}
-      spaceBetween={14}
+      fullWidth
       breakpoints={{
-        480: { slidesPerView: 2.3, spaceBetween: 14 },
-        640: { slidesPerView: 2.8, spaceBetween: 16 },
-        768: { slidesPerView: 3.4, spaceBetween: 18 },
-        1024: { slidesPerView: 4.3, spaceBetween: 20 },
+        // موبايل: كارت واحد بعرض الشاشة بالكامل، والسحب ينقل لكارت واحد.
+        640: { slidesPerView: 2.4, spaceBetween: 16 },
+        768: { slidesPerView: 3.2, spaceBetween: 18 },
+        1024: { slidesPerView: 4.2, spaceBetween: 20 },
       }}
     >
       {products.map((p) => (

@@ -333,3 +333,15 @@ body {
   opacity: 0.3;
   cursor: not-allowed;
 }
+
+/* ── وضع العرض الكامل (fullWidth): كارت واحد بعرض الشاشة على الموبايل ──
+   نقصّ الشرائح المجاورة حتى تظهر بطاقة واحدة فقط، والسحب ينقل لكارت واحد.
+   على الشاشات الأكبر (sm+) نعيد إظهار الظل الجانبي ونسمح بعرض أكثر من كارت. */
+.lsm-hc-full .swiper {
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .lsm-hc-full .swiper {
+    overflow: visible;
+  }
+}
