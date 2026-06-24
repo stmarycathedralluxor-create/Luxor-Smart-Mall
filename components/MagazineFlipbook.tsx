@@ -9,7 +9,6 @@ import Autoplay from 'embla-carousel-autoplay';
 
 import CatalogLightbox from '@/components/CatalogLightbox';
 import { buildCatalogSlides } from '@/lib/catalog';
-import { cdnImage } from '@/lib/utils';
 import type { ProductWithStore, Store } from '@/lib/types';
 
 // Re-export so existing imports from this module keep working.
@@ -162,11 +161,11 @@ export default function MagazineFlipbook({
                   {img ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={cdnImage(img, 1000)}
+                      src={img}
                       alt={product.title}
                       className="lsm-cat-img"
                       draggable={false}
-                      loading="lazy"
+                      loading="eager"
                       decoding="async"
                     />
                   ) : (
