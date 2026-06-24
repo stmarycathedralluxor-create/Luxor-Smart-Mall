@@ -270,3 +270,50 @@ export function buildProductShareCaption(p: {
 
   return lines.join('\n');
 }
+
+/* ─────────── CDN image resizing for plain <img> tags ───────────
+ *
+ * next/image runs through lib/imageLoader.ts, but the catalog card / lightbox
+ * / flipbook use native <img> for instant rendering. Those bypass the loader
+ * and would otherwise download the full-resolution original — the main cause
+ * of slow image loading, especially on iOS.
+ *
+ * `cdnImage(src, width, quality)` mirrors imageLoader: on a Cloudflare
+ * resize-capable host (custom domain, NOT r2.dev / Supabase) it rewrites to
+ * `/cdn-cgi/image/<opts>/<path>` so the edge serves a properly sized,
+ * auto-format (WebP/AVIF) image — straight from the CDN, never Vercel.
+ * Otherwise the original URL is returned untouched, so nothing breaks.
+ */
+function cfImageHost(): string | null {
+  const force = process.env.NEXT_PUBLIC_CF_IMAGE_RESIZING;
+  if (force === '0') return null;
+  const base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+  if (!base) return null;
+  let host: string;
+  try {
+    host = new URL(base).hostname;
+  } catch {
+    return null;
+  }
+  if (/\.r2\.dev$/i.test(host) && force !== '1') return null;
+  return host;
+}
+
+export function cdnImage(src?: string | null, width = 1080, quality = 78): string {
+  if (!src) return '';
+  if (!/^https?:\/\//i.test(src)) return src;
+  let url: URL;
+  try {
+    url = new URL(src);
+  } catch {
+    return src;
+  }
+  const host = cfImageHost();
+  if (host && url.hostname === host && !url.pathname.startsWith('/cdn-cgi/')) {
+    const q = Math.min(Math.max(quality, 1), 100);
+    const w = Math.min(Math.max(Math.round(width) || 256, 16), 2048);
+    const opts = `width=${w},quality=${q},format=auto,fit=scale-down`;
+    return `${url.origin}/cdn-cgi/image/${opts}${url.pathname}${url.search}`;
+  }
+  return src;
+}

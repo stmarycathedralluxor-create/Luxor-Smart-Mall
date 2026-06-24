@@ -1,39 +1,87 @@
 /**
- * Passthrough image loader for next/image.
+ * Smart image loader for next/image — NO Vercel image optimization.
  *
  * Why this exists
  * ---------------
- * We want to STOP using Vercel's on-demand Image Optimization API (the
+ * We deliberately avoid Vercel's on-demand Image Optimization API (the
  * `/_next/image?...` endpoint) because every transformation it serves counts
  * against the limited free-tier quota.
  *
- * The naive way to do that is `images.unoptimized: true`, but that flag also
- * makes next/image stop emitting a `srcset` and the intrinsic responsive
- * markup. Some of our layouts (especially wide desktop views that rely on the
- * `sizes` prop, `fill` + `object-*`, and the lightbox) depend on that markup,
- * and dropping it caused images to render at the wrong size or not show up.
+ * `images.unoptimized: true` would also strip the responsive `srcset` and the
+ * intrinsic sizing markup next/image emits, which several layouts rely on
+ * (wide desktop views using `sizes`, `fill` + `object-*`, the lightbox).
+ * A custom `loader` keeps that full responsive behaviour while letting US pick
+ * the final URL — so the bytes always come straight from the origin CDN and
+ * NO Vercel optimization invocation ever happens.
  *
- * A custom `loader` keeps next/image's full responsive behaviour intact
- * (it still builds `srcset`/`sizes`, layout boxes, lazy-loading, etc.) while
- * letting US decide the final URL. Here we simply return the original source
- * URL unchanged — the bytes come straight from the origin CDN (Cloudflare R2
- * or Supabase Storage), so NO Vercel optimization invocation ever happens.
+ * Performance (slow images, especially iOS)
+ * -----------------------------------------
+ * Previously this loader returned the *original* URL unchanged, so a thumbnail
+ * shown at 200px still downloaded the full multi-megapixel upload — megabytes
+ * per image, slow first paint on mobile/Safari.
  *
- * Net effect: identical visual/markup behaviour to the optimized build, but
- * zero image-optimization quota usage.
+ * When the image lives on a Cloudflare-backed origin that supports
+ * **Cloudflare Image Resizing** (a custom domain on a Cloudflare zone), we now
+ * rewrite the URL to `/cdn-cgi/image/<options>/<source>` so the edge serves a
+ * correctly sized, auto-format (WebP/AVIF) image. This is delivered straight
+ * from Cloudflare's edge cache and does NOT touch Vercel's optimizer quota.
+ *
+ * Safe fallback: `pub-*.r2.dev` public buckets and Supabase Storage do NOT
+ * support `/cdn-cgi/image/`, so for those origins we return the original URL
+ * unchanged (identical to the old behaviour) — nothing breaks.
  */
+
+/**
+ * Hostname that supports Cloudflare Image Resizing via `/cdn-cgi/image/`.
+ * Derived from NEXT_PUBLIC_R2_PUBLIC_URL, but only when it is NOT an `r2.dev`
+ * URL (those can't resize). Force on/off with NEXT_PUBLIC_CF_IMAGE_RESIZING.
+ */
+function cfResizeHost(): string | null {
+  const force = process.env.NEXT_PUBLIC_CF_IMAGE_RESIZING;
+  if (force === '0') return null;
+
+  const base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+  if (!base) return null;
+  let host: string;
+  try {
+    host = new URL(base).hostname;
+  } catch {
+    return null;
+  }
+  // Default r2.dev buckets can't do Image Resizing → skip (unless forced on).
+  if (/\.r2\.dev$/i.test(host) && force !== '1') return null;
+  return host;
+}
+
 export default function imageLoader({
   src,
+  width,
+  quality,
 }: {
   src: string;
   width: number;
   quality?: number;
 }): string {
-  // Already an absolute URL (R2 / Supabase / any https origin): serve as-is.
-  if (/^https?:\/\//i.test(src) || src.startsWith('//') || src.startsWith('data:')) {
+  // Local/public asset (e.g. "/logo.png") or data URI: serve as-is.
+  if (!/^https?:\/\//i.test(src)) return src;
+
+  let url: URL;
+  try {
+    url = new URL(src);
+  } catch {
     return src;
   }
-  // Local/public asset (e.g. "/logo.png"): return the path untouched so it is
-  // served directly from /public instead of through the optimizer.
+
+  const host = cfResizeHost();
+
+  // Only rewrite images on the resize-capable Cloudflare host.
+  if (host && url.hostname === host && !url.pathname.startsWith('/cdn-cgi/')) {
+    const q = Math.min(Math.max(quality ?? 75, 1), 100);
+    const w = Math.min(Math.max(Math.round(width) || 256, 16), 2048);
+    const opts = `width=${w},quality=${q},format=auto,fit=scale-down`;
+    return `${url.origin}/cdn-cgi/image/${opts}${url.pathname}${url.search}`;
+  }
+
+  // r2.dev / Supabase / any other origin: serve straight from the CDN.
   return src;
 }
