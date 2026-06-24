@@ -44,7 +44,6 @@ export default function CatalogCard({
   count: number;
 }) {
   const { t } = useLocale();
-  const { locale } = useLocale();
   const slides = useMemo(() => buildCatalogSlides(products), [products]);
   const total = slides.length;
   const buzz = useHaptics();
@@ -64,8 +63,12 @@ export default function CatalogCard({
       }),
     []
   );
+  // نثبّت الكاروسيل على LTR دائماً (مثل العارض بملء الشاشة). في الوضع RTL
+  // (العربية، dir="rtl" على <html>) كان Embla يحسب إزاحات الشرائح باتجاه
+  // معاكس لتخطيط الـ flex، فتهبط الشرائح خارج منطقة العرض وتظهر خلفية الكارت
+  // السوداء بدل الصورة. تثبيت LTR يجعل الكارت متطابقاً في العربية والإنجليزية.
   const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: total > 1, align: 'center', containScroll: false, dragFree: false },
+    { direction: 'ltr', loop: total > 1, align: 'center', containScroll: false, dragFree: false },
     total > 1 ? [autoplay] : []
   );
 
@@ -148,8 +151,9 @@ export default function CatalogCard({
     >
       {/* الكارت الكبير 3:4 — السحب يبدّل الصور، والنقر يفتح ملء الشاشة */}
       <div className="relative m-2 mb-0 aspect-[3/4] overflow-hidden rounded-2xl bg-luxor-obsidian">
-        {/* Embla viewport — قابل للسحب فعلاً (ليس داخل زر) */}
+        {/* Embla viewport — LTR ثابت (مثل العارض) كي يتطابق في العربية والإنجليزية */}
         <div
+          dir="ltr"
           className="lsm-embla h-full w-full cursor-pointer overflow-hidden"
           ref={emblaRef}
           role="button"
@@ -173,8 +177,6 @@ export default function CatalogCard({
                 className="lsm-embla__slide h-full min-w-0 flex-[0_0_100%]"
               >
                 {img ? (
-                  // صورة عادية ضمن التدفّق تملأ الشريحة بـ object-cover.
-                  // لا حِيَل GPU/WebKit — أبسط طريقة وأكثرها ثباتاً عبر المتصفّحات.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={img}
@@ -203,22 +205,22 @@ export default function CatalogCard({
           <Maximize2 size={13} /> {t.common.fullscreen}
         </span>
 
-        {/* أزرار تنقّل (تظهر على الأجهزة المزوّدة بمؤشّر) */}
+        {/* أزرار تنقّل (الكاروسيل LTR ثابت: يسار = السابق، يمين = التالي) */}
         {total > 1 && (
           <>
             <button
               type="button"
-              onClick={locale === 'ar' ? scrollNext : scrollPrev}
+              onClick={scrollPrev}
               aria-label={t.common.prev}
-              className="absolute start-2 top-[42%] z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white opacity-0 backdrop-blur transition hover:bg-black/70 group-hover:opacity-100 active:scale-90 md:inline-flex"
+              className="absolute left-2 top-[42%] z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white opacity-0 backdrop-blur transition hover:bg-black/70 group-hover:opacity-100 active:scale-90 md:inline-flex"
             >
               <ChevronLeft size={20} />
             </button>
             <button
               type="button"
-              onClick={locale === 'ar' ? scrollPrev : scrollNext}
+              onClick={scrollNext}
               aria-label={t.common.next}
-              className="absolute end-2 top-[42%] z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white opacity-0 backdrop-blur transition hover:bg-black/70 group-hover:opacity-100 active:scale-90 md:inline-flex"
+              className="absolute right-2 top-[42%] z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white opacity-0 backdrop-blur transition hover:bg-black/70 group-hover:opacity-100 active:scale-90 md:inline-flex"
             >
               <ChevronRight size={20} />
             </button>
