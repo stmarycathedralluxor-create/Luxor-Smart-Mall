@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import {
   BookOpen, Sparkles, Store as StoreIcon, Maximize2,
 } from 'lucide-react';
@@ -9,25 +8,25 @@ import { motion, useReducedMotion } from 'motion/react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 
-import { buildCatalogSlides } from '@/components/MagazineFlipbook';
 import CatalogLightbox from '@/components/CatalogLightbox';
 import ShareButton from '@/components/ShareButton';
 import { useLocale } from '@/components/LocaleProvider';
 import { useHaptics } from '@/lib/haptics';
-import type { ProductWithStore, Store } from '@/lib/types';
-
-type CardStore = Pick<Store, 'name' | 'slug' | 'logo_url'> | null | undefined;
+import { buildCatalogSlides, type CardStore } from '@/lib/catalog';
+import type { ProductWithStore } from '@/lib/types';
 
 /**
- * CatalogCard — كارت كتالوج كبير (نسبة 3:4) في صفحة الكتالوجات والرئيسية.
+ * CatalogCard — كارت كتالوج كبير (نسبة 3:4)، Mobile-First، مبني على:
  *
- * أُعيد بناؤه بـ:
- *  • Embla Carousel  → تمرير تلقائي ناعم بين صور المنتجات (صورة واحدة لكل منتج)
- *    مع snap محكم وسحب يدوي طبيعي.
- *  • Motion (Framer) → تكبير لطيف عند المرور (scale-on-hover) وإحساس "press".
- *  • Tailwind        → كارت كبير بنسبة 3:4، ظلال ناعمة، حواف مستديرة.
+ *  • Embla Carousel → معاينة تلقائية ناعمة (صورة واحدة لكل منتج) مع snap محكم
+ *    وسحب طبيعي باللمس.
+ *  • Motion (Framer) → تكبير/ضغط لطيف عند التفاعل.
+ *  • <img> أصلية مع loading كسول → تحميل صور موثوق وسريع من الـ CDN مباشرةً.
  *
- * الضغط عليه يفتح عارض كتالوج بملء الشاشة (CatalogLightbox) من نفس الصورة.
+ *  مزامنة كاملة مع العارض بملء الشاشة (CatalogLightbox):
+ *  الفهرس الحالي في الكارت (cardIndex) هو نفسه فهرس العارض، فالضغط يفتح
+ *  العارض على نفس الصورة، وإغلاق العارض يُرجِع الكارت إلى الصورة الأخيرة
+ *  التي شاهدها المستخدم.
  */
 export default function CatalogCard({
   title,
@@ -49,9 +48,8 @@ export default function CatalogCard({
   const reduceMotion = useReducedMotion();
 
   const [open, setOpen] = useState(false);
-  // الفهرس الحالي داخل كاروسيل الكارت (للمزامنة مع العارض بملء الشاشة).
-  const [cardIndex, setCardIndex] = useState(0);
-  const [fsIndex, setFsIndex] = useState(0);
+  // فهرس مشترك بين الكارت والعارض بملء الشاشة (مصدر الحقيقة الواحد للمزامنة).
+  const [index, setIndex] = useState(0);
 
   // Embla: تمرير حر + snap + تشغيل تلقائي يتوقّف عند فتح العارض/مرور الماوس.
   const autoplay = useMemo(
@@ -68,8 +66,9 @@ export default function CatalogCard({
     total > 1 ? [autoplay] : []
   );
 
+  // تتبّع شريحة الكارت → تحدّث الفهرس المشترك.
   const onSelect = useCallback(() => {
-    if (emblaApi) setCardIndex(emblaApi.selectedScrollSnap());
+    if (emblaApi) setIndex(emblaApi.selectedScrollSnap());
   }, [emblaApi]);
 
   useEffect(() => {
@@ -83,30 +82,34 @@ export default function CatalogCard({
     };
   }, [emblaApi, onSelect]);
 
-  // أوقِف التشغيل التلقائي عندما يكون العارض بملء الشاشة مفتوحاً.
+  // عند إغلاق العارض: أوقف autoplay أثناء فتحه، وأعِد الكارت لنفس الصورة.
   useEffect(() => {
     const ap = emblaApi?.plugins?.()?.autoplay as
       | { play: () => void; stop: () => void }
       | undefined;
-    if (!ap) return;
-    if (open) ap.stop();
-    else ap.play();
-  }, [open, emblaApi]);
+    if (open) {
+      ap?.stop();
+    } else {
+      // مزامنة: حرّك الكارت إلى الفهرس الذي انتهى عنده العارض.
+      if (emblaApi && emblaApi.selectedScrollSnap() !== index) {
+        emblaApi.scrollTo(index, true);
+      }
+      ap?.play();
+    }
+  }, [open, emblaApi, index]);
 
   if (!total) return null;
 
   const openFullscreen = () => {
-    setFsIndex(cardIndex);
     setOpen(true);
     buzz('medium');
   };
 
-  // متجر المنتج المعروض حالياً في العارض (للّوجو أعلى اليسار).
-  const activeStore = slides[fsIndex]?.product?.store ?? store ?? null;
+  // متجر المنتج المعروض حالياً في العارض (للّوجو أعلى).
+  const activeStore = slides[index]?.product?.store ?? store ?? null;
 
   return (
     <motion.div
-      // تكبير لطيف للكارت كاملاً عند المرور + إحساس ضغط — ظلال ناعمة.
       whileHover={reduceMotion ? undefined : { scale: 1.02, y: -4 }}
       whileTap={reduceMotion ? undefined : { scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
@@ -129,22 +132,15 @@ export default function CatalogCard({
                   className="lsm-embla__slide relative h-full min-w-0 flex-[0_0_100%]"
                 >
                   {img ? (
-                    <motion.div
-                      className="relative h-full w-full"
-                      // تكبير بطيء ناعم على الصورة عند المرور (Ken-Burns خفيف)
-                      whileHover={reduceMotion ? undefined : { scale: 1.06 }}
-                      transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                      <Image
-                        src={img}
-                        alt={product.title}
-                        fill
-                        sizes="(max-width:640px) 80vw, (max-width:1024px) 45vw, 30vw"
-                        className="select-none object-cover"
-                        draggable={false}
-                        priority={i === 0}
-                      />
-                    </motion.div>
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={img}
+                      alt={product.title}
+                      className="h-full w-full select-none object-cover"
+                      draggable={false}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                      decoding="async"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-white/15">
                       <BookOpen size={48} />
@@ -171,7 +167,7 @@ export default function CatalogCard({
                 <span
                   key={s.key}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === cardIndex
+                    i === index
                       ? 'w-5 bg-luxor-gold shadow-[0_0_8px_rgba(212,175,55,0.7)]'
                       : 'w-1.5 bg-white/45'
                   }`}
@@ -216,8 +212,8 @@ export default function CatalogCard({
       <CatalogLightbox
         open={open}
         slides={slides}
-        index={fsIndex}
-        onIndexChange={setFsIndex}
+        index={index}
+        onIndexChange={setIndex}
         onClose={() => setOpen(false)}
         activeStore={activeStore}
         onNavigate={() => setOpen(false)}

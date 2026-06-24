@@ -1,60 +1,40 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Maximize2, Store as StoreIcon } from 'lucide-react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination, A11y, Autoplay } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/pagination';
+import { motion, useReducedMotion } from 'motion/react';
+import useEmblaCarousel from 'embla-carousel-react';
+import Autoplay from 'embla-carousel-autoplay';
 
 import CatalogLightbox from '@/components/CatalogLightbox';
+import { buildCatalogSlides } from '@/lib/catalog';
 import type { ProductWithStore, Store } from '@/lib/types';
 
-/** شريحة واحدة = صورة واحدة لكل منتج (صورة المنتج الأولى). */
-type Slide = {
-  key: string;
-  img: string | null;
-  product: ProductWithStore;
-};
+// Re-export so existing imports from this module keep working.
+export { buildCatalogSlides } from '@/lib/catalog';
 
 /**
- * يبني شرائح الكتالوج: صورة واحدة فقط لكل منتج (الصورة الأولى).
- * عدد المنتجات غير محدود، لكن لكل منتج صورة واحدة في العرض.
- */
-export function buildCatalogSlides(products: ProductWithStore[]): Slide[] {
-  return products.map((product) => ({
-    key: String(product.id),
-    img: product.images?.[0] ?? null,
-    product,
-  }));
-}
-
-/**
- * MagazineFlipbook — عارض كتالوج أنيق:
+ * MagazineFlipbook — معاينة كتالوج صفحة التفاصيل، Mobile-First، مبنية على
+ * Motion + Embla (لا Swiper):
  *
- *  • معاينة داخل الصفحة (Swiper) تتحرّك لوحدها، صورة واحدة لكل منتج.
- *  • الضغط عليها يفتح عارضاً بملء الشاشة (CatalogLightbox) — سحب طبيعي
- *    وسلس، تكبير، شريط مصغّرات، عرض كامل على الجوال — بدءاً من نفس الصورة.
- *  • الصور object-contain — تُحتوى بالكامل بلا تمطيط ولا قصّ.
+ *  • معاينة داخل الصفحة (Embla) تتحرّك تلقائياً، صورة واحدة لكل منتج.
+ *  • الضغط/السحب يفتح عارضاً بملء الشاشة (CatalogLightbox) من نفس الصورة.
+ *  • مزامنة كاملة: المعاينة والعارض يتشاركان فهرساً واحداً، فيبقيان على
+ *    نفس الصورة عند الفتح والإغلاق.
+ *  • وضع المشاركة (sharedFullView) يفتح العارض بملء الشاشة مباشرةً.
  */
 export default function MagazineFlipbook({
   title,
   products,
   store,
   coverImage,
-  /** تشغيل تلقائي للمعاينة داخل الصفحة (الكارت يتحرّك لوحده). */
   autoPlayPreview = false,
-  /** فتح ملء الشاشة تلقائياً عند فتح رابط المشاركة (?view=full أو #full). */
   autoFullscreenFromUrl = false,
-  /** وضع المشاركة: يفتح العرض بملء الشاشة فقط (بلا معاينة/خلفية) وزر الإغلاق
-   *  يرجع لصفحة الكتالوج العادية بدل كشف معاينة خلفه. */
   sharedFullView = false,
 }: {
   title: string;
   products: ProductWithStore[];
-  /** متجر الكتالوج (احتياطي إن لم يكن للمنتج متجر خاص). */
   store?: Pick<Store, 'name' | 'slug' | 'logo_url'> | null;
   coverImage?: string | null;
   autoPlayPreview?: boolean;
@@ -64,37 +44,76 @@ export default function MagazineFlipbook({
   void coverImage;
   void title;
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
 
-  // صورة واحدة لكل منتج (الصورة الأولى) — عدد المنتجات غير محدود.
-  const slides = useMemo<Slide[]>(() => buildCatalogSlides(products), [products]);
-
+  const slides = useMemo(() => buildCatalogSlides(products), [products]);
   const total = slides.length;
-  // في وضع المشاركة نبدأ بملء الشاشة مباشرةً.
-  const [open, setOpen] = useState(sharedFullView);
-  // الشريحة المعروضة في المعاينة.
-  const [previewIndex, setPreviewIndex] = useState(0);
-  // الفهرس داخل العارض بملء الشاشة.
-  const [fsIndex, setFsIndex] = useState(0);
 
-  // عند فتح رابط مشاركة الكتالوج (الذي يحمل ?view=full أو #full) نفتح
-  // العارض بملء الشاشة مباشرةً.
+  const [open, setOpen] = useState(sharedFullView);
+  // فهرس مشترك بين المعاينة والعارض (مصدر الحقيقة الواحد للمزامنة).
+  const [index, setIndex] = useState(0);
+
+  const autoplay = useMemo(
+    () =>
+      Autoplay({
+        delay: 2600,
+        stopOnInteraction: false,
+        stopOnMouseEnter: true,
+      }),
+    []
+  );
+  const usePreview = !sharedFullView;
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    usePreview ? { loop: total > 1, align: 'center', containScroll: false } : { active: false },
+    usePreview && autoPlayPreview && total > 1 ? [autoplay] : []
+  );
+
+  const onSelect = useCallback(() => {
+    if (emblaApi) setIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
   useEffect(() => {
-    if (!autoFullscreenFromUrl) return;
-    if (typeof window === 'undefined') return;
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+      emblaApi.off('reInit', onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
+  // أوقف autoplay أثناء فتح العارض، وأعِد المعاينة لنفس الصورة عند الإغلاق.
+  useEffect(() => {
+    const ap = emblaApi?.plugins?.()?.autoplay as
+      | { play: () => void; stop: () => void }
+      | undefined;
+    if (open) {
+      ap?.stop();
+    } else {
+      if (emblaApi && emblaApi.selectedScrollSnap() !== index) {
+        emblaApi.scrollTo(index, true);
+      }
+      ap?.play();
+    }
+  }, [open, emblaApi, index]);
+
+  // فتح ملء الشاشة تلقائياً عند رابط المشاركة (?view=full / ?fullscreen=1 / #full).
+  useEffect(() => {
+    if (!autoFullscreenFromUrl || typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const wantsFull =
       params.get('view') === 'full' ||
       params.get('fullscreen') === '1' ||
       window.location.hash === '#full';
     if (wantsFull) {
-      setFsIndex(0);
+      setIndex(0);
       setOpen(true);
     }
   }, [autoFullscreenFromUrl]);
 
   if (!total) return null;
 
-  // إغلاق العرض: في وضع المشاركة نرجع لصفحة الكتالوج العادية (بدون #full).
   const closeFullscreen = () => {
     if (sharedFullView) {
       const clean = typeof window !== 'undefined' ? window.location.pathname : '';
@@ -103,72 +122,47 @@ export default function MagazineFlipbook({
     setOpen(false);
   };
 
-  const openFullscreen = () => {
-    // ابدأ ملء الشاشة من الصورة المعروضة حالياً في المعاينة.
-    setFsIndex(previewIndex);
-    setOpen(true);
-  };
-
-  // متجر المنتج المعروض حالياً (للّوجو في العارض).
-  const activeStore = slides[fsIndex]?.product?.store ?? store ?? null;
+  const activeStore = slides[index]?.product?.store ?? store ?? null;
 
   const lightbox = (
     <CatalogLightbox
       open={open}
       slides={slides}
-      index={fsIndex}
-      onIndexChange={setFsIndex}
+      index={index}
+      onIndexChange={setIndex}
       onClose={closeFullscreen}
       activeStore={activeStore}
       onNavigate={() => setOpen(false)}
     />
   );
 
-  // وضع المشاركة: لا نعرض المعاينة إطلاقاً — العارض بملء الشاشة فقط منذ الفتح.
-  if (sharedFullView) {
-    return lightbox;
-  }
+  // وضع المشاركة: العارض بملء الشاشة فقط منذ الفتح.
+  if (sharedFullView) return lightbox;
 
-  /* ─────────── معاينة داخل الصفحة (تُفتح بملء الشاشة عند الضغط) ─────────── */
+  /* ─────────── معاينة داخل الصفحة (Embla) — الضغط يفتح ملء الشاشة ─────────── */
   return (
     <>
-      <button
+      <motion.button
         type="button"
-        onClick={openFullscreen}
+        onClick={() => setOpen(true)}
         aria-label="افتح الكتالوج بملء الشاشة"
+        whileTap={reduceMotion ? undefined : { scale: 0.99 }}
         className="group relative block w-full overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 to-black"
       >
-        <div className="lsm-cat relative">
-          <Swiper
-            modules={[Pagination, A11y, Autoplay]}
-            dir="ltr"
-            effect="slide"
-            slidesPerView={1}
-            spaceBetween={12}
-            speed={560}
-            grabCursor
-            loop={total > 1}
-            allowTouchMove={false}
-            autoplay={
-              autoPlayPreview && total > 1
-                ? { delay: 2600, disableOnInteraction: false, pauseOnMouseEnter: true }
-                : false
-            }
-            pagination={total > 1 ? { clickable: true, dynamicBullets: true } : false}
-            onSlideChange={(sw) => setPreviewIndex(sw.realIndex)}
-            className="lsm-cat-swiper"
-          >
+        <div className="lsm-cat-embla overflow-hidden" ref={emblaRef}>
+          <div className="lsm-cat-embla__container flex">
             {slides.map(({ key, img, product }, i) => (
-              <SwiperSlide key={key}>
+              <div key={key} className="relative min-w-0 flex-[0_0_100%]">
                 <div className="relative w-full aspect-square sm:aspect-[4/3]">
                   {img ? (
-                    <Image
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
                       src={img}
                       alt={product.title}
-                      fill
-                      sizes="(max-width:768px) 100vw, 800px"
-                      className="object-contain"
-                      priority={i === 0}
+                      className="absolute inset-0 h-full w-full object-contain"
+                      draggable={false}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                      decoding="async"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-white/15">
@@ -176,16 +170,32 @@ export default function MagazineFlipbook({
                     </div>
                   )}
                 </div>
-              </SwiperSlide>
+              </div>
             ))}
-          </Swiper>
+          </div>
         </div>
 
         {/* تلميح ملء الشاشة */}
         <span className="pointer-events-none absolute top-3 end-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition group-hover:bg-black/75">
           <Maximize2 size={14} /> ملء الشاشة
         </span>
-      </button>
+
+        {/* نقاط ترقيم */}
+        {total > 1 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex items-center justify-center gap-1.5">
+            {slides.map((s, i) => (
+              <span
+                key={s.key}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === index
+                    ? 'w-5 bg-luxor-gold shadow-[0_0_8px_rgba(212,175,55,0.7)]'
+                    : 'w-1.5 bg-white/45'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </motion.button>
 
       {lightbox}
     </>
