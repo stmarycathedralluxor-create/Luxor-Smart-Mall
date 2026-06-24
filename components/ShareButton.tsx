@@ -34,6 +34,9 @@ export default function ShareButton({
   variant = 'button',
   label = 'مشاركة',
   className = '',
+  /** اتجاه فتح القائمة المنسدلة على سطح المكتب — 'up' مفيد داخل كروت
+   *  ذات overflow-hidden حتى لا تُقصّ القائمة أسفل الكارت. */
+  menuPlacement = 'down',
 }: {
   path: string;
   title: string;
@@ -41,6 +44,7 @@ export default function ShareButton({
   variant?: 'button' | 'icon';
   label?: string;
   className?: string;
+  menuPlacement?: 'up' | 'down';
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -138,7 +142,11 @@ export default function ShareButton({
       </button>
 
       {open && (
-        <div className="absolute end-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-luxor-gold/20 p-2 z-50 animate-fade-in">
+        <div
+          className={`absolute end-0 w-56 bg-white rounded-2xl shadow-xl border border-luxor-gold/20 p-2 z-50 animate-fade-in ${
+            menuPlacement === 'up' ? 'bottom-full mb-2' : 'mt-2'
+          }`}
+        >
           <div className="flex items-center justify-between px-2 pb-1.5 mb-1 border-b border-luxor-sand">
             <span className="text-xs font-bold text-luxor-navy/70">مشاركة عبر</span>
             <button

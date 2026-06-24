@@ -137,6 +137,7 @@ export const translations: Record<Locale, TranslationShape> = {
       close: 'إغلاق',
       products: 'منتج',
       shareCatalog: 'مشاركة الكتالوج',
+      shareProduct: 'مشاركة المنتج',
     },
     campaign: {
       // Hero
@@ -331,6 +332,7 @@ export const translations: Record<Locale, TranslationShape> = {
       close: 'Close',
       products: 'products',
       shareCatalog: 'Share catalog',
+      shareProduct: 'Share product',
     },
     campaign: {
       badge: '🚀 Join the biggest online marketplace in Luxor',
