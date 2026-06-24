@@ -21,10 +21,9 @@ export default function CategoriesCarousel({ categories }: { categories: Categor
   return (
     <HomeCarousel
       count={categories.length}
-      slidesPerViewBase={2.2}
-      spaceBetween={14}
+      fullWidth
       breakpoints={{
-        480: { slidesPerView: 2.6, spaceBetween: 14 },
+        // موبايل: قسم واحد بعرض الشاشة الكامل، والسحب ينقل لقسم واحد.
         640: { slidesPerView: 3.4, spaceBetween: 16 },
         768: { slidesPerView: 4.4, spaceBetween: 18 },
         1024: { slidesPerView: 5.4, spaceBetween: 20 },

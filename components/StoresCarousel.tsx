@@ -14,9 +14,9 @@ export default function StoresCarousel({ stores }: { stores: Store[] }) {
   return (
     <HomeCarousel
       count={stores.length}
-      slidesPerViewBase={1.1}
-      spaceBetween={18}
+      fullWidth
       breakpoints={{
+        // موبايل: متجر واحد بعرض الشاشة الكامل، والسحب ينقل لمتجر واحد.
         640: { slidesPerView: 1.8, spaceBetween: 20 },
         768: { slidesPerView: 2.2, spaceBetween: 22 },
         1024: { slidesPerView: 3, spaceBetween: 24 },

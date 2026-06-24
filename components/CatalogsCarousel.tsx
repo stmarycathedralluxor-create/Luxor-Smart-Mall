@@ -72,7 +72,7 @@ export default function CatalogsCarousel({ catalogs }: { catalogs: HomeCatalogCa
           {catalogs.map((c) => (
             <div
               key={c.id}
-              className="min-w-0 flex-[0_0_78%] sm:flex-[0_0_46%] lg:flex-[0_0_31%]"
+              className="min-w-0 flex-[0_0_100%] sm:flex-[0_0_46%] lg:flex-[0_0_31%]"
             >
               <CatalogCard
                 title={c.title}
