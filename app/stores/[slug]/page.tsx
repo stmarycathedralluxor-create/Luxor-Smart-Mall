@@ -16,7 +16,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getExpiryInfo, absoluteUrl } from '@/lib/utils';
 import { resolveCatalogProducts } from '@/lib/catalogs';
 import type { Catalog } from '@/lib/types';
-import ProductCard from '@/components/ProductCard';
+import ProductsLazyGrid from '@/components/ProductsLazyGrid';
 import StoreLogoFrame from '@/components/StoreLogoFrame';
 import CroppedImage from '@/components/CroppedImage';
 import WhatsAppButton from '@/components/WhatsAppButton';
@@ -449,11 +449,7 @@ export default async function StorePage({ params }: { params: { slug: string } }
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {products.map((p: any) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
+            <ProductsLazyGrid products={products as any} />
           )}
         </div>
 

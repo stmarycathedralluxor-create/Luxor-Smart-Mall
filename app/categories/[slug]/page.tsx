@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isStoreOpen } from '@/lib/utils';
-import ProductCard from '@/components/ProductCard';
+import ProductsLazyGrid from '@/components/ProductsLazyGrid';
 import CroppedImage from '@/components/CroppedImage';
 import { Package } from 'lucide-react';
 
@@ -63,11 +63,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           <p className="text-luxor-navy/70">لا توجد منتجات في هذا القسم بعد</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {products.map((p: any) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+        <ProductsLazyGrid products={products as any} />
       )}
     </div>
   );

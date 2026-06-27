@@ -164,6 +164,9 @@ export default function HomeContent({
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl md:text-3xl font-bold text-luxor-navy">{t.home.latestProducts}</h2>
+            <Link href="/search" className="text-luxor-gold hover:text-luxor-darkgold font-medium flex items-center gap-1">
+              {t.common.all} <ArrowLeft size={16} className="rtl:rotate-180" />
+            </Link>
           </div>
 
           <ProductsCarousel products={products} />
