@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Search, SlidersHorizontal, X, BookOpen, Tag, Store as StoreIcon, Sparkles,
-  TrendingUp, BadgePercent, Layers, ChevronDown, MapPin, Eye, Zap, CalendarClock,
+  TrendingUp, BadgePercent, Layers, ChevronDown, MapPin, Eye, Zap, CalendarClock, Loader2,
 } from 'lucide-react';
 import CroppedImage from '@/components/CroppedImage';
 import ShareButton from '@/components/ShareButton';
@@ -114,6 +114,40 @@ export default function BrowseAllView({
     (filters.store ? 1 : 0) +
     (filters.min ? 1 : 0) +
     (filters.max ? 1 : 0);
+
+  // ─────────── تحميل تدريجي بنمط أمازون ───────────
+  // كل المنتجات مفلترة في الذاكرة (بحث فوري)، لكن لتفادي البطء عند وجود
+  // آلاف المنتجات نعرض دفعة ونزيدها تلقائياً كلما اقترب المستخدم من النهاية.
+  const PAGE = 12;
+  const [visibleCount, setVisibleCount] = useState(PAGE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // أعِد العدّ إلى الدفعة الأولى عند تغيّر الفلاتر/النتائج
+  useEffect(() => {
+    setVisibleCount(PAGE);
+  }, [filters]);
+
+  const visibleProducts = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount]
+  );
+  const hasMore = visibleCount < filtered.length;
+
+  useEffect(() => {
+    if (!isProducts || !hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((c) => Math.min(c + PAGE, filtered.length));
+        }
+      },
+      { rootMargin: '600px 0px' }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [isProducts, hasMore, filtered.length]);
 
   return (
     <div className="bg-luxor-sandlight/30 min-h-screen">
@@ -328,11 +362,28 @@ export default function BrowseAllView({
             )}
           </div>
         ) : isProducts ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {filtered.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          <>
+            {/* عمودان على الموبايل، وأكثر على الشاشات الأكبر */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+              {visibleProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+
+            {/* عنصر المراقبة للتحميل التدريجي + المؤشر */}
+            <div ref={sentinelRef} className="mt-8 flex justify-center">
+              {hasMore ? (
+                <span className="inline-flex items-center gap-2 text-luxor-darkgold">
+                  <Loader2 size={20} className="animate-spin" />
+                  جارٍ التحميل…
+                </span>
+              ) : (
+                filtered.length > PAGE && (
+                  <span className="text-sm text-luxor-obsidian/40">— وصلت إلى النهاية —</span>
+                )
+              )}
+            </div>
+          </>
         ) : (
           <MagazineGrid products={filtered} />
         )}
